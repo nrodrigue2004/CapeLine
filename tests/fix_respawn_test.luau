@@ -358,7 +358,26 @@ return function(T: any)
 					order[b.LayoutOrder] = b.Name
 				end
 			end
+			local picks = 0
 			for i = 1, #order - 1 do
+				if order[i] == "origin" or order[i] == "powers" then
+					-- (first-30, 2026-11-20) NEXT stays on these until something is picked: pick the first row
+					for _, c in gui:GetDescendants() do
+						if
+							c:IsA("TextButton")
+							and c.Text == ""
+							and c.Visible
+							and c.BackgroundColor3 == Kit.color.paper
+							and c:FindFirstChildWhichIsA("TextLabel")
+						then
+							sim:tap(c)
+							picks += 1
+							break
+						end
+					end
+					sim:advance(0.5)
+					builds = 0 -- the pick changed the look; the presses alone must not rebuild it
+				end
 				local d0 = #gui:GetDescendants()
 				sim:tap(nextB)
 				-- the press shows at once: the next step lit before any list is drawn
@@ -370,7 +389,7 @@ return function(T: any)
 				sim:advance(0.1)
 			end
 			check(
-				Kit.TAPS.fires - before == #order - 1,
+				Kit.TAPS.fires - before == #order - 1 + picks,
 				"every press fired once: " .. (Kit.TAPS.fires - before)
 			)
 			check(nextB.Text == "PLAY", "the last step reads PLAY")

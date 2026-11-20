@@ -212,6 +212,24 @@ function BossMath.styleRoll(Config: any, tier: string, rng: any): (boolean, bool
 end
 
 -- A local offset (x right, y up, -z forward) turned by the boss's yaw (Roblox: CFrame.Angles(0, yaw, 0))
+-- A new hero's first bosses (boss fights pass, 2026-11-20): a hero newHero.gap or more levels below the boss takes at
+-- most newHero.maxHit of its max health from one boss hit (before its own mitigation), so a level 5 to 10 hero in its
+-- first 30 minutes dodges, gets hit and keeps fighting a median-level boss instead of spending a third of the fight
+-- Downed. Everyone closer to the boss's level takes the hit as it is.
+function BossMath.newHeroHit(
+	Config: any,
+	amount: number,
+	heroLevel: number,
+	bossLevel: number,
+	maxHealth: number
+): number
+	local N = Config.Boss.newHero
+	if not N or bossLevel - heroLevel < N.gap or maxHealth <= 0 then
+		return amount
+	end
+	return math.min(amount, maxHealth * N.maxHit)
+end
+
 function BossMath.worldOffset(yaw: number, ox: number, oy: number, oz: number): (number, number, number)
 	local c, s = math.cos(yaw), math.sin(yaw)
 	return ox * c + oz * s, oy, -ox * s + oz * c

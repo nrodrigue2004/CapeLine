@@ -488,7 +488,16 @@ function IntroFilm.film(Config: any, st: Stage): Film
 		{ t = 11.0, kind = "title" },
 		{ t = 13, kind = "music", text = "patrolNight" },
 		{ t = 15.2, kind = "scan", actor = "scanner", q = S_(-12, 6, 0) },
+		-- (first-30, 2026-11-20: Crane's and his heroes' shots had 9 s with nothing landing; Crane arrives in a
+		-- gold shimmer, his three heroes land one after another)
+		{ t = 19.6, kind = "arrive", actor = "crane", text = "crane" },
+		{ t = 23.55, kind = "arrive", actor = "Radiant", text = "fake" },
+		{ t = 23.8, kind = "arrive", actor = "Bulwark", text = "fake" },
+		{ t = 24.05, kind = "arrive", actor = "Skylance", text = "fake" },
 		{ t = 26.3, kind = "crack", actor = "Radiant" },
+		-- (the Vigil's and the Syndicate's shots had 8 s: each side arrives with a burst in its colour and a whoosh)
+		{ t = 28.6, kind = "arrive", actor = "vigil", text = "vigil" },
+		{ t = 31.6, kind = "arrive", actor = "syndicate", text = "syndicate" },
 		{ t = 34.8, kind = "rise" },
 		{ t = 42.2, kind = "spark", actor = "you" },
 		{ t = 44.4, kind = "flash" },
@@ -499,7 +508,10 @@ function IntroFilm.film(Config: any, st: Stage): Film
 		{ t = 8.8, kind = "word", text = "BLAM!", actor = "drone3" },
 		{ t = 10.25, kind = "word", text = "THOOM!", p = land },
 		{ t = 17.2, kind = "word", text = "SPARK DETECTED", actor = "runner" },
+		{ t = 23.6, kind = "word", text = "THUD!", actor = "Bulwark" },
 		{ t = 26.4, kind = "word", text = "KRZZT!", actor = "Radiant" },
+		{ t = 28.7, kind = "word", text = "FWOOSH!", actor = "vigil" },
+		{ t = 31.7, kind = "word", text = "SHHRAK!", actor = "syndicate" },
 		{ t = 42.3, kind = "word", text = "ZAP!", actor = "you" },
 	}
 	-- the captions: the lore doc's words (from = "lore") and the game's own lines (from = "game"); the rest draft

@@ -100,6 +100,7 @@ local DailyHud = require(Ui.DailyHud) -- WP1: the daily streak card and the dail
 local TravelStyleFx = require(Fx.TravelStyleFx) -- H8: travel styles on every screen
 local StoryHud = require(Ui.StoryHud)
 local GuideHud = require(Ui.GuideHud) -- lore step 6: the guides' line box
+local MoveTutor = require(Ui.MoveTutor) -- first-30: NEW MOVE cards and move names
 local GuideClient = require(Controllers.GuideClient) -- lore step 6: stage lines, Patch's radio, Lodestar
 local Journal = require(Ui.Journal)
 local PvpHud = require(Ui.PvpHud)
@@ -221,6 +222,7 @@ StoryHud.init()
 NewsHud.init()
 FinisherFx.init()
 GuideClient.init()
+MoveTutor.init()
 Journal.init()
 PvpHud.init()
 Plates.init()

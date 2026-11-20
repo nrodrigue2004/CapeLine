@@ -289,6 +289,17 @@ local function canFinish(): (boolean, string?, string?)
 	return true, nil, nil
 end
 
+-- first-30 (2026-11-20): what the step on screen still needs before NEXT, or nil. Pressing NEXT through ORIGIN
+-- with nothing picked used to carry on and then bounce the player back from PLAY; now NEXT says why there.
+local function stepWhy(id: string): string?
+	if id == "origin" and not CreatorRules.originOk(Config, originIdx) then
+		return "Pick how your Spark woke to go on"
+	elseif id == "powers" and classIdx == 0 then
+		return "Pick an archetype and a path to go on"
+	end
+	return nil
+end
+
 local function clear(frame: Instance)
 	for _, c in frame:GetChildren() do
 		if c:IsA("GuiObject") then
@@ -1210,10 +1221,13 @@ refresh = function()
 		then "SAVING..."
 		elseif last then (if mode == "create" then "PLAY" else "DONE")
 		else "NEXT"
-	nextButton.BackgroundColor3 = if not last or (ok and not pending) then Kit.color.gold else Kit.color.muted
+	local need = if last then nil else stepWhy(STEPS[step].id)
+	nextButton.BackgroundColor3 = if (not last and not need) or (last and ok and not pending)
+		then Kit.color.gold
+		else Kit.color.muted
 	backButton.Visible = step > 1
 	if not pending and os.clock() > statusHold then
-		status.Text = if ok or not last then "" else (why or "")
+		status.Text = if need then need elseif ok or not last then "" else (why or "")
 		status.TextColor3 = Kit.color.paper
 	end
 	safely("preview", function()
@@ -1627,7 +1641,10 @@ local function build()
 		Size = UDim2.fromOffset(170, T),
 		Position = UDim2.new(1, -16, 1, -20),
 	}, function()
-		if step < #STEPS then
+		local need = if step < #STEPS then stepWhy(STEPS[step].id) else nil
+		if need then
+			refuse(need, nil) -- (first-30) stay and say what to pick
+		elseif step < #STEPS then
 			goStep(step + 1)
 		else
 			finish()

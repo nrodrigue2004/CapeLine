@@ -164,6 +164,16 @@ return {
 		-- hold a skill button and drag to aim (the camera turns with the finger)
 		aimDrag = { yaw = 0.011, pitch = 0.008, maxPitch = 70 }, -- radians per pixel; degrees
 	},
+	-- first-30 (2026-11-20): teaching the mobility moves (Ui.MoveTutor): a NEW MOVE card when a move is picked, its
+	-- name stamped the first `named` uses a session, and once a session `remind` s in, a move not used yet gets
+	-- the card again (TRY THIS MOVE). How to do each move is the move's own `how` (Config.Move.moves).
+	moveTutor = {
+		named = 2,
+		remind = 240,
+		tagNew = "NEW MOVE",
+		tagTry = "TRY THIS MOVE",
+		howPrefix = "HOW: ",
+	},
 	-- first-30 (2026-11-20): the next story mission on the HUD (StoryHud), so nobody has to find the Journal in the
 	-- MENU drawer after the prologue: its name and blurb with START when it is open (StoryClient.enter, the
 	-- Journal's own START), or the level it needs. Shown out in the city with no side quest tracked, no card up
@@ -286,6 +296,7 @@ return {
 			mentorPanel = { pri = "info", life = 5 }, -- MentorHud: the mentor's comic line (4 s)
 			nemesisPanel = { pri = "info", life = 5 }, -- NemesisHud: the taunt panel (3.5 s)
 			lorePage = { pri = "info", life = 9, stale = 30 }, -- LoreClient: a lore page's caption card (side-content)
+			moveNew = { pri = "info", life = 12, stale = 60 }, -- MoveTutor: a mobility move's NEW MOVE card (first-30)
 			-- Ui.PopupGate's join cards (they also wait out the loading screen, menu, creator and prologue)
 			daily = { pri = "join", life = 20, noTap = true }, -- DailyHud: CLAIM, X
 			mentorPick = { pri = "join", life = 25, noTap = true }, -- MentorHud: the picker

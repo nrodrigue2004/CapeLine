@@ -117,6 +117,20 @@ return {
 	-- the famous fakes (lore step 4): a fake's face cracking within `unmaskNear` studs of you flashes your
 	-- screen and freezes your hero for `unmaskPause` seconds (a hit-stop), with a camera punch
 	fakes = { unmaskNear = 60, unmaskPause = 0.12 },
+	-- world bosses taking hits (boss fights pass, 2026-11-20; WorldFx): a pale flash (`flash` fill transparency, fading
+	-- over flashTime) at most every flashGap s when its hp drops, and every chunkEvery of its max hp lost `chunks`
+	-- (per preset) of its own debris fly off it at out / up studs/s and fade after `life` s, within `range` of the camera
+	boss = {
+		flash = 0.55,
+		flashTime = 0.14,
+		flashGap = 0.45,
+		chunkEvery = 0.04,
+		chunks = { low = 2, medium = 4, high = 6 },
+		out = 30,
+		up = 34,
+		life = 5,
+		range = 600,
+	},
 	robots = {
 		-- ally: (list-combat 2026-11-20) a lock on another hero within `near` studs pings from them, quieter and lower
 		aim = {

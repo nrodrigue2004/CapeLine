@@ -27,6 +27,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local NewsPlan = require(Shared:WaitForChild("NewsPlan"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: Patch names high-tier heroes
+local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan")) -- first-30: a new chain is a real chain
 
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.StoryClient)
@@ -288,10 +289,40 @@ function GuideClient.spawnLodestar()
 	end)
 end
 
+-- first-30: a side quest chain opened: Patch says so (a fixed line) and points at the MAP's gold mark (once a session per chain; waits
+-- for the radio like the POWERS line)
+local sqSeen: { [number]: boolean }? = nil
+local sqLine: { key: string, text: string, till: number }? = nil
+local function onJournal()
+	local j = story()
+	if not j or type(j.sq) ~= "table" then
+		return
+	end
+	local bit
+	bit, sqSeen = GuidePlan.newSideQuest(j.sq, sqSeen)
+	local chain = bit and SideQuestPlan.byBit(Config, bit)
+	local row = G.radio.lines.sqOpen
+	local t = row and GuidePlan.lineText(row, side())
+	if chain and t then
+		sqLine = { key = "sq" .. bit, text = t, till = os.clock() + G.radio.powerWait }
+	end
+end
+local function sqStep(now: number)
+	local l = sqLine
+	if not l then
+		return
+	end
+	if now > l.till or radio.once[l.key] or sayText(l.key, l.text) then
+		sqLine = nil
+	end
+end
+
 function GuideClient.init()
 	StoryClient.Changed:Connect(function(what)
 		if what == "mission" then
 			onMission()
+		elseif what == "journal" then
+			onJournal()
 		end
 	end)
 	WorldClient.Changed:Connect(function(what)
@@ -345,6 +376,7 @@ function GuideClient.init()
 			acc = 0
 			idleStep(os.clock())
 			powerStep(os.clock())
+			sqStep(os.clock())
 		end
 	end))
 end

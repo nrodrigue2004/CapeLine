@@ -523,6 +523,14 @@ local function spark(a: Actor?)
 	end)
 end
 
+-- How each "arrive" looks and sounds (first-30, 2026-11-20)
+local ARRIVE = {
+	crane = { puff = "glow", color = Color3.fromRGB(255, 225, 140), sound = "dash", pitch = 0.9 },
+	fake = { puff = "glow", color = Color3.fromRGB(255, 240, 200), sound = "land", pitch = 1.1 },
+	vigil = { puff = "glow", color = Color3.fromRGB(110, 190, 255), sound = "dash", pitch = 1.1 },
+	syndicate = { puff = "smoke", color = Color3.fromRGB(150, 70, 190), sound = "dash", pitch = 0.8 },
+}
+
 local function fire(e: IntroFilm.Event, t: number)
 	local kind = e.kind
 	if kind == "music" then
@@ -568,6 +576,19 @@ local function fire(e: IntroFilm.Event, t: number)
 		end
 	elseif kind == "crack" then
 		crackFace(e.actor and actors[e.actor])
+	elseif kind == "arrive" then
+		-- someone arrives (first-30): Crane in a gold shimmer, his heroes landing, the Vigil in a blue glow, the
+		-- Syndicate in plum smoke
+		local p = actorAt(e.actor, t)
+		local look = ARRIVE[e.text or ""]
+		if p and look then
+			FxLib.emit(look.puff, look.color, p, 5)
+			FxLib.emit("spark", look.color, p, 10)
+			if e.text == "fake" then
+				FxLib.dust(p - Vector3.new(0, 3, 0), 6)
+			end
+			AudioController.play(look.sound, p, { volume = 0.9, pitch = look.pitch })
+		end
 	elseif kind == "rise" then
 		AudioController.play("bossPhase", nil, { volume = 0.5 })
 	elseif kind == "spark" then
