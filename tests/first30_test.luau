@@ -484,4 +484,112 @@ return function(T: any)
 			end
 		end
 	)
+
+	test(
+		"First 30: a new mobility move gets a NEW MOVE card with how to do it, and its name on first use",
+		function()
+			local MoveRanks = require("../src/shared/MoveRanks")
+			local MT = Config.Ui.moveTutor
+			for id in Config.Move.moves do
+				check(MT.how[id] ~= nil, id .. " says how to do it")
+			end
+			check(Config.Ui.popups.cards.moveNew ~= nil, "the card waits in the popup line")
+			if not T.placePath then
+				return
+			end
+			local sim = newSim()
+			sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+			local State = sim:require("Client.State")
+			local MoveController = sim:require("Client.Controllers.MoveController")
+			local MoveTutor = sim:require("Client.Ui.MoveTutor")
+			local pick = "acrobat"
+			local pi = table.find(Config.Move.mobilityOrder, pick) :: number
+			local ranks = { 0, 0, 0, 0, 0 }
+			ranks[pi] = 3
+			State.hero.mobility = pick
+			State.hero.mobRanks = ranks
+			State.hero.mobMoves = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+			sim:run("JuiceFx", sim:require("Client.Fx.JuiceFx").init)
+			sim:run("MoveTutor", MoveTutor.init)
+			local function frames(n: number)
+				for _ = 1, n do
+					sim:run("frame", function()
+						sim.service("RunService").RenderStepped:Fire(1 / 30)
+						sim.service("RunService").Heartbeat:Fire(1 / 30)
+					end)
+					sim:advance(1 / 30)
+					sim:run("popups", function()
+						sim:require("Client.Ui.Popups").advance(1 / 30)
+					end)
+				end
+			end
+			local function texts(): string
+				local out = {}
+				for _, c in sim.playerGui:GetDescendants() do
+					if (c:IsA("TextLabel") or c:IsA("TextButton")) and c.Text ~= "" and c.Visible then
+						local ok = true
+						local a = c.Parent
+						while a and a:IsA("GuiObject") do
+							ok = ok and a.Visible
+							a = a.Parent
+						end
+						if ok then
+							table.insert(out, c.Text)
+						end
+					end
+				end
+				return table.concat(out, " | ")
+			end
+			frames(3)
+			check(
+				sim.playerGui:FindFirstChild("MoveCard", true) == nil,
+				"no card for the moves a hero already had"
+			)
+			-- rank 3's first option picked (Kick Chain)
+			local moves = table.clone(State.hero.mobMoves)
+			moves[MoveRanks.slotOf(Config.Move, pick, 3) :: number] = 1
+			State.hero.mobMoves = moves
+			sim:run("sync", function()
+				State.Changed:Fire()
+			end)
+			frames(10)
+			local id = MoveRanks.moveOf(Config.Move, ranks, moves, pick, 3) :: string
+			local name = string.upper(Config.Move.moves[id].name)
+			local all = texts()
+			check(string.find(all, MT.tagNew, 1, true) ~= nil, "the NEW MOVE card: " .. all)
+			check(string.find(all, name, 1, true) ~= nil, "names " .. name)
+			check(string.find(all, MoveTutor.how(id) :: string, 1, true) ~= nil, "and says how: " .. all)
+			check(not string.find(all, "{", 1, true), "no {Action} left unturned")
+			local P = Config.Ui.phone
+			for _, issue in
+				sim:issues({
+					minTap = P.minTap,
+					minText = P.minText,
+					safe = true,
+					only = { MoveTutor = true },
+				})
+			do
+				check(false, issue)
+			end
+			-- the card goes (its X); the first use stamps the name, the third does not
+			local Popups = sim:require("Client.Ui.Popups")
+			sim:run("clear", function()
+				Popups.clearAll()
+			end)
+			frames(3)
+			for k = 1, MT.named + 1 do
+				sim:run("act", function()
+					MoveController.Acted:Fire(id, roblox.Vector3.zero, roblox.Vector3.zero, nil)
+				end)
+				frames(3)
+				if k == 1 then
+					check(
+						string.find(texts(), name .. "!", 1, true) ~= nil,
+						"the first use stamps " .. name .. "!: " .. texts()
+					)
+				end
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 end

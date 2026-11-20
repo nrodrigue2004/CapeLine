@@ -164,6 +164,39 @@ return {
 		-- hold a skill button and drag to aim (the camera turns with the finger)
 		aimDrag = { yaw = 0.011, pitch = 0.008, maxPitch = 70 }, -- radians per pixel; degrees
 	},
+	-- first-30 (2026-11-20): teaching the mobility moves (Ui.MoveTutor): a NEW MOVE card when a move is picked, its
+	-- name stamped the first `named` uses a session, and once a session `remind` s in, a move not used yet gets
+	-- the card again (TRY THIS MOVE). `how`: how to do each move ({Action}: the device's key, button or the HUD
+	-- button's name), DRAFT wording.
+	moveTutor = {
+		named = 2,
+		remind = 240,
+		tagNew = "NEW MOVE",
+		tagTry = "TRY THIS MOVE",
+		howPrefix = "HOW: ",
+		how = {
+			sonicDive = "Fly up high, then dive straight down into the street or a roof",
+			slipstream = "Hold {Boost} in flight: friends behind you fly faster",
+			phase = "Hold {Boost} and fly into a building",
+			blazeRam = "Hold {Boost} and fly into a wall",
+			tornadoRun = "Run fast in a tight circle",
+			afterimage = "Run at top speed, then stop hard",
+			sonicWake = "Run past cars and windows at top speed",
+			blink = "While running fast, tap {Boost} again",
+			impactLanding = "Leap up high and land hard",
+			wallCrusher = "Climb a wall, then jump off it",
+			meteorStrike = "Near the top of a leap, press {Down} and look where to hit",
+			moonJump = "Press {Leap} again in mid-air",
+			kickChain = "Kick off wall after wall without touching the ground",
+			ceilingDrop = "Hang on a wall or ceiling above a robot, then let go",
+			shadowFlip = "Press {Down} to dodge-flip: a clone stays behind",
+			slingshot = "Hold {Down} on a wall, then let go",
+			doubleZip = "While swinging, press {Leap}",
+			yank = "On the ground, aim at a robot or car and press {Fly}",
+			wreckingKick = "Swing into a wall, or let go fast near robots",
+			skyHook = "Swing out in the open: the line hooks the sky",
+		},
+	},
 	-- first-30 (2026-11-20): the next story mission on the HUD (StoryHud), so nobody has to find the Journal in the
 	-- MENU drawer after the prologue: its name and blurb with START when it is open (StoryClient.enter, the
 	-- Journal's own START), or the level it needs. Shown out in the city with no side quest tracked, no card up
@@ -286,6 +319,7 @@ return {
 			mentorPanel = { pri = "info", life = 5 }, -- MentorHud: the mentor's comic line (4 s)
 			nemesisPanel = { pri = "info", life = 5 }, -- NemesisHud: the taunt panel (3.5 s)
 			lorePage = { pri = "info", life = 9, stale = 30 }, -- LoreClient: a lore page's caption card (side-content)
+			moveNew = { pri = "info", life = 12, stale = 60 }, -- MoveTutor: a mobility move's NEW MOVE card (first-30)
 			-- Ui.PopupGate's join cards (they also wait out the loading screen, menu, creator and prologue)
 			daily = { pri = "join", life = 20, noTap = true }, -- DailyHud: CLAIM, X
 			mentorPick = { pri = "join", life = 25, noTap = true }, -- MentorHud: the picker
