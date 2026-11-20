@@ -8469,7 +8469,8 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./pockets_test")({ test = test, check = check, Config = Config }); -- the pocket kit pass (2026-11-19)
 (require :: any)("./gap_review_test")({ test = test, check = check, Config = Config }); -- the gap review (2026-11-19)
 -- WP12: visit a friend's HQ on the same server (own file, merges easily)
-(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
+(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
+(require :: any)("./sounds_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }) -- the sounds pass (2026-11-19)
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
@@ -11717,13 +11718,8 @@ do
 				"both start"
 			)
 			check(
-				string.find(
-					readFile("src/config/Audio.luau"),
-					"PLACEHOLDER SOUND: built-in clips until real voice",
-					1,
-					true
-				) ~= nil,
-				"placeholder blips are labelled"
+				string.find(readFile("src/config/Audio.luau"), "Blips until real voice lines", 1, true) ~= nil,
+				"the blips say real voice lines come later (recorded blips since the sounds pass)"
 			)
 		end
 	)

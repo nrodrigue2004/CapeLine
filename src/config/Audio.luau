@@ -1,9 +1,15 @@
 -- Audio and the juice table (spec: Audio, VFX, juice and accessibility; Music). Pure data.
--- Every one of the 31 juice actions has a sound here and a visual somewhere in the client (tests check
--- both). `asset` is the licence-checked Creator Store id nate picks (Launch Checklist); until then a
--- `fallback` plays one of Roblox's own built-in client sounds (rbxasset://sounds, shipped with every
--- Roblox client, free to use), pitched per action so they differ. PLACEHOLDER SOUND until the ids land.
--- Groups: Music, Effects, Voice (volumes from Settings). Music ducks 40% for the boss siren and voices.
+-- Every one of the 31 juice actions has a sound here and a visual somewhere in the client (tests check both).
+-- The sounds pass (2026-11-19, nate's playtest: "need better sounds badly"): every row plays a recorded sound made
+-- for it by art/audio/build.py (CC0 sources layered with our own synth: a low thump under every impact, cracks and
+-- debris tails, whooshes, each path's element; licences in notes/Tools.md "Sounds") and music by art/audio/music.py
+-- (our own, with the CC0 Meta piano). They live in five uploaded atlases (Config.AudioClips): a row's `clip` names its
+-- region, or the stem of 2 to 4 variants picked at random (Shared.SoundPick); `vary` and `volVary` spread the pitch
+-- and volume of each play. The `fallback` (one of Roblox's built-in client sounds, pitched by `pitch`) still plays
+-- while an atlas has no id. `clip` defaults to the row's own key (see the end of this file).
+-- Groups (AudioController, `mix` below): Music; Effects (the settings' sound slider) with Combat, World, Ui,
+-- Ambience and Voice inside it. Music ducks 40% for the boss siren and voices; big booms duck the city bed and
+-- the music for a moment (`mix.duck`).
 
 local B = "rbxasset://sounds/"
 
@@ -16,7 +22,7 @@ local function s(fallback: string?, volume: number, pitch: number?, extra: { [st
 	return t
 end
 
-return {
+local Audio = {
 	-- the juice table, in spec order: action id, sound, and where its visual is drawn (tests read `visual`)
 	juice = {
 		{ id = "leap", visual = "MoveFx" }, -- charge hum then whoosh; dust ring; FOV widens 6%
@@ -126,7 +132,7 @@ return {
 
 	-- one sound per juice action (3D ones play at the action's spot, heard within `range` studs)
 	-- the impact layer under every hit you land (Config.Combat.weight): a body thud and a metal clank, lower and
-	-- louder on heavy and crit hits. PLACEHOLDER SOUND until nate picks Creator Store ids.
+	-- louder on heavy and crit hits (recorded: a punch over a low thump with grit, 3 to 4 variants each).
 	impact = {
 		hit = s("action_jump_land.mp3", 0.55, 0.8, { range = 90, vary = 0.08 }),
 		heavy = s("action_jump_land.mp3", 0.85, 0.55, { range = 140, vary = 0.06 }),
@@ -136,7 +142,7 @@ return {
 		leap = s("swoosh.wav", 0.6, 0.85, { range = 120 }),
 		land = s("action_jump_land.mp3", 0.8, 0.7, { range = 140 }),
 		glide = s("swoosh.wav", 0.25, 0.6),
-		flyCruise = s("action_falling.mp3", 0.0, 1, { loop = true }), -- volume follows speed (0 to 0.5)
+		flyCruise = s("action_falling.mp3", 0.0, 1, { loop = true, speedPitch = { 0.85, 1.3 } }), -- volume follows speed (0 to 0.5), pitch too
 		boost = s("swoosh.wav", 0.7, 1.25, { range = 120 }),
 		basic = s("electronicpingshort.wav", 0.35, 1.6, { range = 90, vary = 0.12 }),
 		cast = s("swoosh.wav", 0.55, 1.1, { range = 120, vary = 0.08 }),
@@ -147,8 +153,22 @@ return {
 		incidentClear = s("electronicpingshort.wav", 0.8, 0.8),
 		collapse = s("action_jump_land.mp3", 1, 0.3, { range = 400 }),
 		crater = s("action_jump_land.mp3", 0.8, 0.55, { range = 200 }),
-		wallSmash = s("action_jump_land.mp3", 1, 0.45, { range = 220 }), -- PLACEHOLDER SOUND: the crater crunch, lower
+		wallSmash = s("action_jump_land.mp3", 1, 0.45, { range = 220 }),
 		clash = s("action_jump_land.mp3", 1, 0.6, { range = 220 }),
+		-- moving (the sounds pass, Fx.MoveAudio): the ground pound slam, an awning's spring, a splash into water,
+		-- the Acrobat's dash, the sonic boom when a hero passes `Config.Audio.move.boomSpeed`, and the held rush of
+		-- a Super Speed run (a loop, volume and pitch from the run's speed)
+		sonicBoom = s("action_jump_land.mp3", 1, 0.4, { range = 400 }),
+		pound = s("action_jump_land.mp3", 1, 0.5, { range = 260 }),
+		bounce = s("action_jump_land.mp3", 0.6, 1.4, { range = 100 }),
+		splash = s("impact_water.mp3", 0.7, 1, { range = 120 }),
+		dash = s("swoosh.wav", 0.6, 1.3, { range = 100, vary = 0.06 }),
+		speedRun = s(
+			"action_falling.mp3",
+			0,
+			1.3,
+			{ loop = true, speedPitch = { 0.8, 1.3 }, loopMax = 0.45 }
+		),
 		vehicleFlip = s("action_jump_land.mp3", 0.7, 0.9, { range = 160 }),
 		downed = s("action_falling.mp3", 0.5, 0.4, { loop = true }), -- the muffled heartbeat while Downed
 		revive = s("action_get_up.mp3", 0.8, 1.2, { range = 120 }),
@@ -179,26 +199,25 @@ return {
 		badgeEarned = s("electronicpingshort.wav", 0.8, 1.5),
 		collectFind = s("electronicpingshort.wav", 0.7, 2.2),
 		collectNear = s("clickfast.wav", 0.25, 2.4, { range = 40 }), -- the soft chime near a find (not a juice row)
-		-- side-content (2026-11-19): lore pages and mobility training. PLACEHOLDER SOUND: built-in clips until nate picks ids
+		-- side-content (2026-11-19): lore pages and mobility training
 		lorePage = s("swoosh.wav", 0.7, 1.8),
 		loreNear = s("electronicpingshort.wav", 0.2, 2.8, { range = 45 }), -- the soft chime near an unread page (not a juice row)
 		moveTrain = s("swoosh.wav", 0.8, 0.85),
 		contestCall = s("swoosh.wav", 0.6, 1.2),
 		contestWin = s("electronicpingshort.wav", 0.8, 1.3),
-		roguePage = s("electronicpingshort.wav", 0.75, 1.15), -- the Rogues File (PLACEHOLDER SOUND)
+		roguePage = s("electronicpingshort.wav", 0.75, 1.15), -- the Rogues File
 		passTier = s("electronicpingshort.wav", 0.8, 1.7),
 		passClaim = s("electronicpingshort.wav", 0.6, 2.1),
 		episodeIntro = s("swoosh.wav", 0.5, 1.4),
 		styleBurst = s("swoosh.wav", 0.5, 1.1, { range = 120, vary = 0.08 }),
 		-- the Swing (2026-11-19, SwingFx): the line's thwip, the release whoosh (louder on a sweet one), the miss.
-		-- PLACEHOLDER SOUND: built-in clips until nate picks Creator Store ids
 		swingShoot = s("swoosh.wav", 0.4, 2.1, { range = 90, vary = 0.1 }),
 		swingRelease = s("swoosh.wav", 0.6, 0.9, { range = 110, vary = 0.06 }),
 		swingMiss = s("clickfast.wav", 0.35, 0.7),
 		boardReward = s("electronicpingshort.wav", 0.8, 1.3), -- WP2: a weekly board title
 		dailyClaim = s("electronicpingshort.wav", 0.8, 1.6),
 		dailyQuest = s("electronicpingshort.wav", 0.7, 1.15),
-		-- side quest chains (the juice pass). PLACEHOLDER SOUND: built-in clips until nate picks ids
+		-- side quest chains (the juice pass)
 		questAccept = s("swoosh.wav", 0.6, 1.3),
 		questStep = s("electronicpingshort.wav", 0.75, 1.25),
 		questVillain = s("action_falling.mp3", 0.8, 0.4),
@@ -212,7 +231,7 @@ return {
 		grenadeBoom = s("action_jump_land.mp3", 0.9, 0.5, { range = 200, vary = 0.08 }), -- a Bomber's grenade
 		rally = s("electronicpingshort.wav", 0.6, 0.6, { range = 160 }), -- a Captain's rally
 		reveal = s("clickfast.wav", 0.7, 0.7, { range = 120 }), -- a Mimic shows itself
-		-- WP6 robot combat depth (PLACEHOLDER SOUND, built-in clips): a Sneak Bot's rising whine as it coils for
+		-- WP6 robot combat depth: a Sneak Bot's rising whine as it coils for
 		-- its lunge; the War-Frame's shield hum building before its block; a downed robot's wreck sparking and
 		-- popping apart when its window ends
 		lungeWind = s("swoosh.wav", 0.55, 1.9, { range = 110, vary = 0.06 }),
@@ -221,10 +240,10 @@ return {
 		wreckPop = s("action_jump_land.mp3", 0.45, 1.7, { range = 100, vary = 0.1 }),
 		-- lore step 4: a famous fake's face cracks to show metal (with a white flash and a short hit-stop)
 		unmask = s("clickfast.wav", 1, 0.45, { range = 200 }),
-		-- lore step 3: Patch's radio blip as each of his lines starts (PLACEHOLDER SOUND)
+		-- lore step 3: Patch's radio blip as each of his lines starts
 		radio = s("electronicpingshort.wav", 0.45, 3.4),
 		-- lore step 6: each guide's own blip as a line starts (Config.Story.guides.speakers[who].blip; Patch keeps
-		-- radio above). PLACEHOLDER SOUND: built-in clips until real voice lines (nate: voices later)
+		-- radio above). Blips until real voice lines (nate: voices later)
 		guideLodestar = s("clickfast.wav", 0.45, 0.75), -- a low, steady tap: in person
 		guideCrane = s("button.wav", 0.5, 0.6), -- a mic thump: the stage and TV
 		guideInsider = s("electronicpingshort.wav", 0.4, 2.2), -- a lower radio blip
@@ -232,8 +251,8 @@ return {
 	},
 
 	-- every path's own sound layer (overhaul plan step 6), played with the slot's cast sound above (Juice.path):
-	-- cast (skills), super, hit (your hits, once per use) and charge (a skill starts charging). PLACEHOLDER
-	-- SOUND: built-in clips pitched per path until nate picks licence-checked ids (Launch Checklist).
+	-- cast (skills), super, hit (your hits, once per use) and charge (a skill starts charging). Each is
+	-- its element's own recording (clip "<Path>_<moment>"); the built-in fallbacks below play only without an atlas id.
 	paths = {
 		Volt = {
 			cast = s("electronicpingshort.wav", 0.3, 2.4, { range = 100, vary = 0.08 }),
@@ -342,13 +361,13 @@ return {
 	-- per-tier gear chimes (pitch rises with the tier; Legendary plays a second chime 0.25 s later)
 	tierPitch = { 1.2, 1.4, 1.6, 1.85, 2.1 },
 
-	-- the three loops (spec: city patrol day and night, boss theme, victory sting). PLACEHOLDER: silent
-	-- until nate picks licence-checked tracks (Launch Checklist).
+	-- the three loops (spec: city patrol day and night, boss theme, victory sting): our own music (art/audio/music.py,
+	-- the CC0 Meta piano and synth), loops a whole number of bars long
 	music = {
-		patrolDay = { asset = 0, volume = 0.35 },
-		patrolNight = { asset = 0, volume = 0.3 },
-		boss = { asset = 0, volume = 0.45 },
-		victory = { asset = 0, volume = 0.5, sting = true },
+		patrolDay = { asset = 0, volume = 0.35, clip = "patrolDay" },
+		patrolNight = { asset = 0, volume = 0.32, clip = "patrolNight" },
+		boss = { asset = 0, volume = 0.45, clip = "boss" },
+		victory = { asset = 0, volume = 0.5, sting = true, clip = "victory" },
 		fade = 1.5, -- seconds to crossfade
 		duck = 0.6, -- music volume while the boss siren or a voice line plays (ducks 40%)
 		bossRange = 600, -- the boss theme plays within this many studs of a live boss
@@ -374,4 +393,70 @@ return {
 	},
 
 	pool = 24, -- 3D sounds alive at once (the oldest is reused)
+
+	-- the mix (AudioController): sub-groups inside Effects by row kind, a gentle bus compressor so big stacks never
+	-- clip, the side-chain duck under big booms, how near a 3D sound is full volume, and a repeat guard
+	mix = {
+		groups = { "Combat", "World", "Ui", "Ambience" },
+		compressor = { threshold = -14, ratio = 3, attack = 0.005, release = 0.15, makeup = 2 },
+		-- big moments lower the city bed and the music for `time` seconds (to `to` of their level)
+		duck = {
+			to = 0.45,
+			time = 0.9,
+			ids = {
+				"super",
+				"collapse",
+				"clash",
+				"bossPhase",
+				"sonicBoom",
+				"pound",
+				"grenadeBoom",
+				"wallSmash",
+				"throwLand",
+			},
+		},
+		near = { default = 10, big = 28, bigRange = 200 }, -- RollOffMinDistance: rows with range >= bigRange are big
+		gap = 0.035, -- the same row starts at most once in this many seconds (a hail of hits stays a hail, not a buzz)
+		-- which group a row plays in: juice ids listed here, else Combat for Hits clips, World for World, Ui for Ui
+		ui = {
+			"ui",
+			"skillRank",
+			"levelUp",
+			"gearDrop",
+			"purchase",
+			"photo",
+			"contractDone",
+			"badgeEarned",
+			"collectFind",
+		},
+	},
+	-- the city's ambient bed (AudioController.beds): the district's loop where the camera is (Config.Life.sounds.bed),
+	-- the rooftop wind mixed in by height, silent underwater; beds crossfade over `fade` seconds
+	bed = { fade = 3, roofLow = 60, roofHigh = 260, every = 1, maxY = 1200 }, -- maxY: the pockets and HQs float above
+	-- movement sounds (Fx.MoveAudio): the sonic boom when speed first passes boomSpeed (then not again for
+	-- `boomGap` s or until below `boomReset`); the Super Speed rush from runFrom to runFull studs/s
+	move = {
+		boomSpeed = 95,
+		boomReset = 70,
+		boomGap = 4,
+		runFrom = 40,
+		runFull = 100,
+		runVolume = 0.45,
+		boomShake = { 0.25, 0.5 },
+	},
 }
+
+-- each row's recorded clip is named after its key unless it says otherwise (the paths: "<Path>_<moment>")
+for key, row in Audio.sounds do
+	row.clip = row.clip or key
+end
+for key, row in Audio.impact do
+	row.clip = row.clip or key
+end
+for path, rows in Audio.paths do
+	for moment, row in rows do
+		row.clip = row.clip or (path .. "_" .. moment)
+	end
+end
+
+return Audio

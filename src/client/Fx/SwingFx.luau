@@ -6,7 +6,7 @@
 -- to hang from flicks out along the aim and drops away (the miss cue) with a dull click; a shot thwips; a
 -- release whooshes (louder on a sweet one, Config.Move.mobility.swing.release.sweet). The line takes the worn
 -- travel style's colour (MoveController.lineColor, TravelStyleFx). Looks only: it never moves anyone.
--- PLACEHOLDER ART: a plain white beam until a web texture is drawn and uploaded; PLACEHOLDER SOUND (Config.Audio).
+-- PLACEHOLDER ART: a plain white beam until a web texture is drawn and uploaded; recorded sounds (Config.Audio swingShoot, swingRelease, swingMiss).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

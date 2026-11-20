@@ -1,0 +1,1265 @@
+{
+ "Hits": {
+  "hit_1": [
+   0.05,
+   0.3041,
+   false
+  ],
+  "hit_2": [
+   0.6041,
+   0.2768,
+   false
+  ],
+  "hit_3": [
+   1.131,
+   0.349,
+   false
+  ],
+  "hit_4": [
+   1.73,
+   0.3084,
+   false
+  ],
+  "heavy_1": [
+   2.2884,
+   0.7377,
+   false
+  ],
+  "heavy_2": [
+   3.276,
+   0.6894,
+   false
+  ],
+  "heavy_3": [
+   4.2155,
+   0.6081,
+   false
+  ],
+  "clank_1": [
+   5.0736,
+   0.5597,
+   false
+  ],
+  "clank_2": [
+   5.8833,
+   0.4552,
+   false
+  ],
+  "clank_3": [
+   6.5884,
+   0.481,
+   false
+  ],
+  "basic_1": [
+   7.3195,
+   0.2081,
+   false
+  ],
+  "basic_2": [
+   7.7776,
+   0.16,
+   false
+  ],
+  "basic_3": [
+   8.1876,
+   0.2202,
+   false
+  ],
+  "basic_4": [
+   8.6578,
+   0.16,
+   false
+  ],
+  "cast_1": [
+   9.0678,
+   0.5075,
+   false
+  ],
+  "cast_2": [
+   9.8253,
+   0.5189,
+   false
+  ],
+  "cast_3": [
+   10.5942,
+   0.4072,
+   false
+  ],
+  "super_1": [
+   11.2514,
+   2.3016,
+   false
+  ],
+  "super_2": [
+   13.8029,
+   2.9889,
+   false
+  ],
+  "crit_1": [
+   17.0418,
+   0.506,
+   false
+  ],
+  "crit_2": [
+   17.7978,
+   0.5108,
+   false
+  ],
+  "defeat_1": [
+   18.5586,
+   1.0017,
+   false
+  ],
+  "defeat_2": [
+   19.8104,
+   0.7752,
+   false
+  ],
+  "defeat_3": [
+   20.8356,
+   0.5705,
+   false
+  ],
+  "clash_1": [
+   21.6561,
+   1.5642,
+   false
+  ],
+  "clash_2": [
+   23.4703,
+   1.943,
+   false
+  ],
+  "block_1": [
+   25.6633,
+   0.2383,
+   false
+  ],
+  "block_2": [
+   26.1516,
+   0.1804,
+   false
+  ],
+  "block_3": [
+   26.582,
+   0.15,
+   false
+  ],
+  "perfectBlock_1": [
+   26.982,
+   0.9204,
+   false
+  ],
+  "perfectBlock_2": [
+   28.1524,
+   1.08,
+   false
+  ],
+  "shatter_1": [
+   29.4824,
+   0.5054,
+   false
+  ],
+  "shatter_2": [
+   30.2378,
+   0.6501,
+   false
+  ],
+  "interrupt": [
+   31.1379,
+   0.3174,
+   false
+  ],
+  "chargeFull": [
+   31.7053,
+   0.7019,
+   false
+  ],
+  "grab_1": [
+   32.6572,
+   0.6073,
+   false
+  ],
+  "grab_2": [
+   33.5145,
+   0.5188,
+   false
+  ],
+  "throwLand_1": [
+   34.2833,
+   0.9824,
+   false
+  ],
+  "throwLand_2": [
+   35.5158,
+   0.7769,
+   false
+  ],
+  "throwLand_3": [
+   36.5427,
+   1.2531,
+   false
+  ],
+  "aimLock": [
+   38.0458,
+   0.47,
+   false
+  ],
+  "grenadeBoom_1": [
+   38.7658,
+   1.0267,
+   false
+  ],
+  "grenadeBoom_2": [
+   40.0425,
+   2.191,
+   false
+  ],
+  "rally": [
+   42.4836,
+   0.8975,
+   false
+  ],
+  "reveal": [
+   43.6311,
+   0.4276,
+   false
+  ],
+  "lungeWind": [
+   44.3087,
+   0.6224,
+   false
+  ],
+  "braceWarn": [
+   45.1811,
+   1.1117,
+   false
+  ],
+  "wreckSpark_1": [
+   46.5428,
+   0.3333,
+   false
+  ],
+  "wreckSpark_2": [
+   47.1261,
+   0.2857,
+   false
+  ],
+  "wreckSpark_3": [
+   47.6619,
+   0.25,
+   false
+  ],
+  "wreckPop_1": [
+   48.1619,
+   0.5385,
+   false
+  ],
+  "wreckPop_2": [
+   48.9503,
+   0.5385,
+   false
+  ],
+  "unmask": [
+   49.7388,
+   0.5099,
+   false
+  ],
+  "nemesisArrive": [
+   50.4986,
+   1.8,
+   false
+  ],
+  "nemesisEscape": [
+   52.5486,
+   0.7811,
+   false
+  ],
+  "Volt_cast_1": [
+   53.5798,
+   0.4546,
+   false
+  ],
+  "Volt_cast_2": [
+   54.2843,
+   0.4546,
+   false
+  ],
+  "Volt_super_1": [
+   54.9889,
+   1.8468,
+   false
+  ],
+  "Volt_hit_1": [
+   57.0856,
+   0.2805,
+   false
+  ],
+  "Volt_hit_2": [
+   57.6162,
+   0.2535,
+   false
+  ],
+  "Volt_charge_1": [
+   58.1197,
+   0.8333,
+   false
+  ],
+  "Frost_cast_1": [
+   59.203,
+   0.62,
+   false
+  ],
+  "Frost_cast_2": [
+   60.073,
+   0.62,
+   false
+  ],
+  "Frost_super_1": [
+   60.943,
+   1.9423,
+   false
+  ],
+  "Frost_hit_1": [
+   63.1353,
+   0.409,
+   false
+  ],
+  "Frost_hit_2": [
+   63.7943,
+   0.4206,
+   false
+  ],
+  "Frost_charge_1": [
+   64.4649,
+   0.9261,
+   false
+  ],
+  "Fire_cast_1": [
+   65.641,
+   0.6204,
+   false
+  ],
+  "Fire_cast_2": [
+   66.5114,
+   0.6947,
+   false
+  ],
+  "Fire_super_1": [
+   67.4561,
+   3.0,
+   false
+  ],
+  "Fire_hit_1": [
+   70.7061,
+   0.2917,
+   false
+  ],
+  "Fire_hit_2": [
+   71.2478,
+   0.2917,
+   false
+  ],
+  "Fire_charge_1": [
+   71.7894,
+   1.0,
+   false
+  ],
+  "Earth_cast_1": [
+   73.0394,
+   0.7965,
+   false
+  ],
+  "Earth_cast_2": [
+   74.0859,
+   0.8493,
+   false
+  ],
+  "Earth_super_1": [
+   75.1852,
+   2.0384,
+   false
+  ],
+  "Earth_hit_1": [
+   77.4736,
+   0.649,
+   false
+  ],
+  "Earth_hit_2": [
+   78.3726,
+   0.6242,
+   false
+  ],
+  "Earth_charge_1": [
+   79.2468,
+   0.9845,
+   false
+  ],
+  "Tide_cast_1": [
+   80.4813,
+   0.6029,
+   false
+  ],
+  "Tide_cast_2": [
+   81.3341,
+   1.2,
+   false
+  ],
+  "Tide_super_1": [
+   82.7841,
+   2.1122,
+   false
+  ],
+  "Tide_hit_1": [
+   85.1464,
+   0.8,
+   false
+  ],
+  "Tide_hit_2": [
+   86.1964,
+   0.2062,
+   false
+  ],
+  "Tide_charge_1": [
+   86.6526,
+   1.0398,
+   false
+  ],
+  "Blade_cast_1": [
+   87.9424,
+   0.4017,
+   false
+  ],
+  "Blade_cast_2": [
+   88.5941,
+   0.3134,
+   false
+  ],
+  "Blade_super_1": [
+   89.1575,
+   2.2258,
+   false
+  ],
+  "Blade_hit_1": [
+   91.6334,
+   0.481,
+   false
+  ],
+  "Blade_hit_2": [
+   92.3644,
+   0.4965,
+   false
+  ],
+  "Blade_charge_1": [
+   93.1109,
+   0.6143,
+   false
+  ],
+  "Gunslinger_cast_1": [
+   93.9752,
+   0.718,
+   false
+  ],
+  "Gunslinger_cast_2": [
+   94.9432,
+   0.6939,
+   false
+  ],
+  "Gunslinger_super_1": [
+   95.8871,
+   2.0295,
+   false
+  ],
+  "Gunslinger_hit_1": [
+   98.1666,
+   0.1994,
+   false
+  ],
+  "Gunslinger_hit_2": [
+   98.6159,
+   0.2801,
+   false
+  ],
+  "Gunslinger_charge_1": [
+   99.146,
+   0.4814,
+   false
+  ],
+  "Gadgeteer_cast_1": [
+   99.8774,
+   0.462,
+   false
+  ],
+  "Gadgeteer_cast_2": [
+   100.5895,
+   0.4682,
+   false
+  ],
+  "Gadgeteer_super_1": [
+   101.3076,
+   1.7471,
+   false
+  ],
+  "Gadgeteer_hit_1": [
+   103.3048,
+   0.1558,
+   false
+  ],
+  "Gadgeteer_hit_2": [
+   103.7106,
+   0.1309,
+   false
+  ],
+  "Gadgeteer_charge_1": [
+   104.0915,
+   1.0,
+   false
+  ],
+  "Shadow_cast_1": [
+   105.3415,
+   0.7029,
+   false
+  ],
+  "Shadow_cast_2": [
+   106.2944,
+   0.4831,
+   false
+  ],
+  "Shadow_super_1": [
+   107.0275,
+   2.3874,
+   false
+  ],
+  "Shadow_hit_1": [
+   109.6649,
+   0.25,
+   false
+  ],
+  "Shadow_hit_2": [
+   110.1649,
+   0.3976,
+   false
+  ],
+  "Shadow_charge_1": [
+   110.8125,
+   1.1813,
+   false
+  ],
+  "Titan_cast_1": [
+   112.2438,
+   0.6489,
+   false
+  ],
+  "Titan_cast_2": [
+   113.1427,
+   0.61,
+   false
+  ],
+  "Titan_super_1": [
+   114.0027,
+   2.0295,
+   false
+  ],
+  "Titan_hit_1": [
+   116.2822,
+   0.4902,
+   false
+  ],
+  "Titan_hit_2": [
+   117.0224,
+   0.491,
+   false
+  ],
+  "Titan_charge_1": [
+   117.7634,
+   0.9738,
+   false
+  ],
+  "Martial_cast_1": [
+   118.9872,
+   0.364,
+   false
+  ],
+  "Martial_cast_2": [
+   119.6012,
+   0.3867,
+   false
+  ],
+  "Martial_super_1": [
+   120.2379,
+   1.9271,
+   false
+  ],
+  "Martial_hit_1": [
+   122.415,
+   0.3782,
+   false
+  ],
+  "Martial_hit_2": [
+   123.0433,
+   0.3786,
+   false
+  ],
+  "Martial_charge_1": [
+   123.6719,
+   1.2,
+   false
+  ],
+  "Juggernaut_cast_1": [
+   125.1219,
+   0.7143,
+   false
+  ],
+  "Juggernaut_cast_2": [
+   126.0862,
+   0.7143,
+   false
+  ],
+  "Juggernaut_super_1": [
+   127.0505,
+   2.5117,
+   false
+  ],
+  "Juggernaut_hit_1": [
+   129.8122,
+   0.4741,
+   false
+  ],
+  "Juggernaut_hit_2": [
+   130.5363,
+   0.4397,
+   false
+  ],
+  "Juggernaut_charge_1": [
+   131.226,
+   1.2,
+   false
+  ],
+  "Colossus_cast_1": [
+   132.676,
+   0.9878,
+   false
+  ],
+  "Colossus_cast_2": [
+   133.9138,
+   1.014,
+   false
+  ],
+  "Colossus_super_1": [
+   135.1778,
+   3.0,
+   false
+  ],
+  "Colossus_hit_1": [
+   138.4278,
+   0.5513,
+   false
+  ],
+  "Colossus_hit_2": [
+   139.2291,
+   0.6332,
+   false
+  ],
+  "Colossus_charge_1": [
+   140.1123,
+   1.1664,
+   false
+  ],
+  "Pulse_cast_1": [
+   141.5287,
+   0.6667,
+   false
+  ],
+  "Pulse_cast_2": [
+   142.4454,
+   0.6667,
+   false
+  ],
+  "Pulse_super_1": [
+   143.3621,
+   2.0294,
+   false
+  ],
+  "Pulse_hit_1": [
+   145.6415,
+   0.5,
+   false
+  ],
+  "Pulse_hit_2": [
+   146.3914,
+   0.5,
+   false
+  ],
+  "Pulse_charge_1": [
+   147.1414,
+   1.0284,
+   false
+  ],
+  "Mind_cast_1": [
+   148.4198,
+   0.8,
+   false
+  ],
+  "Mind_cast_2": [
+   149.4698,
+   0.8,
+   false
+  ],
+  "Mind_super_1": [
+   150.5198,
+   2.0034,
+   false
+  ],
+  "Mind_hit_1": [
+   152.7732,
+   0.3152,
+   false
+  ],
+  "Mind_hit_2": [
+   153.3384,
+   0.2865,
+   false
+  ],
+  "Mind_charge_1": [
+   153.8749,
+   0.3035,
+   false
+  ],
+  "Spirit_cast_1": [
+   154.4284,
+   1.0,
+   false
+  ],
+  "Spirit_cast_2": [
+   155.6784,
+   1.0,
+   false
+  ],
+  "Spirit_super_1": [
+   156.9284,
+   2.2674,
+   false
+  ],
+  "Spirit_hit_1": [
+   159.4458,
+   0.5,
+   false
+  ],
+  "Spirit_hit_2": [
+   160.1958,
+   0.5,
+   false
+  ],
+  "Spirit_charge_1": [
+   160.9458,
+   1.2,
+   false
+  ],
+  "Light_cast_1": [
+   162.3958,
+   0.562,
+   false
+  ],
+  "Light_cast_2": [
+   163.2078,
+   0.6956,
+   false
+  ],
+  "Light_super_1": [
+   164.1534,
+   1.5403,
+   false
+  ],
+  "Light_hit_1": [
+   165.9437,
+   0.35,
+   false
+  ],
+  "Light_hit_2": [
+   166.5437,
+   0.4114,
+   false
+  ],
+  "Light_charge_1": [
+   167.2051,
+   0.894,
+   false
+  ]
+ },
+ "World": {
+  "leap_1": [
+   0.05,
+   0.62,
+   false
+  ],
+  "leap_2": [
+   0.92,
+   0.6262,
+   false
+  ],
+  "land_1": [
+   1.7962,
+   0.6206,
+   false
+  ],
+  "land_2": [
+   2.6668,
+   0.6015,
+   false
+  ],
+  "land_3": [
+   3.5183,
+   0.659,
+   false
+  ],
+  "glide": [
+   4.4273,
+   1.46,
+   false
+  ],
+  "boost_1": [
+   6.1373,
+   0.9562,
+   false
+  ],
+  "boost_2": [
+   7.3434,
+   0.9743,
+   false
+  ],
+  "sonicBoom_1": [
+   8.5678,
+   1.3122,
+   false
+  ],
+  "sonicBoom_2": [
+   10.13,
+   1.2051,
+   false
+  ],
+  "dash": [
+   11.585,
+   0.368,
+   false
+  ],
+  "pound_1": [
+   12.2031,
+   2.4601,
+   false
+  ],
+  "pound_2": [
+   14.9132,
+   1.941,
+   false
+  ],
+  "bounce": [
+   17.1042,
+   0.4592,
+   false
+  ],
+  "splash": [
+   17.8134,
+   1.3373,
+   false
+  ],
+  "swingShoot_1": [
+   19.4007,
+   0.18,
+   false
+  ],
+  "swingShoot_2": [
+   19.8307,
+   0.1864,
+   false
+  ],
+  "swingRelease_1": [
+   20.2671,
+   0.6973,
+   false
+  ],
+  "swingRelease_2": [
+   21.2143,
+   0.695,
+   false
+  ],
+  "swingMiss": [
+   22.1593,
+   0.2527,
+   false
+  ],
+  "styleBurst_1": [
+   22.662,
+   0.5426,
+   false
+  ],
+  "styleBurst_2": [
+   23.4546,
+   0.4962,
+   false
+  ],
+  "fastTravel": [
+   24.2008,
+   1.5685,
+   false
+  ],
+  "respawn": [
+   26.0193,
+   1.3152,
+   false
+  ],
+  "revive": [
+   27.5845,
+   1.5,
+   false
+  ],
+  "moveTrain": [
+   29.3345,
+   1.559,
+   false
+  ],
+  "collapse_1": [
+   31.1435,
+   4.6071,
+   false
+  ],
+  "collapse_2": [
+   36.0006,
+   4.6003,
+   false
+  ],
+  "crater_1": [
+   40.8509,
+   0.8504,
+   false
+  ],
+  "crater_2": [
+   41.9514,
+   0.9598,
+   false
+  ],
+  "wallSmash_1": [
+   43.1612,
+   1.0083,
+   false
+  ],
+  "wallSmash_2": [
+   44.4195,
+   0.8158,
+   false
+  ],
+  "wallSmash_3": [
+   45.4853,
+   0.8148,
+   false
+  ],
+  "vehicleFlip_1": [
+   46.5501,
+   0.6,
+   false
+  ],
+  "vehicleFlip_2": [
+   47.4001,
+   0.6883,
+   false
+  ],
+  "honk_1": [
+   48.3384,
+   0.74,
+   false
+  ],
+  "honk_2": [
+   49.3284,
+   0.32,
+   false
+  ],
+  "flutter": [
+   49.8984,
+   0.653,
+   false
+  ],
+  "spray": [
+   50.8014,
+   1.5,
+   false
+  ],
+  "cans_1": [
+   52.5514,
+   0.3419,
+   false
+  ],
+  "cans_2": [
+   53.1432,
+   0.3748,
+   false
+  ],
+  "pop": [
+   53.768,
+   0.5152,
+   false
+  ],
+  "drone": [
+   54.5332,
+   1.1964,
+   false
+  ],
+  "collectNear": [
+   55.9797,
+   0.6,
+   false
+  ],
+  "loreNear": [
+   56.8297,
+   0.82,
+   false
+  ]
+ },
+ "Ui": {
+  "ui_1": [
+   0.05,
+   0.0974,
+   false
+  ],
+  "ui_2": [
+   0.3974,
+   0.0566,
+   false
+  ],
+  "ui_3": [
+   0.704,
+   0.0885,
+   false
+  ],
+  "rescue": [
+   1.0425,
+   1.6453,
+   false
+  ],
+  "incidentClear": [
+   2.9378,
+   2.1424,
+   false
+  ],
+  "levelUp": [
+   5.3302,
+   1.9859,
+   false
+  ],
+  "skillRank": [
+   7.5662,
+   0.6285,
+   false
+  ],
+  "gearDrop": [
+   8.4446,
+   1.0,
+   false
+  ],
+  "bossDefeated": [
+   9.6946,
+   2.8354,
+   false
+  ],
+  "combo": [
+   12.7801,
+   1.1004,
+   false
+  ],
+  "purchase": [
+   14.1304,
+   0.9444,
+   false
+  ],
+  "photo": [
+   15.3248,
+   0.3197,
+   false
+  ],
+  "contractDone": [
+   15.8945,
+   1.5325,
+   false
+  ],
+  "pvpFlag": [
+   17.677,
+   0.7,
+   false
+  ],
+  "bossWarning": [
+   18.627,
+   4.1445,
+   false
+  ],
+  "bossPhase": [
+   23.0215,
+   1.847,
+   false
+  ],
+  "mentorPanel": [
+   25.1185,
+   0.5529,
+   false
+  ],
+  "mentorReward": [
+   25.9213,
+   1.4,
+   false
+  ],
+  "badgeEarned": [
+   27.5713,
+   1.6374,
+   false
+  ],
+  "collectFind": [
+   29.4587,
+   0.92,
+   false
+  ],
+  "lorePage": [
+   30.6287,
+   1.7886,
+   false
+  ],
+  "contestCall": [
+   32.6673,
+   1.3968,
+   false
+  ],
+  "contestWin": [
+   34.3141,
+   1.6029,
+   false
+  ],
+  "roguePage": [
+   36.167,
+   0.7278,
+   false
+  ],
+  "passTier": [
+   37.1448,
+   1.651,
+   false
+  ],
+  "passClaim": [
+   39.0458,
+   0.6331,
+   false
+  ],
+  "episodeIntro": [
+   39.9288,
+   1.6473,
+   false
+  ],
+  "boardReward": [
+   41.8261,
+   1.6646,
+   false
+  ],
+  "dailyClaim": [
+   43.7407,
+   1.7223,
+   false
+  ],
+  "dailyQuest": [
+   45.7131,
+   0.88,
+   false
+  ],
+  "questAccept": [
+   46.8431,
+   1.551,
+   false
+  ],
+  "questStep": [
+   48.6441,
+   0.8,
+   false
+  ],
+  "questVillain": [
+   49.6941,
+   1.9096,
+   false
+  ],
+  "questEncore": [
+   51.8537,
+   1.7468,
+   false
+  ],
+  "questFinale": [
+   53.8505,
+   1.985,
+   false
+  ],
+  "questDone": [
+   56.0855,
+   2.0864,
+   false
+  ],
+  "questRetry": [
+   58.4219,
+   1.5668,
+   false
+  ],
+  "radio": [
+   60.2387,
+   0.25,
+   false
+  ],
+  "guideLodestar": [
+   60.7387,
+   0.25,
+   false
+  ],
+  "guideCrane": [
+   61.2387,
+   0.25,
+   false
+  ],
+  "guideInsider": [
+   61.7387,
+   0.25,
+   false
+  ],
+  "guideFake": [
+   62.2387,
+   0.25,
+   false
+  ]
+ },
+ "Loops": {
+  "flyCruise": [
+   0.05,
+   6.0,
+   true
+  ],
+  "speedRun": [
+   6.3,
+   4.0,
+   true
+  ],
+  "downed": [
+   10.55,
+   1.84,
+   true
+  ],
+  "bedDowntown": [
+   12.64,
+   42.5,
+   true
+  ],
+  "bedDocks": [
+   55.39,
+   38.5,
+   true
+  ],
+  "bedOutskirts": [
+   94.14,
+   38.5,
+   true
+  ],
+  "bedRooftop": [
+   132.89,
+   22.8,
+   true
+  ]
+ }
+}
