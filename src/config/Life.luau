@@ -305,6 +305,7 @@ return {
 		speed = { 14, 22 },
 		scale = 1.7, -- a gull is a pigeon mesh this much bigger
 		scare = 30,
+		cry = { 7, 16 }, -- seconds between a colony's cries (a random pick each time)
 		bang = 160,
 		calm = 7, -- seconds before a scared colony drifts back
 		body = { 240, 240, 236 },
@@ -394,6 +395,10 @@ return {
 		cans = s("clickfast.wav", 0.5, 1.3, { clip = "cans", range = 70, vary = 0.2 }),
 		pop = s("action_jump_land.mp3", 0.6, 1.4, { clip = "pop", range = 110 }),
 		drone = s("electronicpingshort.wav", 0.12, 0.3, { clip = "drone", range = 60 }),
+		-- alive-world (2026-11-20, the Ambient atlas): a harbour gull's cries from a colony now and then and when it
+		-- scatters (every `gullEvery` seconds by colony, Config.Life.gulls), a crane's winch as its trolley sets off
+		gull = s(nil, 0.5, 1, { clip = "gull", range = 220, vary = 0.08 }),
+		winch = s(nil, 0.55, 1, { clip = "winch", range = 260, vary = 0.04 }),
 		-- the city bed (AudioController.beds; the sounds pass, 2026-11-19): the traffic hum with far sirens and horns,
 		-- the Docks' water, bell, foghorn and gulls, the Outskirts' open air, and the wind on the rooftops (mixed in
 		-- by camera height, Config.Audio.bed). Our own mixes (art/audio/build.py) from CC0 loops and synth.
@@ -404,6 +409,8 @@ return {
 			Docks = { asset = 0, volume = 0.32, clip = "bedDocks" },
 			Outskirts = { asset = 0, volume = 0.26, clip = "bedOutskirts" },
 			Rooftop = { asset = 0, volume = 0.35, clip = "bedRooftop" },
+			-- the park's birdsong, breeze and far city (alive-world 2026-11-20; inside Config.Park.bounds)
+			Park = { asset = 0, volume = 0.34, clip = "bedPark" },
 		},
 	},
 }

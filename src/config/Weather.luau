@@ -14,8 +14,9 @@
 --   under the camera, box the emitter's size (studs, centred `above` the camera), speed and wind.
 -- * Story scenes (the opening's held dusk), underwater (Fx.DeepClient owns the Atmosphere there), mission pockets and
 --   the HQ have no weather: the rain stops and the grade relaxes.
--- Thunder borrows the collapse rumble pitched down until a recorded thunder clip lands (NEEDS NATE, Tasks); the rain
--- has no sound bed yet for the same reason.
+-- Thunder borrows the collapse rumble pitched down until a recorded thunder clip lands (NEEDS NATE, Tasks). The rain
+-- bed (alive-world 2026-11-20: Config.Audio.sounds.rain, the Ambient atlas) plays under the rain at up to
+-- rain.sound, following the rain's strength; silent indoors, underwater and in the pockets (no rain there).
 return {
 	on = true,
 	slot = 600,
@@ -70,6 +71,7 @@ return {
 		texture = 87074348735648, -- art/export/fx/rain.png (art/fx/textures.py --rain)
 		splash = 120260533473380, -- art/export/fx/splash.png
 		drops = { low = 140, medium = 300, high = 520 },
+		sound = 0.38, -- the rain bed's volume at full rain (Config.Audio.sounds.rain)
 		splashes = { low = 0, medium = 36, high = 80 },
 		box = 150,
 		above = 55,

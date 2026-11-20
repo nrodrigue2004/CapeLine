@@ -2,7 +2,7 @@
 # spectrogram (low at the bottom, log frequency) and waveform, its loudness and peak, flagged red when it is
 # silent, clipped or far off its group's level. Also checks each clip decodes from the encoded .ogg at its region
 # (what Roblox will play), so a bad region or an empty clip shows here, not in Studio.
-#   python3 -I art/audio/preview.py
+#   python3 -I art/audio/preview.py [Atlas]   (one atlas: bigger tiles in art/preview/sounds_<Atlas>.png)
 import json
 import os
 import subprocess
@@ -41,7 +41,12 @@ def spec_img(x, w, h):
 
 
 def main():
+    global TW, TH
     meta = json.load(open(os.path.join(AUD, "clips.json")))
+    only = sys.argv[1] if len(sys.argv) > 1 else None
+    if only:
+        meta = {only: meta[only]}
+        TW, TH = 520, 96
     tiles, report = [], []
     for atlas in meta:
         y = decode(os.path.join(AUD, atlas + ".ogg"))
@@ -74,13 +79,13 @@ def main():
             d.text((3, 80), "%.2fs  %.0f dB  pk %.1f%s%s" % (n, st, pk, "  LOOP" if loop else "", "  " + " ".join(bad) if bad else ""),
                    fill=col)
             tiles.append(tile)
-    cols = 8
+    cols = 2 if only else 8
     rows = (len(tiles) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * (TW + 4), rows * (TH + 4)), (8, 8, 12))
     for i, t in enumerate(tiles):
         sheet.paste(t, ((i % cols) * (TW + 4), (i // cols) * (TH + 4)))
     os.makedirs(os.path.join(REPO, "art", "preview"), exist_ok=True)
-    sheet.save(os.path.join(REPO, "art", "preview", "sounds.png"))
+    sheet.save(os.path.join(REPO, "art", "preview", "sounds_%s.png" % only if only else "sounds.png"))
     flagged = [r for r in report if r[5]]
     print("preview.py: %d clips, %d flagged" % (len(report), len(flagged)))
     for r in flagged:

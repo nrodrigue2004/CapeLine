@@ -6,6 +6,10 @@
 #   World - movement (leap, land, pound, boost, sonic boom, swing, dash), destruction, the living city
 #   Ui    - buttons, rewards, stamps, stings, the boss siren
 #   Loops - held sounds (flight wind, super-speed rush, the Downed heartbeat) and the city beds
+#   Ambient - (alive-world, 2026-11-20) the Ceremony crowd's applause loop and gasp, the scanner drone's hum, Patch's
+#           radio key-up, harbour gull cries, the Docks crane's winch, the park's birdsong bed and the rain bed
+#   python3 -I art/audio/build.py <download root> --only Ambient   builds just that atlas (the others' files, regions
+#           and uploads stay as they are: every upload counts against Roblox's monthly audio limit)
 # Writes art/export/audio/<Atlas>.ogg, art/export/audio/clips.json ({atlas: {clip: [start, length, loop]}}) and
 # src/config/AudioClips.luau (the regions; asset ids from art/audio/ids.json once uploaded).
 #   python3 -I art/audio/build.py <download root>     (the root holds one folder per downloaded pack)
@@ -33,6 +37,7 @@ KU = "kenney-ui-audio/src/addons/kenney_ui_audio/"
 KJ = "kenney-music-jingles-for-godot/src/addons/kenney music jingles/"
 FS = "Free-SFX/src/"
 RD = FS + "rubberduck/"
+OW = FS + "Owlish/Sound Effects Pack/"
 PIANO = "Meta-open-sound/src/systems/instruments/meta-piano/ogg/"
 
 ATLASES = {}  # atlas -> [(clip name, array, loop)]
@@ -610,10 +615,187 @@ def build_loops():
     loop_clip("Loops", "bedRooftop", wind(24, 250, 1600, 0.28, 0.4) + wind(24, 100, 400, 0.2) * 0.5, -20, 1.2)
 
 
+# ---------------------------------------------------------------------------------------------------------
+# Ambient (alive-world, 2026-11-20): the sounds the city and the prologue still lacked. Sources: Owlish's CC0 clap
+# and gasp and rubberduck's CC0 rain loops (OpenGameArt, in Free-SFX), Kenney's CC0 sci-fi engines and RPG clicks,
+# and our own synth (gulls, birds, the crowd's murmur, the radio's static and beep)
+# ---------------------------------------------------------------------------------------------------------
+def vari(x, ratio):
+    """Resample with a time-varying speed (ratio: an array as long as the output, 1 = as recorded)."""
+    pos = np.cumsum(ratio)
+    pos = pos[pos < len(x) - 2]
+    i = pos.astype(int)
+    f = pos - i
+    return x[i] * (1 - f) + x[i + 1] * f
+
+
+def onsets(x, thr_db=-30, gap=0.12):
+    """The starts of the separate hits in a clip (a clap take): where the 5 ms envelope jumps over thr_db."""
+    w = int(0.005 * SR)
+    e = np.convolve(np.abs(x), np.ones(w) / w, "same")
+    thr = np.max(e) * db(thr_db)
+    out, last = [], -1e9
+    for k in np.where(e > thr)[0]:
+        if k - last > gap * SR:
+            out.append(k)
+        last = k if k - last > gap * SR else last
+    return out
+
+
+def build_ambient():
+    g = np.random.default_rng(20261120)
+    # --- applause: 46 people clapping, each their own rate and hands (the single clap take's claps), near ones
+    # brighter, far ones darker; a few whistles; a low murmur of voices under it (filtered noise in vowel bands)
+    take = dsp.load(OW + "Human/solo-clap.opus")
+    claps = []
+    for k in onsets(take):
+        c = take[max(0, k - int(0.004 * SR)): k + int(0.11 * SR)]
+        if len(c) > int(0.05 * SR):
+            claps.append(fade(c.copy(), 0.0005, 0.04))
+    dur = 16.0
+    n = int(dur * SR)
+    gen = dur + 2.5  # clap on past the loop's end, so its crossfade blends clapping into clapping
+    clapping = np.zeros(int(gen * SR) + SR)
+    for person in range(46):
+        near = g.random()
+        hz = 3.2 + g.random() * 2.4
+        t = g.random() * 0.4
+        tone = rate(claps[person % len(claps)], 0.85 + g.random() * 0.4)
+        tone = lp(tone, 2500 + 6000 * near) * (0.25 + 0.75 * near)
+        while t < gen:
+            a = int(t * SR)
+            clapping[a: a + len(tone)] += tone * (0.7 + 0.3 * g.random())
+            t += (1 / hz) * (0.9 + 0.2 * g.random())
+    n = int(gen * SR)
+    clapping = clapping[:n]
+    murmur = np.zeros(n)
+    base = dsp.noise(gen, "pink")
+    for lo, hi, rate_hz in ((300, 700, 2.1), (800, 1300, 3.3), (1700, 2600, 2.7)):
+        tt = np.arange(n) / SR
+        wob = 0.55 + 0.45 * np.sin(2 * np.pi * (rate_hz * tt + g.random())) * np.sin(2 * np.pi * (0.37 * tt + g.random()))
+        murmur += dsp.bp(base, lo, hi) * wob
+    whistles = []
+    for path in (OW + "Human/wolf-whistle.opus", OW + "Human/attention-whistle.opus"):
+        whistles.append(reverb(lp(src(path, -4), 6000), 1.4, 0.35))
+    crowd = place([(clapping, 0), (murmur * 0.05, 0), (whistles[0] * 0.18, 3.1), (whistles[1] * 0.14, 9.4),
+                   (rate(whistles[0], 1.12) * 0.12, 13.0)])[:n]
+    crowd = reverb(crowd, 1.6, 0.22)[int(1.0 * SR): n]  # the reverb settled at the head, the tail still clapping
+    loop_clip("Ambient", "crowdCheer", crowd, -17, 0.8)
+    # --- the crowd's gasp: the one gasp take (its first breath in) as fourteen voices, pitched for men, women and
+    # kids, a hair apart, in the plaza's reverb
+    gasp = cut(dsp.load(OW + "Human/gasp1.opus"), 0.12, 0.55)
+    gasp = fade(hp(gasp, 180), 0.004, 0.12)
+    for v in range(2):
+        layers = []
+        for k in range(14):
+            r = (0.82, 0.95, 1.08, 1.25)[k % 4] * (0.95 + 0.1 * g.random())
+            layers.append((lp(rate(gasp, r), 3000 + 5000 * g.random()) * (0.5 + 0.5 * g.random()), 0.12 * g.random()))
+        add("Ambient", "crowdGasp_%d" % (v + 1), reverb(place(layers), 1.3, 0.3), -14)
+    # --- the scanner drone's hum: Kenney's low engine under a slow electric throb and a faint high whine
+    eng = src(KS + "space_engine_low_002.ogg", 0, 0.8, lpf=1800)
+    eng = np.concatenate([eng, eng[::-1].copy()] * 4)[: int(8 * SR)]
+    tt = np.arange(int(8 * SR)) / SR
+    throb = (np.sin(2 * np.pi * 55 * tt) + 0.5 * np.sin(2 * np.pi * 110 * tt)) * (0.6 + 0.4 * np.sin(2 * np.pi * 1.0 * tt))
+    whine = np.sin(2 * np.pi * (1760 * tt + 6 * np.sin(2 * np.pi * 0.5 * tt))) * 0.04
+    loop_clip("Ambient", "scanHum", eng * 0.7 + throb * 0.25 + whine, -20, 0.5)
+    # --- Patch's radio: a key-up click, a squelch of band-passed static and a two-tone beep (a walkie-talkie)
+    static = dsp.bp(dsp.noise(0.16), 900, 3200) * np.linspace(1, 0.2, int(0.16 * SR))
+    beep = np.concatenate([np.sin(2 * np.pi * 1320 * np.arange(int(0.06 * SR)) / SR),
+                           np.sin(2 * np.pi * 1760 * np.arange(int(0.07 * SR)) / SR)])
+    radio = place([(src(KF + "tick_002.wav", -2), 0), (static * 2.2, 0.01), (fade(beep, 0.003, 0.02) * 0.5, 0.11)])
+    add("Ambient", "patchRadio", dsp.bp(radio, 300, 3800), -18)
+    # --- harbour gulls: a "kee-ow" call (a rising then falling cry with a rough edge), two to four in a row
+    def cry(f, dur):
+        m = int(dur * SR)
+        t = np.linspace(0, 1, m)
+        fr = f * (1 + 0.55 * np.sin(np.pi * np.minimum(t * 1.4, 1)) - 0.45 * t)
+        ph = 2 * np.pi * np.cumsum(fr) / SR
+        rough = 1 + 0.35 * np.sin(2 * np.pi * 42 * t * dur)
+        y = (np.sin(ph) + 0.6 * np.sin(2 * ph) + 0.35 * np.sin(3 * ph) + 0.2 * np.sin(4 * ph)) * rough
+        y *= np.sin(np.pi * t) ** 0.5 * (1 - 0.6 * t)
+        return dsp.bp(y + 0.08 * dsp.noise(dur), 700, 6000)
+    for v in range(3):
+        calls = []
+        t = 0.0
+        for k in range(2 + v):
+            d = 0.28 + 0.14 * g.random()
+            calls.append((cry(1300 + 260 * g.random(), d) * (1 - 0.15 * k), t))
+            t += d + 0.06 + 0.1 * g.random()
+        add("Ambient", "gull_%d" % (v + 1), reverb(place(calls), 0.9, 0.18), -15)
+    # --- the crane's winch: a motor whine that spins up, runs and spins down (Kenney's circular engine at a
+    # varying speed), a ratchet's clicks at the gear's rate, a clunk at the start and the stop. As long as one run
+    # of the trolley (Config.Life.cranes: |b - a| / speed x 1.5 = 11.57 s), easing like it
+    run = 11.57
+    motor = src(KS + "engine_circular_001.ogg", 0)
+    motor = np.concatenate([motor, motor[::-1].copy()] * 16)
+    m = int(run * SR)
+    curve = ([0, 1.0, run - 1.6, run], [0.45, 1.2, 1.2, 0.4])
+    sp = np.interp(np.arange(m) / SR, *curve)
+    whine = fade(vari(motor, sp)[:m], 0.05, 0.8)
+    clicks = []
+    t = 0.3
+    while t < run - 0.5:
+        clicks.append((src(KR + "metal_click.ogg", -14, 1.6), t))
+        t += 0.11 / float(np.interp(t, *curve))
+    winch = place([(whine, 0), (src(KI + "impact_metal_heavy_001.ogg", -6, 0.8), 0),
+                   (src(KI + "impact_metal_heavy_003.ogg", -8, 0.85), run - 0.3)] + clicks)
+    add("Ambient", "winch", winch, -16)
+    # --- the park's bed: birds (several kinds of chirp, trill and whistle, scattered), a breeze in the leaves and
+    # the far city under it
+    def chirp(f0, f1, d):
+        m = int(d * SR)
+        t = np.linspace(0, 1, m)
+        fr = f0 + (f1 - f0) * t ** 0.7
+        y = np.sin(2 * np.pi * np.cumsum(fr) / SR) * np.sin(np.pi * t) ** 1.5
+        return y
+
+    def song(kind):
+        if kind == 0:  # a quick rising chirp, repeated
+            return place([(chirp(3200, 4800, 0.06), 0.09 * k) for k in range(4)])
+        if kind == 1:  # a trill
+            return place([(chirp(5200, 4400, 0.03), 0.045 * k) for k in range(12)])
+        if kind == 2:  # a two-note whistle, falling
+            return place([(chirp(2600, 2700, 0.18), 0), (chirp(2100, 2000, 0.22), 0.24)])
+        return place([(chirp(4000, 2800, 0.08), 0), (chirp(3600, 4200, 0.07), 0.12), (chirp(4400, 3000, 0.1), 0.22)])
+
+    pdur = 32.0
+    birds = []
+    t = 0.3
+    while t < pdur - 1.5:
+        kind = int(g.integers(0, 4))
+        dist = g.random()
+        b = song(kind)
+        b = rate(b, 0.9 + 0.2 * g.random())
+        birds.append((reverb(lp(b, 9000 - 5000 * dist), 0.8, 0.2 + 0.3 * dist) * (0.5 - 0.35 * dist), t))
+        t += 0.35 + 1.4 * g.random()
+    hw = src(RD + "SFX100V2/sfx100v2_loop_highway.opus", 0, lpf=900)
+    far = np.concatenate([hw, hw[::-1].copy()] * 8)[: int(pdur * SR)]
+    park = place([(wind(pdur, 300, 2200, 0.25, 0.7) * 0.18, 0), (far * 0.08, 0)] + birds)[: int(pdur * SR)]
+    loop_clip("Ambient", "bedPark", park, -24, 1.5)
+    # --- rain: two CC0 rain loops (a steady wash and a closer patter), long enough not to repeat by ear, with the
+    # roofs' low drumming under it
+    r1 = src(RD + "Loops/rain.opus", 0)
+    r2 = src(RD + "WaterSplashSlime/loop_rain.opus", 0)
+    rdur = 14.0
+    a = np.concatenate([r1, r1[::-1].copy()] * 3)[: int(rdur * SR)]
+    b = np.concatenate([r2, r2[::-1].copy()] * 2)[: int(rdur * SR)]
+    drum = lp(dsp.noise(rdur, "brown"), 220) * 0.35
+    loop_clip("Ambient", "rain", place([(a, 0), (b * 0.7, 0), (drum, 0)])[: int(rdur * SR)], -20, 1.0)
+
+
 GAP = 0.25
 
 
-def write_atlases():
+def merged(meta):
+    """The clips.json on disk with this run's atlases replaced (an --only build)."""
+    path = os.path.join(OUT, "clips.json")
+    out = json.load(open(path)) if os.path.isfile(path) else {}
+    out.update(meta)
+    json.dump(out, open(path, "w"), indent=1)
+    return out
+
+
+def write_atlases(dump=True):
     os.makedirs(OUT, exist_ok=True)
     meta = {}
     for atlas, clips in ATLASES.items():
@@ -630,7 +812,8 @@ def write_atlases():
         dsp.write_ogg(y, os.path.join(OUT, atlas + ".ogg"), 5 if atlas != "Loops" else 4)
         meta[atlas] = rows
         print("build.py: %s %d clips, %.1f s" % (atlas, len(clips), len(y) / SR))
-    json.dump(meta, open(os.path.join(OUT, "clips.json"), "w"), indent=1)
+    if dump:
+        json.dump(meta, open(os.path.join(OUT, "clips.json"), "w"), indent=1)
     return meta
 
 
@@ -667,15 +850,19 @@ def main():
         print("usage: python3 -I art/audio/build.py <download root> | --ids")
         return 1
     dsp.ROOT = sys.argv[1]
-    build_hits()
-    build_paths()
-    build_world()
-    build_ui()
-    build_loops()
+    only = sys.argv[sys.argv.index("--only") + 1] if "--only" in sys.argv else None
+    builders = {"Hits": [build_hits, build_paths], "World": [build_world], "Ui": [build_ui], "Loops": [build_loops],
+                "Ambient": [build_ambient]}
+    for name, fns in builders.items():
+        if only is None or only == name:
+            for fn in fns:
+                fn()
     if dsp.MISSING:
         print("build.py: missing sources:\n  " + "\n  ".join(sorted(dsp.MISSING)))
         return 1
-    meta = write_atlases()
+    meta = write_atlases(dump=only is None)
+    if only:
+        meta = merged(meta)  # keep the other atlases' regions as they were built (their files are not rewritten)
     write_luau(meta)
     print("build.py: sources used:", ", ".join(sorted(SOURCES)))
     return 0

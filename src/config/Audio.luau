@@ -241,13 +241,23 @@ local Audio = {
 		-- lore step 4: a famous fake's face cracks to show metal (with a white flash and a short hit-stop)
 		unmask = s("clickfast.wav", 1, 0.45, { range = 200 }),
 		-- lore step 3: Patch's radio blip as each of his lines starts
-		radio = s("electronicpingshort.wav", 0.45, 3.4),
+		-- (alive-world 2026-11-20: a walkie-talkie key-up: click, a squelch of static and a two-tone beep)
+		radio = s("electronicpingshort.wav", 0.45, 3.4, { clip = "patchRadio" }),
 		-- lore step 6: each guide's own blip as a line starts (Config.Story.guides.speakers[who].blip; Patch keeps
 		-- radio above). Blips until real voice lines (nate: voices later)
 		guideLodestar = s("clickfast.wav", 0.45, 0.75), -- a low, steady tap: in person
 		guideCrane = s("button.wav", 0.5, 0.6), -- a mic thump: the stage and TV
 		guideInsider = s("electronicpingshort.wav", 0.4, 2.2), -- a lower radio blip
 		guideFake = s("clickfast.wav", 0.4, 1.6), -- the famous fakes and the copy
+		-- alive-world (2026-11-20, the Ambient atlas: art/audio/build.py build_ambient; no built-in fallback, so a
+		-- place without the atlas stays silent rather than looping a ping):
+		-- the Ceremony crowd's applause and whistles while it cheers (Fx.PrologueFx), its gasp as the scan locks on
+		-- the hero, the scanner drone's hum while it hovers, and the rain bed under the weather (Fx.WeatherFx: its
+		-- volume follows the rain, up to Config.Weather.rain.sound)
+		crowdCheer = s(nil, 0.42, 1, { loop = true }),
+		crowdGasp = s(nil, 0.75, 1, { vary = 0.04 }),
+		scanHum = s(nil, 0.3, 1, { loop = true }),
+		rain = s(nil, 0, 1, { loop = true }),
 	},
 
 	-- every path's own sound layer (overhaul plan step 6), played with the slot's cast sound above (Juice.path):

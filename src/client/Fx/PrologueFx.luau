@@ -1816,12 +1816,21 @@ local function setQuiet(on: boolean)
 	veilOthers(on)
 end
 
+-- The Ceremony's held sounds on this device (alive-world 2026-11-20): the crowd's applause loop and the scanner's hum
+local gasped = false
+local function crowdSound(cheer: boolean, hum: boolean)
+	AudioController.loop("crowdCheer", cheer)
+	AudioController.loop("scanHum", hum)
+end
+
 local function onState()
 	setQuiet(StoryClient.openingStep() ~= nil)
 	local o = StoryClient.opening
 	local step = StoryClient.openingStep()
 	if not step then
 		endPick()
+		crowdSound(false, false)
+		gasped = false
 		CinemaClient.stop("prologue")
 		if slowmo then
 			slowmo:Destroy()
@@ -1913,6 +1922,19 @@ local function frame(dt: number)
 	local o = StoryClient.opening
 	local t = StoryClient.beatTime()
 	local now = os.clock()
+	-- (alive-world 2026-11-20) the crowd is heard: applause and whistles while it cheers, one gasp as the scan
+	-- locks on the hero, the scanner drone's hum while it hovers over the stage (the Ambient atlas)
+	local gasping = step == "scan" and t > O.beats.scan * 0.45
+	crowdSound(
+		(step == "ceremony" or step == "scan") and not gasping and #crowd > 0,
+		scanner ~= nil and (step == "ceremony" or step == "scan")
+	)
+	if gasping and not gasped then
+		gasped = true
+		AudioController.play("crowdGasp")
+	elseif step ~= "scan" then
+		gasped = false
+	end
 	if step == "ceremony" then
 		for _, n in crowd do
 			poseClip(n, cheerOf(n), now)

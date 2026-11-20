@@ -736,7 +736,7 @@ end
 -- scaled up in gull white, gliding with a slow flap now and then, banking into the circle; a hero flying through or a
 -- big hit sends them wheeling out and up, flapping hard, and they drift back after a while.
 type Gull = { bird: Bird, phase: number, radius: number, height: number, speed: number }
-type Colony = { gulls: { Gull }, scared: number, flee: number }
+type Colony = { gulls: { Gull }, scared: number, flee: number, cryAt: number }
 local colonies: { [BasePart]: Colony } = {}
 local G = L.gulls
 local GULL_BODY = Color3.fromRGB(G.body[1], G.body[2], G.body[3])
@@ -783,7 +783,7 @@ local function makeColony(n: number): Colony?
 			speed = (G.speed[1] + math.random() * (G.speed[2] - G.speed[1])) * (if k % 3 == 0 then -1 else 1),
 		})
 	end
-	return if #gulls > 0 then { gulls = gulls, scared = -math.huge, flee = 0 } else nil
+	return if #gulls > 0 then { gulls = gulls, scared = -math.huge, flee = 0, cryAt = 0 } else nil
 end
 
 local function dropColony(c: Colony)
@@ -874,8 +874,17 @@ local function stepGulls(dt: number, now: number, list: { any })
 		if scare then
 			if now - colony.scared > 1.5 then
 				AudioController.playSpec(L.sounds.flutter, centre)
+				AudioController.playSpec(L.sounds.gull, centre, { pitch = 1.08 }) -- they cry as they scatter
 			end
 			colony.scared = now
+		end
+		-- (alive-world 2026-11-20) a colony cries now and then from one of its gulls
+		if now >= colony.cryAt then
+			if colony.cryAt > 0 then
+				local g1 = colony.gulls[math.random(1, #colony.gulls)]
+				AudioController.playSpec(L.sounds.gull, g1.bird.pos)
+			end
+			colony.cryAt = now + G.cry[1] + math.random() * (G.cry[2] - G.cry[1])
 		end
 		local target = if now - colony.scared < G.calm then 1 else 0
 		colony.flee += (target - colony.flee) * math.min(1, dt * (if target > colony.flee then 2.2 else 0.35))
@@ -1386,7 +1395,13 @@ end
 -- (Shared.LifePlan.crane); the server tags the boom's box LifeCrane and builds the trolley and cable as visual-only
 -- pieces beside it ("dress", attribute Look). Only this device's copies move; nothing that collides does
 local CR = L.cranes
-type Crane = { boom: BasePart, pieces: { { part: BasePart, cf: CFrame } }, phase: number }
+type Crane = {
+	boom: BasePart,
+	pieces: { { part: BasePart, cf: CFrame } },
+	phase: number,
+	z: number?,
+	moving: boolean,
+}
 local cranes: { [BasePart]: Crane } = {}
 local craneless: { [BasePart]: number } = {} -- booms whose trolley was not found yet: when to look again
 
@@ -1411,7 +1426,7 @@ local function findCrane(boom: BasePart): Crane?
 	if #pieces == 0 then
 		return nil
 	end
-	return { boom = boom, pieces = pieces, phase = (boom.Position.X * 0.37) % 1 }
+	return { boom = boom, pieces = pieces, phase = (boom.Position.X * 0.37) % 1, z = nil, moving = false }
 end
 
 local function stepCranes(now: number)
@@ -1445,6 +1460,12 @@ local function stepCranes(now: number)
 		end
 		if c then
 			local z, swing = LifePlan.crane(CR, now, c.phase)
+			-- the winch as the trolley sets off (alive-world 2026-11-20: Config.Life.sounds.winch)
+			local moving = c.z ~= nil and math.abs(z - (c.z :: number)) > 1e-3
+			if moving and not c.moving then
+				AudioController.playSpec(L.sounds.winch, c.boom.Position + Vector3.new(0, -CR.pivot, z))
+			end
+			c.z, c.moving = z, moving
 			-- the pieces were built at the boom's look offset (CR.at); slide them by the difference, and swing them
 			-- about the trolley's wheels (a hook displaced along +z is a turn of -swing about x)
 			local slide = Vector3.new(0, 0, z - CR.at)

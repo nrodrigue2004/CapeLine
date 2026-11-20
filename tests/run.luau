@@ -23295,7 +23295,8 @@ end
 	world = world,
 	placePath = placePath,
 });
-(require :: any)("./alive2_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./alive2_test")({ test = test, check = check, Config = Config, world = world });
+(require :: any)("./alive3_test")({ test = test, check = check, Config = Config })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)
