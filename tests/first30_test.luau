@@ -443,4 +443,45 @@ return function(T: any)
 		check(heard, "then Patch says the POWERS line: " .. texts())
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
+
+	test(
+		"First 30: the level-up banner and NEXT LV name what really unlocks (no stale Flight or Frost)",
+		function()
+			local Progress = require("../src/shared/Progress")
+			local u3 = Progress.unlockAt(Config, 3) or ""
+			check(string.find(u3, "Safehouse", 1, true) ~= nil, "level 3 opens Safehouse: " .. u3)
+			local u5 = Progress.unlockAt(Config, 5) or ""
+			check(
+				string.find(u5, "Skill slot 3", 1, true) ~= nil
+					and string.find(u5, "Move training", 1, true) ~= nil,
+				"level 5: the third slot and move training: " .. u5
+			)
+			check(
+				string.find(
+					Progress.unlockAt(Config, Config.Contracts.board.minLevel) or "",
+					"Contract Board",
+					1,
+					true
+				) ~= nil,
+				"the Contract Board's level"
+			)
+			-- no mobility pick or power path is named: every hero has its pick and its main path from level 1
+			local stale = {}
+			for _, m in Config.Move.mobility do
+				table.insert(stale, m.name)
+			end
+			for _, set in { "Frost", "Titan", "Pulse", "Blade" } do
+				table.insert(stale, set .. " powers")
+			end
+			for L = 2, Config.Stats.levelCap do
+				local u = Progress.unlockAt(Config, L) or ""
+				for _, word in stale do
+					check(
+						string.find(u, word, 1, true) == nil,
+						"level " .. L .. " does not claim " .. word .. ": " .. u
+					)
+				end
+			end
+		end
+	)
 end

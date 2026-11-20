@@ -2502,7 +2502,10 @@ test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap (Stat
 	local CAP = Config.Stats.levelCap
 	local cap, capXp = Progress.addRenown(Config, CAP - 1, 0, 1e7)
 	check(cap == CAP and capXp == 0, "stops at the cap")
-	check(select(1, Progress.nextUnlock(Config, 1)) == 3, "next unlock after 1 is Flight at 3")
+	check(
+		select(1, Progress.nextUnlock(Config, 1)) == 3,
+		"next unlock after 1 is at 3 (Safehouse; first-30: no longer Flight)"
+	)
 	local at, what = Progress.nextUnlock(Config, 40)
 	check(at == CAP and what == Progress.CAP_UNLOCK, "after 40 the next unlock is the cap and Legacy")
 	check(Progress.nextUnlock(Config, CAP) == nil, "nothing after the cap")

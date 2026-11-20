@@ -930,6 +930,7 @@ local function sweep(o: { [string]: any }, t: number)
 	else
 		if not s.locked then
 			s.locked = true
+			AudioController.play("aimLock", start) -- (first-30) the lock is heard, not only seen: the sniper's lock-on
 			FxLib.shock(start + Vector3.new(0, 0.2, 0), 7, SCAN_RED)
 			FxLib.emit("spark", SCAN_RED, start + Vector3.new(0, 1, 0), 10)
 		end
