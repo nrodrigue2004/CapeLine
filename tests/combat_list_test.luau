@@ -2684,6 +2684,92 @@ return function(T: any)
 		)
 	end)
 
+	test("List combat: the STYLES tab shows a picture per style (Everything Left 362)", function()
+		local GearMath = require("../src/shared/GearMath")
+		local tiles = Config.StyleTiles
+		check(Config.Ui.styleTiles and Config.Ui.styleTiles > 0, "the style tiles sheet has an uploaded id")
+		check(fs.isFile("art/export/ui/styles/StyleTiles.png"), "the packed sheet is committed")
+		check(fs.isFile("art/ui/style_tiles.py"), "the script that packs it is committed")
+		-- every style that can exist names a cell, and the cells fit the sheet without overlap
+		local used, missing = {}, {}
+		for _, id in GearMath.allStyles(Config) do
+			local slotIdx = GearMath.styleParts(id)
+			local slot = Config.Gear.slotOrder[slotIdx]
+			local row = GearMath.styleRow(Config, id)
+			local key = GearMath.lookKey(slot, row)
+			local i = tiles.keys[key]
+			if i == nil then
+				table.insert(missing, key)
+			else
+				check(i >= 0 and i < tiles.per * tiles.per, key .. " sits on the sheet")
+			end
+		end
+		check(#missing == 0, "every style has a tile; missing: " .. table.concat(missing, ", "))
+		for key, i in tiles.keys do
+			check(used[i] == nil, key .. " has its own cell")
+			used[i] = key
+		end
+		-- the real screen: GearScreen's STYLES tab puts a Thumb with the style's cell on each style button
+		local roblox = require("@lune/roblox")
+		local UiSim = require("./uisim")
+		local trees = UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath)))
+		local sim = UiSim.new(
+			trees,
+			{
+				name = "iPhone 14",
+				w = 844,
+				h = 390,
+				top = 58,
+				left = 47,
+				right = 47,
+				bottom = 0,
+				touch = true,
+			}
+		)
+		sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+		local GS = sim:require("Client.Ui.GearScreen")
+		local State = sim:require("Client.State")
+		local first = GearMath.allStyles(Config)[1]
+		State.profile.styles = { first }
+		sim:run("GearScreen", GS.init)
+		sim:run("open", GS.open)
+		local g = sim.playerGui:FindFirstChild("Gear") or sim.playerGui:FindFirstChild("GearScreen")
+		local root = g or sim.playerGui
+		for _, d in root:GetDescendants() do
+			if d:IsA("TextButton") and d.Text == "STYLES" then
+				sim:run("styles", function()
+					d.Activated:Fire()
+				end)
+				break
+			end
+		end
+		local pics, dim = 0, 0
+		for _, d in root:GetDescendants() do
+			if
+				d:IsA("ImageLabel")
+				and d.Name == "Thumb"
+				and d.Image == "rbxassetid://" .. Config.Ui.styleTiles
+			then
+				pics += 1
+				check(d.ImageRectSize.X == tiles.cell, "a style picture shows one cell")
+				if d.ImageTransparency > 0.3 then
+					dim += 1
+				end
+			end
+		end
+		local slot1 = 0
+		for _, id in GearMath.allStyles(Config) do
+			if GearMath.styleParts(id) == 1 then
+				slot1 += 1
+			end
+		end
+		check(
+			pics == slot1,
+			"the first slot's " .. slot1 .. " styles each show a picture (saw " .. pics .. ")"
+		)
+		check(dim == slot1 - 1, "locked styles' pictures are dimmed, the owned one is not (" .. dim .. ")")
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

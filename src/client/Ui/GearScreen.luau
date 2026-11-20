@@ -17,6 +17,7 @@ local GearMath = require(Shared:WaitForChild("GearMath"))
 local LootTable = require(Shared:WaitForChild("LootTable"))
 
 local Kit = require(script.Parent.Kit)
+local Thumb = require(script.Parent.Thumb)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 
@@ -334,6 +335,27 @@ end
 
 local styleTabs: { TextButton } = {}
 
+-- a style's picture on the style tiles sheet (Config.StyleTiles, art/ui/style_tiles.py), nil when it has none
+function GearScreen.stylePic(slotIdx: number, row: any): any?
+	local sheet = Config.Ui.styleTiles
+	local tiles = Config.StyleTiles
+	local slot = G.slotOrder[slotIdx]
+	if not (sheet and sheet > 0 and tiles and slot and row) then
+		return nil
+	end
+	local i = tiles.keys[GearMath.lookKey(slot, row)]
+	if not i then
+		return nil
+	end
+	return {
+		image = "rbxassetid://" .. sheet,
+		x = (i % tiles.per) * tiles.cell,
+		y = (i // tiles.per) * tiles.cell,
+		w = tiles.cell,
+		h = tiles.cell,
+	}
+end
+
 local function refreshStyles()
 	for i, b in styleTabs do
 		b.BackgroundColor3 = if i == styleSlot then Kit.color.gold else Kit.color.paper
@@ -379,6 +401,15 @@ local function refreshStyles()
 			end)
 			order += 1
 			b.Parent = stylesList
+			-- the style's picture at the button's left (after parenting, so the grid's cell height sizes it)
+			local pic = GearScreen.stylePic(slotIdx, row)
+			if pic then
+				Thumb.side(b, pic, b.Text, 14)
+				local img = b:FindFirstChild("Thumb")
+				if img and not have then
+					(img :: ImageLabel).ImageTransparency = 0.45
+				end
+			end
 		end
 	end
 end

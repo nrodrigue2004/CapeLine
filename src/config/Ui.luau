@@ -18,6 +18,9 @@ return {
 		clearer = 0.4,
 		turn = false,
 	},
+	-- the gear STYLES tab's picture per style (art/ui/style_tiles.py, Ui.GearScreen; Everything Left 362): one sheet of
+	-- 128 px cells, Config.StyleTiles names each look key's cell (0 = text-only buttons)
+	styleTiles = 88920125636846,
 	juiceArt = { stamp = 130467031750054, badge = 138482713675163, confetti = 79631498004206 },
 	photoBackdrops = {
 		COMIC = 135372080682696,
