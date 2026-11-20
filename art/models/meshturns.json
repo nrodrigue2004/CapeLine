@@ -147,6 +147,13 @@
   "turned": 100,
   "verdict": "rotY180"
  },
+ "Guard": {
+  "asDrawn": 1,
+  "either": 1,
+  "meshes": 6,
+  "turned": 6,
+  "verdict": "rotY180"
+ },
  "Hair": {
   "asDrawn": 9,
   "either": 9,

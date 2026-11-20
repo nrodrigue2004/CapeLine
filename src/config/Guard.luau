@@ -79,7 +79,7 @@ return {
 	},
 	-- the held guard (item 149): a force-field face with a glowing core and an eight-sided neon rim that snaps up
 	-- (raise seconds, from 0.3 of its size), kicks and flashes on each hit it takes, and runs from rim to low as
-	-- your guard drains (flickering under flicker of it). PLACEHOLDER ART: Roblox parts until the effects pass.
+	-- your guard drains (flickering under flicker of it). Meshes from art/blender/guard.py (Art.Guard, Fx.GuardFx).
 	shield = {
 		color = { 110, 180, 255 },
 		transparency = 0.55,

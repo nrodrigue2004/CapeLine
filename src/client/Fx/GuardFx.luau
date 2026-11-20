@@ -3,8 +3,11 @@
 -- robots holding a timed block (GuardEvent rup / rdown), the War-Frame's telegraph before its block (rwarn, WP6:
 -- the shine builds over a blue ground ring that fills, with a rising hum; a boss's shine is sized and placed by
 -- the event, `s` and `f`, not on a drawn robot), and the comic words BLOCKED, PERFECT!, SHATTER! and
--- CUT OFF! where they happen, each with its juice row (sound, flash, shake). PLACEHOLDER ART: plain neon
--- parts until the effects pass.
+-- CUT OFF! where they happen, each with its juice row (sound, flash, shake). The looks are Blender meshes
+-- (art/blender/guard.py, ReplicatedStorage.Art.Guard; list-combat 2026-11-20, Everything Left 384): a domed
+-- shield face with a hexagon, an eight-sided rim and a hex core; a geodesic bubble on blocking robots that turns
+-- slowly; a comic starburst for the perfect block and the cut; crystal shards that fly out of a shatter. While
+-- Art.Guard is not imported the old neon parts stand in (discs, balls and rim blocks).
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -16,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 local FrameProf = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FrameProf"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
@@ -31,13 +35,14 @@ local folder: Folder
 type HeroShield = {
 	parts: { BasePart },
 	offs: { CFrame },
+	grow: { [number]: Vector3 }, -- a part's size at full scale (the rest keep theirs)
 	rims: { BasePart },
 	core: BasePart,
 	born: number,
 	hitAt: number,
 }
 local heroShields: { [Player]: HeroShield } = {}
-local robotShields: { [number]: { part: BasePart, untilT: number, fixed: Vector3? } } = {}
+local robotShields: { [number]: { part: BasePart, untilT: number, fixed: Vector3?, turn: CFrame } } = {}
 local GUARD_BLUE = Color3.fromRGB(150, 200, 255)
 
 local function rgb(t: { number }): Color3
@@ -56,6 +61,38 @@ local function newPart(shape: Enum.PartType, size: Vector3): Part
 	p.Material = Enum.Material.ForceField
 	p.Color = rgb(G.shield.color)
 	p.Transparency = G.shield.transparency
+	p.Parent = folder
+	return p
+end
+
+-- One of Art.Guard's meshes, ready to place (nil while the set is not imported)
+local TURN = MeshFix.turn("Guard")
+-- the held shield's mesh sizes as a share of Config.Guard.shield.size (x: thickness through the face)
+local FACE, RIM, CORE = Vector3.new(0.15, 1, 1), Vector3.new(0.075, 1, 1), Vector3.new(0.03, 0.55, 0.55)
+local function guardMesh(
+	name: string,
+	material: Enum.Material,
+	color: Color3,
+	transparency: number
+): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Guard")
+	local src = set and set:FindFirstChild(name, true)
+	if not (src and src:IsA("MeshPart")) then
+		return nil
+	end
+	local p = MeshFix.clone(src)
+	for _, c in p:GetChildren() do
+		c:Destroy()
+	end
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Material = material
+	p.Color = color
+	p.Transparency = transparency
 	p.Parent = folder
 	return p
 end
@@ -104,8 +141,57 @@ local function pop(kind: string, pos: Vector3)
 	Debris:AddItem(anchor, 0.95)
 end
 
--- A quick ring burst (the shatter's shards, the perfect block's flash)
+-- The comic starburst: flat, turned to the camera, spinning a little as it swells and fades
+local function flash(pos: Vector3, color: Color3, size: number): boolean
+	local p = guardMesh("GuardFlash", Enum.Material.Neon, color, 0.1)
+	if not p then
+		return false
+	end
+	local cam = Workspace.CurrentCamera
+	local face = if cam then CFrame.lookAt(pos, cam.CFrame.Position) else CFrame.new(pos)
+	local spin = (math.random() - 0.5) * 0.6
+	p.Size = Vector3.new(size * 0.3, size * 0.3, 0.2)
+	p.CFrame = face * CFrame.Angles(0, 0, spin) * TURN
+	TweenService:Create(p, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(size, size, 0.2),
+		CFrame = face * CFrame.Angles(0, 0, spin + 0.5) * TURN,
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(p, 0.32)
+	return true
+end
+
+-- A shattered guard's shards flying out from the spot, spinning, and falling a little
+local function shards(pos: Vector3, color: Color3, count: number, reach: number)
+	for i = 1, count do
+		local p = guardMesh("GuardShard", Enum.Material.Glass, color, 0.15)
+		if not p then
+			return
+		end
+		local a = (i - 0.5) / count * 2 * math.pi + (math.random() - 0.5) * 0.5
+		local dir = Vector3.new(math.cos(a), 0.35 + math.random() * 0.6, math.sin(a)).Unit
+		local len = 1 + math.random() * 0.8
+		p.Size = Vector3.new(0.4, 0.34, 1) * len
+		local turnTo = CFrame.lookAt(pos, pos + dir)
+		p.CFrame = turnTo * TURN
+		local to = pos + dir * reach * (0.7 + math.random() * 0.5) - Vector3.new(0, 1.2, 0)
+		TweenService:Create(p, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CFrame = CFrame.new(to)
+				* (turnTo - turnTo.Position)
+				* CFrame.Angles(math.random() * 6, math.random() * 6, 0)
+				* TURN,
+			Transparency = 1,
+		}):Play()
+		Debris:AddItem(p, 0.55)
+	end
+end
+
+-- A quick burst (the shatter's shards, the perfect block's flash): the starburst, or a ball while Art.Guard is
+-- not imported
 local function burst(pos: Vector3, color: Color3, size: number)
+	if flash(pos, color, size) then
+		return
+	end
 	local p = newPart(Enum.PartType.Ball, Vector3.one * 1)
 	p.Material = Enum.Material.Neon
 	p.Color = color
@@ -119,6 +205,27 @@ end
 local function buildShield(): HeroShield
 	local S = G.shield
 	local d = S.size
+	-- the meshes: a domed face (bulging out along +x), its rim and the hex core behind it
+	local mFace = guardMesh("GuardFace", Enum.Material.ForceField, rgb(S.color), S.transparency)
+	local mRim = mFace and guardMesh("GuardRim", Enum.Material.Neon, rgb(S.rim), 0.1)
+	local mCore = mRim and guardMesh("GuardCore", Enum.Material.Neon, rgb(S.color), 0.78)
+	if mFace and mRim and mCore then
+		return {
+			parts = { mFace, mCore, mRim },
+			offs = { TURN, CFrame.new(-0.12, 0, 0) * TURN, CFrame.new(-0.2, 0, 0) * TURN },
+			grow = { FACE * d, CORE * d, RIM * d },
+			rims = { mRim },
+			core = mCore,
+			born = os.clock(),
+			hitAt = -1,
+		}
+	elseif mFace then
+		for _, p in { mFace, mRim, mCore } do
+			if p then
+				p:Destroy()
+			end
+		end
+	end
 	local face = newPart(Enum.PartType.Cylinder, Vector3.new(0.25, d, d))
 	local core = newPart(Enum.PartType.Cylinder, Vector3.new(0.12, d * 0.55, d * 0.55))
 	core.Material = Enum.Material.Neon
@@ -136,7 +243,15 @@ local function buildShield(): HeroShield
 		table.insert(offs, CFrame.Angles(a, 0, 0) * CFrame.new(0, r * math.cos(math.pi / S.sides), 0))
 		table.insert(rims, seg)
 	end
-	return { parts = parts, offs = offs, rims = rims, core = core, born = os.clock(), hitAt = -1 }
+	return {
+		parts = parts,
+		offs = offs,
+		grow = { Vector3.new(0.25, d, d), Vector3.new(0.12, d * 0.55, d * 0.55) },
+		rims = rims,
+		core = core,
+		born = os.clock(),
+		hitAt = -1,
+	}
 end
 
 local function onEvent(ev: any)
@@ -164,6 +279,7 @@ local function onEvent(ev: any)
 	elseif ev.k == "shatter" then
 		pop("shatter", pos)
 		burst(pos, rgb(G.colors.shatter), 11)
+		shards(pos, rgb(G.shield.rim), 8, 7)
 		Juice.fire("shatter", pos, { mine = mine })
 		CameraController.shake(0.12, 0.35)
 	elseif ev.k == "cut" then
@@ -174,7 +290,12 @@ local function onEvent(ev: any)
 		local s = robotShields[ev.a]
 		local size = Vector3.one * (ev.s or 9)
 		if not s then
-			s = { part = newPart(Enum.PartType.Ball, size), untilT = 0 }
+			local bubble = guardMesh("GuardBubble", Enum.Material.ForceField, rgb(G.shield.color), 1)
+			s = {
+				part = bubble or newPart(Enum.PartType.Ball, size),
+				untilT = 0,
+				turn = if bubble then TURN else CFrame.identity,
+			}
 			robotShields[ev.a] = s
 		end
 		s.part.Size = size
@@ -213,6 +334,8 @@ local function onEvent(ev: any)
 	elseif ev.k == "rdown" then
 		local s = robotShields[ev.a]
 		if s then
+			-- a robot's dropped block breaks into a few shards (a breaker's shatter has its own word and burst)
+			shards(s.part.Position, rgb(G.shield.rim), 5, s.part.Size.X * 0.4)
 			s.part:Destroy()
 			robotShields[ev.a] = nil
 		end
@@ -227,7 +350,8 @@ local function step()
 			s.part:Destroy()
 			robotShields[id] = nil
 		else
-			s.part.CFrame = CFrame.new(pos)
+			-- the bubble turns slowly so its facets catch the light
+			s.part.CFrame = CFrame.new(pos) * CFrame.Angles(0, now * 0.7, 0) * s.turn
 		end
 	end
 	for _, p in Players:GetPlayers() do
@@ -263,11 +387,9 @@ local function step()
 			local cfs = table.create(#hs.parts)
 			for i, off in hs.offs do
 				cfs[i] = cf * CFrame.new(off.Position * scale) * off.Rotation
-				local base = hs.parts[i]
-				if i == 1 then
-					base.Size = Vector3.new(0.25, G.shield.size * scale, G.shield.size * scale)
-				elseif i == 2 then
-					base.Size = Vector3.new(0.12, G.shield.size * 0.55 * scale, G.shield.size * 0.55 * scale)
+				local full = hs.grow[i]
+				if full then
+					hs.parts[i].Size = Vector3.new(full.X, full.Y * scale, full.Z * scale)
 				end
 			end
 			Workspace:BulkMoveTo(hs.parts, cfs, Enum.BulkMoveMode.FireCFrameChanged)
