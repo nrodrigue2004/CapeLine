@@ -27,6 +27,40 @@ local tipAt = math.random(1, #LoadingCard.TIPS)
 card.setTip(tipAt)
 
 gui.Parent = player:WaitForChild("PlayerGui")
+-- sound at once: the day patrol in the Music group (list-combat 2026-11-20; LoadingCard.MUSIC)
+local M = LoadingCard.MUSIC
+local SoundService = game:GetService("SoundService")
+local musicGroup = SoundService:FindFirstChild("Music") :: SoundGroup?
+if not musicGroup then
+	local g = Instance.new("SoundGroup")
+	g.Name = "Music"
+	g.Volume = M.group
+	g.Parent = SoundService
+	musicGroup = g
+end
+local music = Instance.new("Sound")
+music.Name = "LoadingMusic"
+music.SoundId = "rbxassetid://" .. string.format("%d", M.atlas)
+music.PlaybackRegionsEnabled = true
+music.PlaybackRegion = NumberRange.new(M.start, M.start + M.length)
+music.Looped = true
+music.Volume = M.volume
+music.SoundGroup = musicGroup
+music.Parent = SoundService
+music:Play()
+-- the skyline drifts by (near faster than far) and a hero streaks across the sky every few seconds
+for i, layer in card.layers do
+	TweenService:Create(
+		layer,
+		TweenInfo.new(if i == 1 then 60 else 34, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+		{ Position = UDim2.fromScale(-1, 1) }
+	):Play()
+end
+TweenService:Create(
+	card.streak,
+	TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In, -1, false, 2.4),
+	{ Position = UDim2.fromScale(1.4, 0.58) }
+):Play()
 TweenService:Create(
 	spark,
 	TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
@@ -99,5 +133,9 @@ if errors then
 	showErrors()
 end
 TweenService:Create(card.root, TweenInfo.new(0.4), { GroupTransparency = 1 }):Play()
+TweenService:Create(music, TweenInfo.new(1.5), { Volume = 0 }):Play() -- the game's own music takes over
 task.wait(0.45)
 gui:Destroy()
+task.delay(1.2, function()
+	music:Destroy()
+end)

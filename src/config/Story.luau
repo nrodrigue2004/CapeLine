@@ -572,7 +572,43 @@ return {
 		-- brand-new character's first thing is the comic page Config.Cinema.comic.pages[page] (Config.Cinema.scenes
 		-- .intro; SKIP from `skipAfter` s, even the first time), then the creator, then the Ceremony prologue after
 		-- PLAY (Shared.FlowPlan). The server opens the creator by itself if the device never answers in `timeout` s.
-		intro = { page = "intro", scene = "intro", skipAfter = 1.5, timeout = 45 },
+		intro = { page = "intro", scene = "intro", skipAfter = 1.5, timeout = 60 },
+		-- The intro film (list-combat 2026-11-20, nate: a cold open "before anything else", then short in-engine
+		-- cutscenes instead of the intro comic; Shared.IntroFilm, Fx.IntroFilm): played in the real city round the
+		-- hero's spot, a tower within `reach` studs between minHeight and maxHeight tall and minWidth wide; the
+		-- street `streetOut` studs off its face. `film = false` falls back to the comic page.
+		film = {
+			on = true,
+			seconds = 45,
+			reach = 320,
+			minWidth = 24,
+			minHeight = 60,
+			maxHeight = 260,
+			streetOut = 26,
+			tries = 6,
+			-- the Dread Syndicate on the tower's roof (a masked crook in earnable Syndicate pieces; DRAFT look for nate)
+			syndicate = {
+				gender = 1,
+				build = 2,
+				height = 4,
+				skin = 3,
+				hair = 22,
+				colors = { 22, 15, 6 }, -- black, plum, lime
+				pieces = {
+					suit = "Rib Frame",
+					back = "Tattered Cape",
+					head = "Half Mask",
+					hands = "Gloves",
+					feet = "Tall Boots",
+					emblem = "Moon",
+					visage = "Man Face", -- Roblox catalog face
+				},
+				tints = {},
+				mats = {},
+			},
+			you = 5, -- the crowd look (PrologueFx.cast "citizen") the you-in-the-crowd figure wears
+			glow = { 255, 220, 90 }, -- the hero's trail and the spark's light
+		},
 		-- The Ceremony's choice (act1-choices, 2026-11-19; Config.Story.choices[choice]): `delay` s after the Spark
 		-- fires (the shield pops, the shover flies) the moment freezes into a short camera beat with the choice card
 		-- (Fx.PrologueFx, never during the rooftop quick-time prompts); a hero who has not picked in `wait` s moves

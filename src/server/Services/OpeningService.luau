@@ -55,6 +55,7 @@ local MissionRules = require(Shared:WaitForChild("MissionRules"))
 local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
 local FlowPlan = require(Shared:WaitForChild("FlowPlan"))
 local PrologueCine = require(Shared:WaitForChild("PrologueCine"))
+local IntroFilm = require(Shared:WaitForChild("IntroFilm"))
 
 local BuildingService = require(script.Parent.BuildingService)
 local CityBuilder = require(script.Parent.CityBuilder)
@@ -821,6 +822,22 @@ local function step(r: Run, now: number, dt: number)
 	end
 end
 
+-- The intro film's stage round where the hero waits (list-combat 2026-11-20, Shared.IntroFilm): the real tower it
+-- smashes through, the far roof and the street, sent with OpeningIntro so every device films the same buildings.
+-- nil (no city yet, or off): the device plays the comic page instead.
+function OpeningService.introStage(player: Player): any
+	local F = Config.Story.opening.film
+	local world = CityBuilder.world
+	local ch = player.Character
+	local r = ch and ch:FindFirstChild("HumanoidRootPart")
+	if not F or not F.on or not world or not r or not r:IsA("BasePart") then
+		return nil
+	end
+	local p = r.Position
+	local ok, st = pcall(IntroFilm.stage, Config, world, p.X, p.Z)
+	return if ok then st else nil
+end
+
 -- The Journal's REPLAY of the prologue (fix-flow, 2026-11-19): a made hero out in the city, out of any scene or
 -- fight, watches the exposition again (skippable) and then plays the prologue as a replay (SKIP on every camera
 -- beat, no second rewards: StoryPlan.clear pays mission 1 once)
@@ -834,7 +851,7 @@ local function replay(player: Player)
 		return
 	end
 	replayAsked[player] = true
-	Net.fire("OpeningIntro", player, { replay = true })
+	Net.fire("OpeningIntro", player, { replay = true, stage = OpeningService.introStage(player) })
 	task.delay(Config.Story.opening.intro.timeout, function()
 		if replayAsked[player] then
 			replayAsked[player] = nil

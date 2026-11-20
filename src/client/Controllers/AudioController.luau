@@ -181,6 +181,9 @@ local function duckFx()
 end
 
 -- Play one juice action's sound. `at` is a world spot (3D) or nil (2D, on you). opts: pitch, volume
+-- a scene's own track while it plays (the intro film: Fx.IntroFilm), nil: the world picks
+AudioController.musicOverride = nil :: string?
+
 function AudioController.play(id: string, at: Vector3?, opts: { [string]: any }?)
 	AudioController.playSpec(A.sounds[id], at, opts, id)
 end
@@ -422,7 +425,8 @@ local function nearBoss(): boolean
 end
 
 local function musicTick()
-	local want = if nearBoss() then "boss" elseif WorldClient.isNight() then "patrolNight" else "patrolDay"
+	local want = AudioController.musicOverride
+		or (if nearBoss() then "boss" elseif WorldClient.isNight() then "patrolNight" else "patrolDay")
 	local stinging = currentTrack == "victory" and os.clock() < victoryUntil
 	if not stinging then
 		switch(want)

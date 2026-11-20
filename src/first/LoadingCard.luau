@@ -21,6 +21,19 @@ local STROKE = 3
 local SHADOW = 4
 local HALFTONE = "rbxassetid://89303571654854"
 
+-- the music that starts the moment the card shows (list-combat 2026-11-20, nate: loading "that doesn't feel like
+-- waiting": the city and sound at once): the day patrol from the Music atlas (copied from Config.AudioClips,
+-- tests/intro_film_test keeps it in step), at the default music level (Config.Settings music 2 of 10) until the
+-- saved setting takes over; LoadingScreen fades it out as the game's own music starts
+LoadingCard.MUSIC = { atlas = 100160094926729, start = 0.05, length = 34.2857, volume = 0.35, group = 0.2 }
+
+-- the skyline along the foot of the card: Brightharbor's towers in two layers drifting past (heights as a share
+-- of the strip, widths as a share of one screen; each layer is two copies side by side so it loops)
+LoadingCard.SKYLINE = {
+	far = { 0.55, 0.8, 0.45, 0.95, 0.6, 0.7, 1, 0.5, 0.75, 0.62, 0.88, 0.48 },
+	near = { 0.4, 0.62, 0.3, 0.78, 0.5, 0.36, 0.7, 0.44, 0.58, 0.34 },
+}
+
 -- short, true tips about the game (no free text; one at a time on the TIP panel)
 LoadingCard.TIPS = {
 	"Touch a beacon to find it. Found beacons let you fly across the city from the map.",
@@ -96,7 +109,52 @@ export type Card = {
 	spark: Frame,
 	pop: UIScale,
 	setTip: (i: number) -> (),
+	layers: { Frame },
+	streak: Frame,
 }
+
+-- One skyline layer: towers with lit windows, two copies wide so a pan of one screen loops seamlessly
+local function skylineLayer(root: Instance, heights: { number }, color: Color3, lit: number, z: number): Frame
+	local layer = Instance.new("Frame")
+	layer.Name = "Skyline"
+	layer.BackgroundTransparency = 1
+	layer.AnchorPoint = Vector2.new(0, 1)
+	layer.Position = UDim2.fromScale(0, 1)
+	layer.Size = UDim2.fromScale(2, 0.42)
+	layer.ZIndex = z
+	layer.Parent = root
+	local n = #heights
+	local w = 0.5 / n
+	for copy = 0, 1 do
+		for i, h in heights do
+			local b = Instance.new("Frame")
+			b.Name = "Tower"
+			b.AnchorPoint = Vector2.new(0, 1)
+			b.Position = UDim2.fromScale(copy * 0.5 + (i - 1) * w, 1)
+			b.Size = UDim2.fromScale(w * (0.82 + (i % 3) * 0.09), h)
+			b.BackgroundColor3 = color
+			b.BorderSizePixel = 0
+			b.ZIndex = z
+			b.Parent = layer
+			-- a few lit windows (gold squares), the same on both copies
+			for k = 1, lit do
+				if (i * 7 + k * 3) % 4 ~= 0 then
+					local win = Instance.new("Frame")
+					win.Name = "Window"
+					win.AnchorPoint = Vector2.new(0.5, 0.5)
+					win.Position = UDim2.fromScale(0.25 + ((i + k) % 3) * 0.25, 0.12 + k * (0.8 / (lit + 1)))
+					win.Size = UDim2.fromScale(0.14, 0.035)
+					win.BackgroundColor3 = GOLD
+					win.BackgroundTransparency = 0.25 + ((i + k) % 2) * 0.3
+					win.BorderSizePixel = 0
+					win.ZIndex = z
+					win.Parent = b
+				end
+			end
+		end
+	end
+	return layer
+end
 
 function LoadingCard.build(parent: Instance): Card
 	local root = Instance.new("CanvasGroup")
@@ -153,6 +211,25 @@ function LoadingCard.build(parent: Instance): Card
 		fadeOut.Parent = ray
 		ray.Parent = burst
 	end
+
+	-- the city along the foot (behind the TIP panel): a far layer in dusk blue, a near one in ink, and a hero's
+	-- gold streak across the sky (the cold open's first shot, in the comic's own style)
+	local far = skylineLayer(root, LoadingCard.SKYLINE.far, Color3.fromRGB(52, 68, 106), 3, 2)
+	local near = skylineLayer(root, LoadingCard.SKYLINE.near, Color3.fromRGB(20, 24, 38), 4, 2)
+	near.Size = UDim2.fromScale(2, 0.3)
+	local streak = Instance.new("Frame")
+	streak.Name = "Streak"
+	streak.AnchorPoint = Vector2.new(1, 0.5)
+	streak.Position = UDim2.fromScale(-0.2, 0.66)
+	streak.Size = UDim2.fromScale(0.22, 0.012)
+	streak.Rotation = -6
+	streak.BackgroundColor3 = GOLD
+	streak.BorderSizePixel = 0
+	streak.ZIndex = 2
+	local fade = Instance.new("UIGradient")
+	fade.Transparency = NumberSequence.new(1, 0)
+	fade.Parent = streak
+	streak.Parent = root
 
 	-- the logo: an ink drop-shadow copy behind the gold title, both tilted a little
 	local logoBox = Instance.new("Frame")
@@ -281,6 +358,8 @@ function LoadingCard.build(parent: Instance): Card
 		tip = tip,
 		spark = spark,
 		pop = pop,
+		layers = { far, near },
+		streak = streak,
 		setTip = function(i: number)
 			local n = #LoadingCard.TIPS
 			tip.Text = LoadingCard.TIPS[(i - 1) % n + 1]

@@ -368,7 +368,7 @@ function CreatorService.createFirst(player: Player)
 	if FlowPlan.introFirst(facts) then
 		local at = os.clock()
 		introAt[player] = at
-		Net.fire("OpeningIntro", player, {})
+		Net.fire("OpeningIntro", player, { stage = OpeningService.introStage(player) })
 		task.delay(Config.Story.opening.intro.timeout, function()
 			if introAt[player] == at then
 				openCreate(player) -- the device never answered: the creator anyway (never a soft-lock)

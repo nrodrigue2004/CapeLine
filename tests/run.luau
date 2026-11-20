@@ -23125,6 +23125,7 @@ end
 });
 (require :: any)("./boss_counter_test")({ test = test, check = check, Config = Config, world = world });
 -- list-combat (2026-11-20: quieter defaults, powers and weapons break walls); ONLY="List combat" runs these
+(require :: any)("./intro_film_test")({ test = test, check = check, Config = Config, world = world });
 (require :: any)("./combat_list_test")({ test = test, check = check, Config = Config, world = world });
 -- lock-on, omnidirectional movement, knockback by move, the block key, drops and swinging robots (nate's
 -- playtest 2026-11-19, own file); ONLY="PT combat" runs these

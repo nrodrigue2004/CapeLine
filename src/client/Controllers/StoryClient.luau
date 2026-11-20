@@ -122,12 +122,17 @@ function StoryClient.introPlaying(): boolean
 	return introOn
 end
 
--- Play the exposition comic page (the server's OpeningIntro). SKIP shows after a moment, even the first time.
-function StoryClient.playIntro()
+-- The intro film's scene builder (Fx.IntroFilm sets it at boot): the stage the server sent, the scene's base
+-- fields; nil when there is no film to play (the comic page plays instead)
+StoryClient.filmScene = nil :: ((stage: any, base: { [string]: any }) -> any?)?
+
+-- Play the exposition (the server's OpeningIntro): the intro film on the stage the server sent (list-combat
+-- 2026-11-20), else the comic page. SKIP shows after a moment, even the first time.
+function StoryClient.playIntro(data: any?)
 	local I = Config.Story.opening.intro
 	local def = Config.Cinema.scenes[I.scene]
 	introOn = true
-	CinemaClient.play({
+	local base = {
 		owner = "client",
 		key = "intro",
 		id = I.scene,
@@ -139,7 +144,10 @@ function StoryClient.playIntro()
 		canSkip = function()
 			return CinemaClient.time() >= I.skipAfter
 		end,
-	})
+	}
+	local stage = type(data) == "table" and data.stage or nil
+	local film = if stage and StoryClient.filmScene then StoryClient.filmScene(stage, base) else nil
+	CinemaClient.play(film or base)
 	StoryClient.Changed:Fire("intro")
 end
 
@@ -176,8 +184,8 @@ function StoryClient.init()
 		WorldClient.clockOverride = if StoryClient.inOpening() then Config.Story.opening.clockTime else nil
 		StoryClient.Changed:Fire("opening")
 	end)
-	Net.listen("OpeningIntro", function()
-		StoryClient.playIntro()
+	Net.listen("OpeningIntro", function(data)
+		StoryClient.playIntro(data)
 	end)
 	-- the page ends (or SKIP): the server opens the creator (or, for a replay, starts the prologue)
 	CinemaClient.Changed:Connect(function(scene)

@@ -2210,3 +2210,11 @@ Proved headless (tests/bosses3_test.luau, ONLY="bosses-3"; plus the Boss counter
 3. Creator WEAPON look: SWING TRAIL cycles only earned trails and names the next one's Mastery level; at Mastery 90 Frost shows the sparkle strip in blue; another player sees your trail.
 4. EMBLEM on: your symbol shows on the blade's flat (both sides) or the shield's face and hides when the weapon is put away.
 
+## Studio list: the intro film and the loading card (2026-11-20, list-combat)
+Storyboard (the game's own camera on the test seed, stand-in figures): art/preview/intro_film_1.png (cold open) and intro_film_2.png (the world). Redraw: `lune run art/intro/storyboard.luau && $HOME/tools/bpyenv/bin/python art/blender/intro_storyboard.py && python3 art/intro/storyboard_sheet.py`.
+- [ ] New account: the loading card shows the drifting skyline and the gold streak, and music plays at once (quietly); it fades as the game's music starts.
+- [ ] The film starts straight after: the camera sweeps the street, Lodestar (no name plate, gold trail) flies down it with three Crane Troopers firing red bolts; he smashes into the tower's face and a real hole opens (wall pieces fly), then the roof bursts and he rockets out; one drone explodes; the landing cracks the street; CAPELINE slams in with a shake. Boss music for the cold open, night patrol after.
+- [ ] The world beats: every figure is in shot and not inside a wall (the runner, the scanner's red cone, Crane on the roof, the three fakes landing, Radiant's metal half-face and red eye, Lodestar, the Syndicate crook, the drones rising, you in the crowd with the spark's glow). Comic captions top left, sound words pop in the world, the white flash, then the creator opens.
+- [ ] SKIP shows after 1.5 s and goes straight to the creator; the Journal's REPLAY plays the film again then the prologue.
+- [ ] The tower's hole heals after the film; no other player sees it. Phone: no long hitch when the cast is built (built a few a frame ahead of their shots).
+- [ ] Captions marked DRAFT (two lines) and the Syndicate crook's look: nate to OK or reword.

@@ -191,7 +191,7 @@ local Remotes: { [string]: RemoteDef } = {
 	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu),
 	-- 5 the exposition is over (watched or skipped; fix-flow 2026-11-19), 6 replay the prologue (the Journal)
 	OpeningAct = { dir = "C2S", schema = { n(1, 7) }, rate = 2, burst = 3 }, -- 7: the suit snapped (prologue-cine)
-	OpeningIntro = { dir = "S2C" }, -- { replay }: play the exposition comic page, then send OpeningAct 5
+	OpeningIntro = { dir = "S2C" }, -- { replay, stage }: play the intro film on the stage (else the comic page), then send OpeningAct 5
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
 	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz

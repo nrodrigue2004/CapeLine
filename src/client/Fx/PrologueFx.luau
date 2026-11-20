@@ -1799,6 +1799,36 @@ function PrologueFx.lodestarRig(parent: Instance): any
 	return rig
 end
 
+-- The cast on their own for another scene (the intro film, Fx.IntroFilm, list-combat 2026-11-20), parented to
+-- `parent`: "crane" (Silas Crane and his plate), a fake's kind ("Radiant", "Bulwark", "Skylance": its hero look and
+-- its hero plate), "citizen" (crowd clothes by i), or `look` (a creator look definition, FakeRules.lookFrom) as
+-- `kind`. Returns the rig (NpcRig.place it, destroy rig.model when done).
+function PrologueFx.cast(kind: string, parent: Instance, i: number?, look: any?): any
+	local rig
+	if kind == "crane" then
+		rig = craneRig(1)
+		plate(rig.model, "SILAS CRANE", O.brand, Color3.fromRGB(255, 210, 60))
+	elseif kind == "citizen" then
+		local k = i or 1
+		rig = person(
+			"Citizen",
+			{ gender = 1 + k % 2, build = 1 + k % 3, height = 2 + k % 3 },
+			rgb(SHIRTS[k % #SHIRTS + 1]),
+			rgb(PANTS[k % #PANTS + 1]),
+			rgb(Config.Creator.skins[k % 8 + 1]),
+			rgb(PANTS[(k + 1) % #PANTS + 1])
+		)
+	elseif look then
+		rig = hero(kind, FakeRules.lookFrom(Config, look, kind))
+	else
+		rig = hero(kind, FakeRules.look(Config, kind))
+		local pl = FakeRules.plate(Config, kind, false, nil)
+		plate(rig.model, pl.name, pl.sub, Color3.fromRGB(255, 220, 120))
+	end
+	rig.model.Parent = parent
+	return rig
+end
+
 function PrologueFx.init()
 	StoryClient.Changed:Connect(function(what)
 		if what == "opening" then

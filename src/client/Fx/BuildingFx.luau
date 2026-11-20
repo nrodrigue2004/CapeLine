@@ -999,6 +999,14 @@ local function impact(center: Vector3, radius: number, kind: number)
 end
 
 -- Repair drones: fly in over the building and hover while working (PLACEHOLDER ART)
+-- A heavy landing on this device only (the intro film's hero: Fx.IntroFilm): the crater, the cracks and the street
+-- things knocked loose, as a server ground hit draws them
+function BuildingFx.landing(center: Vector3, radius: number)
+	crater(center, radius)
+	cracks(center, radius)
+	smashStreet(center, radius)
+end
+
 local function droneModel(): Model
 	local m = Instance.new("Model")
 	m.Name = "RepairDrone"
@@ -1157,7 +1165,8 @@ type Pending = {
 local pending: { [number]: Pending } = {}
 local PREDICT_HOLD = 1.5
 
-function BuildingFx.predict(id: number, at: Vector3, dmg: number, radius: number): number
+-- hold: how long the hole stays before an unconfirmed guess heals (the intro film keeps its hole for the film)
+function BuildingFx.predict(id: number, at: Vector3, dmg: number, radius: number, hold: number?): number
 	local rec = records[id]
 	if not rec or not models[id] or (state[id] or 0) == BuildingState.COLLAPSED or dmg <= 0 then
 		return 0
@@ -1176,7 +1185,7 @@ function BuildingFx.predict(id: number, at: Vector3, dmg: number, radius: number
 		p = { untilT = 0, pieces = {}, confirmed = {}, prev = state[id] or 0, server = nil }
 		pending[id] = p
 	end
-	p.untilT = os.clock() + PREDICT_HOLD
+	p.untilT = math.max(p.untilT, os.clock() + (hold or PREDICT_HOLD))
 	local fresh = {}
 	for _, i in hit do
 		p.pieces[i] = true

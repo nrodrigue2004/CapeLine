@@ -2735,6 +2735,24 @@ end
 -- the telekinesis float); nil when nobody holds it
 EnemyRenderer.heldAt = nil :: ((number, number) -> CFrame?)?
 
+-- A robot of a kind drawn on its own, outside the fight (the intro film, Fx.IntroFilm): its rig dressed as a
+-- live one with the look picked by `seed`, eyes lit (turned), whole shell. The caller places it (NpcRig.place),
+-- poses it and destroys the model.
+function EnemyRenderer.figure(kind: string, seed: number, parent: Instance): (Model, NpcRig.Rig)
+	local cfg = Config.Enemies[kind] or Config.Enemies.SparkDrone
+	local body = makeRobot(cfg.typeId)
+	assign(body, seed)
+	body.flags, body.extra = 0, 0
+	body.turned = true
+	applyFlags(body)
+	body.bar.Enabled = false
+	if body.clothes then
+		NpcRig.showClothes(body.rig, body.clothes, 2)
+	end
+	body.model.Parent = parent
+	return body.model, body.rig
+end
+
 -- The drawn model of a robot (nil when it is not drawn here)
 function EnemyRenderer.modelOf(id: number): Model?
 	local body = live[id]
