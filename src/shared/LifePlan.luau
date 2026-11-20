@@ -218,6 +218,136 @@ function LifePlan.roofFlags(Config: any, buildings: { any }): { any }
 	return out
 end
 
+-- Safehouses ({ id, x, y, z, district }, WorldInfo) -> a flag pole at each front corner of the pad (alive-world,
+-- 2026-11-20): { x, y, z, district } with no building id, so nothing takes them down
+function LifePlan.safeFlags(Config: any, safehouses: { any }): { any }
+	local pad = Config.World.safehouse.pad
+	local inset = Config.Life.banners.safeInset
+	local out = {}
+	for _, s in safehouses do
+		if type(s.y) == "number" then
+			for _, k in { -1, 1 } do
+				table.insert(out, {
+					x = s.x + k * (pad / 2 - inset),
+					y = s.y,
+					z = s.z + pad / 2 - inset,
+					district = s.district,
+				})
+			end
+		end
+	end
+	return out
+end
+
+-- WorldInfo's buildings -> tall cloth banners down Uptown's towers (alive-world, 2026-11-20): a pair on one face
+-- of each tall tower by hash, { id, x, y (the rod), z, nx, nz (the face's outward normal), district }
+function LifePlan.towerBanners(Config: any, buildings: { any }): { any }
+	local B = Config.Life.banners
+	local out = {}
+	for _, b in buildings do
+		local id, x, z, sx, sz, base, top, round = b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]
+		if
+			round ~= 1
+			and top - base >= B.minHeight
+			and math.min(sx, sz) >= B.minWidth
+			and B.districts[LifePlan.districtAt(Config, x, z)]
+			and roll(Config.Life.seed, x, z, B.salt) < B.chance
+		then
+			local face = math.floor(roll(Config.Life.seed, z, x, B.salt) * 4) % 4
+			local nx, nz = 0, 0
+			if face == 0 then
+				nz = -1
+			elseif face == 1 then
+				nz = 1
+			elseif face == 2 then
+				nx = -1
+			else
+				nx = 1
+			end
+			-- the face's half width along it, and how far out of the wall (past the kit's fronts) the cloth hangs
+			local half = if nx ~= 0 then sz / 2 else sx / 2
+			local wall = if nx ~= 0 then sx / 2 else sz / 2
+			for _, k in { -1, 1 } do
+				local along = k * half * B.spread
+				table.insert(out, {
+					id = id,
+					x = x + nx * (wall + B.out) + (if nx ~= 0 then 0 else along),
+					y = top - B.drop,
+					z = z + nz * (wall + B.out) + (if nz ~= 0 then 0 else along),
+					nx = nx,
+					nz = nz,
+					district = LifePlan.districtAt(Config, x, z),
+				})
+			end
+		end
+	end
+	return out
+end
+
+-- A hanging banner segment's swing out from the wall about the one above it (radians, + away from the wall): a
+-- gentle billow that grows toward the foot, with gusts; never back into the wall past `-0.02`
+function LifePlan.billow(i: number, n: number, t: number, wind: number, phase: number): number
+	local f = i / n
+	local gust = 0.5 + 0.5 * math.sin(t * 0.37 * wind + phase)
+	local a = (0.015 + 0.05 * gust) * f
+		+ math.sin(t * 2.6 * wind - i * 0.9 + phase) * (0.02 + 0.05 * f) * gust
+	return math.max(a, -0.02)
+end
+
+-- A Docks crane's trolley at time t (alive-world round 2, 2026-11-20): (z along the boom, swing radians). The cycle
+-- waits at a, runs to b, waits at b, runs back; each run eases in and out (smoothstep), and every start and stop
+-- kicks the hook's pendulum the other way, dying away (cfg: Config.Life.cranes)
+function LifePlan.crane(cfg: any, t: number, phase: number): (number, number)
+	local a, b = cfg.a, cfg.b
+	local wait = cfg.pause[1] + (cfg.pause[2] - cfg.pause[1]) * ((phase * 0.618) % 1)
+	local run = math.abs(b - a) / cfg.speed * 1.5 -- smoothstep peaks at 1.5 x the mean speed
+	local period = 2 * (wait + run)
+	local u = (t + phase * period) % period
+	-- the four legs' start times, and which way each run goes
+	local legs = { { 0, 0 }, { wait, 1 }, { wait + run, 0 }, { 2 * wait + run, -1 } }
+	local z, k, since = a, 1, u
+	for i = 4, 1, -1 do
+		if u >= legs[i][1] then
+			k, since = i, u - legs[i][1]
+			break
+		end
+	end
+	if k == 1 then
+		z = a
+	elseif k == 2 then
+		local s = math.clamp(since / run, 0, 1)
+		z = a + (b - a) * s * s * (3 - 2 * s)
+	elseif k == 3 then
+		z = b
+	else
+		local s = math.clamp(since / run, 0, 1)
+		z = b + (a - b) * s * s * (3 - 2 * s)
+	end
+	-- the last kick: a start swings the hook back (against the run), a stop swings it on (with the run)
+	local dir = if k == 2 then -1 elseif k == 3 then 1 elseif k == 4 then 1 else -1
+	local swing = dir * cfg.swing * math.exp(-cfg.damp * since) * math.sin(cfg.freq * since)
+	return z, swing
+end
+
+-- A park kite at time t (alive-world round 2, 2026-11-20): its offset from the flyer's hand (dx, dy, dz) and its
+-- bank (radians). u, v in [0, 1) pick its line's reach and height; it swoops in a slow figure eight across the wind
+function LifePlan.kite(
+	cfg: any,
+	t: number,
+	phase: number,
+	u: number,
+	v: number
+): (number, number, number, number)
+	local wx, wz = cfg.wind[1], cfg.wind[2]
+	local m = math.sqrt(wx * wx + wz * wz)
+	wx, wz = wx / m, wz / m
+	local out = cfg.out[1] + (cfg.out[2] - cfg.out[1]) * u
+	local h = cfg.height[1] + (cfg.height[2] - cfg.height[1]) * v
+	local s = t * cfg.speed + phase
+	local lat = math.sin(s) * cfg.swoop[1]
+	return wx * out - wz * lat, h + math.sin(2 * s) * cfg.swoop[2], wz * out + wx * lat, math.cos(s) * 0.45
+end
+
 -- A flag segment's turn about the one before it: a travelling wave that grows toward the fly end
 function LifePlan.wave(i: number, n: number, t: number, wind: number): number
 	local f = i / n

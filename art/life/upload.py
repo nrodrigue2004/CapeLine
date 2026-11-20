@@ -20,7 +20,7 @@ LIFE = os.path.join(REPO, "art", "export", "life")
 FILES = [(os.path.join(REPO, "art", "export", "Life.fbx"), "Life.fbx", "Model"),
          (os.path.join(REPO, "art", "export", "LoreBook.fbx"), "LoreBook.fbx", "Model")] + [
     (os.path.join(LIFE, n), n, "Image") for n in ("Picket.png", "Flag_Brightharbor.png", "Flag_Uptown.png", "Flag_Docks.png",
-                                                  "Flag_OldTown.png", "Tilled.png")
+                                                  "Flag_OldTown.png", "Tilled.png", "Banner_Uptown.png", "Kite.png", "KiteTail.png")
 ] + [(os.path.join(REPO, "art", "export", "city", "Tilled_%s.png" % m), "Tilled_%s.png" % m, "Image") for m in ("Normal", "Roughness")]
 
 
