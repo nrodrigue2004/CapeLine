@@ -232,6 +232,7 @@ local function stamp(text: string, color: Color3, sub: string?)
 		return stampNow(text, color, sub)
 	end)
 end
+JuiceFx.stamp = stamp -- (first-30) Ui.MoveTutor stamps a move's name
 
 local function myRoot(): BasePart?
 	local char = player.Character

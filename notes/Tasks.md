@@ -197,6 +197,9 @@ What nate does:
 ## first-30: NEEDS NATE (2026-11-20)
 - Sounds: DONE 2026-11-20 (alive-world, the Ambient atlas: applause with whistles and a murmur, a 14-voice gasp and the scanner's hum, Studio 504). Still NEEDS NATE: a real crowd cheer recording with voices (ours is CC0 applause, whistles and a synth murmur; it was built without anyone listening to it here).
 - Wording: the level-up banner now names the real unlocks (Decisions 2026-11-20, first-30); the old spec Levels table text (Flight at 3, Frost at 6, Super Speed at 8, Super Leap at 12, Grapple Acrobat at 16) no longer matched the game. OK the new lines or give the words you want.
+- Round 2 DRAFT wording: Patch's side quest line ("A new side quest just opened! Look for the gold mark on your MAP." / "A new job just opened. Find the gold mark on your MAP."; guide lines are fixed text, so it cannot name the chain), the creator's "Pick how your Spark woke to go on" and "Pick an archetype and a path to go on", MoveTutor's NEW MOVE and TRY THIS MOVE tags, the intro film's THUD!, FWOOSH! and SHHRAK!.
+- Sounds: the intro film's arrivals reuse dash and land; a cape swish and a shadow-smoke hiss would fit the Vigil and the Syndicate better.
+- Hit feedback in Safehouse and Framed beyond the bridge rescue (robots, turrets) was not audited this round.
 - The next-mission card's words ("NEXT: MISSION 2: SAFEHOUSE", START, "Reach level 4 to start. Help out around the city!") and Patch's three POWERS lines are DRAFT wording.
 
 ## Studio test list (needs nate's PC)
@@ -2437,6 +2440,16 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 96. Incident and event objects (ActivityProps punch): hit a dressed incident or event object (a billboard, the tram, a crate); each hit jolts its look and springs it back with a clank; its own break (fall, burst) plays as before.
 
 95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
+
+304. Intro film middle (IntroFilm arrive, first-30): play the intro film as a new account; Crane appears on the tower in a gold shimmer with a whoosh, his three heroes land one after another in white sparks and dust with landing thumps and a THUD!, Lodestar arrives in a blue glow with FWOOSH!, the Syndicate crook in plum smoke with SHHRAK!; the effects sit on the figures, not off to the side, and nothing stalls a phone.
+
+303. Bridge rescue (StoryFx trapStep, first-30): in Framed's "Get the people off the bridge", stand in a ring until its person is free: a cheer and chime, a green ring and SAVED! at the person, who then runs off on the sprint stride and cheers on the crowd's clip (hops, bent knees), never the old stiff arm swing.
+
+302. Side quest radio (GuideClient sqStep, GuidePlan.newSideQuest, first-30): as a new hero with no side quest started, after the prologue Patch says "A new side quest just opened! Look for the gold mark on your MAP." (villain: its own line) once; later, when a level opens a new chain, Patch says it again for that one; never inside a mission, never twice a session for the same chain.
+
+301. Creator NEXT (CreatorScreen stepWhy, first-30): make a hero tapping only NEXT: on ORIGIN and POWERS, NEXT looks muted and the status line says what to pick ("Pick how your Spark woke to go on", "Pick an archetype and a path to go on"); tapping it shakes the button and stays put; once picked, NEXT goes on; PLAY never bounces back to ORIGIN. Time it: under 2 minutes for a first hero, on a phone too.
+
+300. New move card (MoveTutor, first-30): train a mobility move to rank 3 and pick a move: a gold-edged NEW MOVE card names it, says what it does and "HOW: " with this device's buttons (phone: the button names; pad: A, Y, LT, B); its X, a tap and its life close it; the first two uses this session stamp its name big (e.g. "SONIC BOOM DIVE!"); 4 minutes into a session with a move never used, a TRY THIS MOVE card shows it once. Check the card never covers the action buttons on a phone and never stacks on another popup.
 
 121. Next mission card (StoryHud NextMission, first-30): finish the prologue as a new hero; once the daily card and the mentor picker are gone, "NEXT: MISSION 2: SAFEHOUSE" with its blurb and a gold START sits at the top (on a phone a one-line pill under the top row, right of the status panel, clear of BLOCK and the action buttons); START enters Safehouse; after Safehouse at level 3 it reads "Reach level 4 to start" with no START (phone: "MISSION 3 AT LEVEL 4"); it hides in a mission, under a card, with a side quest tracked, and its X folds it until the next mission. Check on a real phone that it never covers a button.
 

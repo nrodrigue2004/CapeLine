@@ -366,7 +366,12 @@ function GuidePlan.radioOk(
 		return false
 	end
 	if
-		(ONCE[key] or string.sub(key, 1, 6) == "unlock" or string.sub(key, 1, 5) == "power") and R.once[key]
+		(
+			ONCE[key]
+			or string.sub(key, 1, 6) == "unlock"
+			or string.sub(key, 1, 5) == "power"
+			or string.sub(key, 1, 2) == "sq" -- (first-30) a side quest chain's opening line
+		) and R.once[key]
 	then
 		return false
 	end
@@ -407,6 +412,40 @@ function GuidePlan.unlockAt(Config: any, story: any, level: number): number?
 		end
 	end
 	return nil
+end
+
+-- first-30 (2026-11-20): the side quest chain Patch names on the radio, or nil. Nothing told a new hero that side
+-- quests had opened (after Safehouse and level 5 the first ones do): `seen` holds the chains already open when this
+-- device first read the Journal (nil: this is the first read). A chain that opens later is named; on the first
+-- read, the first open chain is named only when the hero has never started one (a returning new player).
+-- rows: StoryState's sq rows ({ bit, state }). Returns the chain's bit and the updated seen set.
+function GuidePlan.newSideQuest(rows: { any }, seen: { [number]: boolean }?): (number?, { [number]: boolean })
+	local open: { [number]: boolean } = {}
+	local started = false
+	local first: number? = nil
+	for _, r in rows do
+		if r.state == "open" and type(r.bit) == "number" then
+			open[r.bit] = true
+			if not first or r.bit < first then
+				first = r.bit
+			end
+		elseif r.state == "active" or r.state == "done" then
+			started = true
+		end
+	end
+	if not seen then
+		return if started then nil else first, open
+	end
+	local pick: number? = nil
+	for bit in open do
+		if not seen[bit] and (not pick or bit < pick) then
+			pick = bit
+		end
+	end
+	for bit in open do
+		seen[bit] = true
+	end
+	return pick, seen
 end
 
 -- first-30 (2026-11-20): the POWERS line a level-up earns: "powerBoth" when the level opens a skill slot and a

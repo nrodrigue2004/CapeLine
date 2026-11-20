@@ -484,4 +484,478 @@ return function(T: any)
 			end
 		end
 	)
+
+	test(
+		"First 30: a new mobility move gets a NEW MOVE card with how to do it, and its name on first use",
+		function()
+			local MoveRanks = require("../src/shared/MoveRanks")
+			local MT = Config.Ui.moveTutor
+			for id in Config.Move.moves do
+				check(Config.Move.moves[id].how ~= nil, id .. " says how to do it")
+			end
+			check(Config.Ui.popups.cards.moveNew ~= nil, "the card waits in the popup line")
+			if not T.placePath then
+				return
+			end
+			local sim = newSim()
+			sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+			local State = sim:require("Client.State")
+			local MoveController = sim:require("Client.Controllers.MoveController")
+			local MoveTutor = sim:require("Client.Ui.MoveTutor")
+			local pick = "acrobat"
+			local pi = table.find(Config.Move.mobilityOrder, pick) :: number
+			local ranks = { 0, 0, 0, 0, 0 }
+			ranks[pi] = 3
+			State.hero.mobility = pick
+			State.hero.mobRanks = ranks
+			State.hero.mobMoves = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+			sim:run("JuiceFx", sim:require("Client.Fx.JuiceFx").init)
+			sim:run("MoveTutor", MoveTutor.init)
+			local function frames(n: number)
+				for _ = 1, n do
+					sim:run("frame", function()
+						sim.service("RunService").RenderStepped:Fire(1 / 30)
+						sim.service("RunService").Heartbeat:Fire(1 / 30)
+					end)
+					sim:advance(1 / 30)
+					sim:run("popups", function()
+						sim:require("Client.Ui.Popups").advance(1 / 30)
+					end)
+				end
+			end
+			local function texts(): string
+				local out = {}
+				for _, c in sim.playerGui:GetDescendants() do
+					if (c:IsA("TextLabel") or c:IsA("TextButton")) and c.Text ~= "" and c.Visible then
+						local ok = true
+						local a = c.Parent
+						while a and a:IsA("GuiObject") do
+							ok = ok and a.Visible
+							a = a.Parent
+						end
+						if ok then
+							table.insert(out, c.Text)
+						end
+					end
+				end
+				return table.concat(out, " | ")
+			end
+			frames(3)
+			check(
+				sim.playerGui:FindFirstChild("MoveCard", true) == nil,
+				"no card for the moves a hero already had"
+			)
+			-- rank 3's first option picked (Kick Chain)
+			local moves = table.clone(State.hero.mobMoves)
+			moves[MoveRanks.slotOf(Config.Move, pick, 3) :: number] = 1
+			State.hero.mobMoves = moves
+			sim:run("sync", function()
+				State.Changed:Fire()
+			end)
+			frames(10)
+			local id = MoveRanks.moveOf(Config.Move, ranks, moves, pick, 3) :: string
+			local name = string.upper(Config.Move.moves[id].name)
+			local all = texts()
+			check(string.find(all, MT.tagNew, 1, true) ~= nil, "the NEW MOVE card: " .. all)
+			check(string.find(all, name, 1, true) ~= nil, "names " .. name)
+			check(string.find(all, MoveTutor.how(id) :: string, 1, true) ~= nil, "and says how: " .. all)
+			check(not string.find(all, "{", 1, true), "no {Action} left unturned")
+			local P = Config.Ui.phone
+			for _, issue in
+				sim:issues({
+					minTap = P.minTap,
+					minText = P.minText,
+					safe = true,
+					only = { MoveTutor = true },
+				})
+			do
+				check(false, issue)
+			end
+			-- the card goes (its X); the first use stamps the name, the third does not
+			local Popups = sim:require("Client.Ui.Popups")
+			sim:run("clear", function()
+				Popups.clearAll()
+			end)
+			frames(3)
+			for k = 1, MT.named + 1 do
+				sim:run("act", function()
+					MoveController.Acted:Fire(id, roblox.Vector3.zero, roblox.Vector3.zero, nil)
+				end)
+				frames(3)
+				if k == 1 then
+					check(
+						string.find(texts(), name .. "!", 1, true) ~= nil,
+						"the first use stamps " .. name .. "!: " .. texts()
+					)
+				end
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+
+	test(
+		"First 30: a new player can make a hero with NEXT alone and PLAY saves it (no step blocks)",
+		function()
+			if not T.placePath then
+				return
+			end
+			for _, d in
+				{
+					{
+						name = "iPhone SE",
+						w = 667,
+						h = 375,
+						top = 58,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = true,
+					},
+					{
+						name = "PC 1080p",
+						w = 1920,
+						h = 1080,
+						top = 58,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = false,
+					},
+				}
+			do
+				local UiSim = require("./uisim")
+				local sim = UiSim.new(UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))), d)
+				local sent = nil
+				sim:run("hook", function()
+					local r =
+						sim.service("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("HeroCreate")
+					r._props.FireServer = function(_, ...)
+						sent = table.pack(...)
+					end
+				end)
+				sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+				local Creator = sim:require("Client.Ui.CreatorScreen")
+				sim:run("Creator", Creator.init)
+				sim:run("open", function()
+					Creator.open({ mode = "create" })
+				end)
+				sim:advance(0.2)
+				local gui = sim.playerGui:FindFirstChild("Creator")
+				local function button(text: string): any
+					for _, c in gui:GetDescendants() do
+						if c:IsA("TextButton") and c.Text == text and c.Visible and c.Name ~= "play" then -- not the PLAY tab
+							return c
+						end
+					end
+					return nil
+				end
+				local Kit = sim:require("Client.Ui.Kit")
+				local IDS =
+					{ body = true, side = true, origin = true, mobility = true, powers = true, weapon = true }
+				IDS.appearance, IDS.play = true, true
+				local function lit(): string?
+					for _, c in gui:GetDescendants() do
+						if c:IsA("TextButton") and IDS[c.Name] and c.BackgroundColor3 == Kit.color.gold then
+							return c.Name
+						end
+					end
+					return nil
+				end
+				-- the first choice row in the list that is not picked (a row: a blank button with its name label)
+				local function firstRow(): any
+					for _, c in gui:GetDescendants() do
+						if
+							c:IsA("TextButton")
+							and c.Text == ""
+							and c.Visible
+							and c.BackgroundColor3 == Kit.color.paper
+							and c:FindFirstChildWhichIsA("TextLabel")
+						then
+							return c
+						end
+					end
+					return nil
+				end
+				local taps, asked = 0, {}
+				while button("NEXT") and taps < 30 do
+					local at = lit()
+					sim:tap(button("NEXT"))
+					taps += 1
+					sim:advance(0.1)
+					if lit() == at then
+						-- NEXT stayed: this step needs a pick, and says so
+						local said = false
+						for _, c in gui:GetDescendants() do
+							if
+								c:IsA("TextLabel")
+								and c.Visible
+								and string.find(c.Text, "to go on", 1, true)
+							then
+								said = true
+							end
+						end
+						check(said, d.name .. ": NEXT on " .. tostring(at) .. " stays and says what to pick")
+						asked[tostring(at)] = true
+						local r = firstRow()
+						if r then
+							sim:tap(r)
+							taps += 1
+							sim:advance(0.1)
+						end
+					end
+				end
+				check(asked.origin == true, d.name .. ": the ORIGIN step asked for its pick")
+				local play = button("PLAY")
+				check(play ~= nil, d.name .. ": NEXT leads to PLAY (" .. taps .. " taps)")
+				-- NEXT x7, an origin, an archetype and a path, then PLAY: about a dozen taps, well inside 2 minutes
+				check(taps <= 14, d.name .. ": in at most 14 taps (" .. taps .. ")")
+				if play then
+					sim:tap(play)
+					sim:advance(0.1)
+				end
+				local said = {}
+				for _, c in gui:GetDescendants() do
+					if
+						(c:IsA("TextLabel") or c:IsA("TextButton"))
+						and c.Visible
+						and #c.Text > 3
+						and #said < 60
+					then
+						table.insert(said, c.Text)
+					end
+				end
+				check(
+					sent ~= nil,
+					d.name
+						.. ": PLAY sends the hero with the defaults (no step refused): "
+						.. table.concat(said, " | ")
+				)
+				check(#sim.errors == 0, d.name .. ": no errors: " .. table.concat(sim.errors, " | "))
+			end
+		end
+	)
+
+	test("First 30: Patch says when a side quest chain opens and points at the MAP", function()
+		local GuidePlan = require("../src/shared/GuidePlan")
+		local SideQuestPlan = require("../src/shared/SideQuestPlan")
+		-- the first non-dev chain after Safehouse
+		local chain
+		for _, c in Config.SideQuests.chains do
+			if not c.dev and c.unlock and c.unlock.story == 2 and (not chain or c.bit < chain.bit) then
+				chain = c
+			end
+		end
+		check(chain ~= nil, "a chain opens after Safehouse")
+		if not chain then
+			return
+		end
+		local b = chain.bit
+		-- pure: first read with nothing started names the first open chain; one opening later is named once
+		local pick, seen = GuidePlan.newSideQuest({ { bit = b, state = "open" } }, nil)
+		check(pick == b, "a new player who never started one hears about it")
+		pick = GuidePlan.newSideQuest({ { bit = b, state = "open" }, { bit = 99, state = "done" } }, nil)
+		check(pick == nil, "a hero who has done side quests is not told on join")
+		pick, seen = GuidePlan.newSideQuest({ { bit = b, state = "locked" } }, nil)
+		check(pick == nil, "nothing open, nothing said")
+		pick, seen = GuidePlan.newSideQuest({ { bit = b, state = "open" } }, seen)
+		check(pick == b, "the chain opening is named")
+		pick = GuidePlan.newSideQuest({ { bit = b, state = "open" } }, seen)
+		check(pick == nil, "once")
+		check(SideQuestPlan.byBit(Config, b) == chain, "found by its bit")
+		if not T.placePath then
+			return
+		end
+		-- the real client: GuideClient on two StoryState packets (locked, then open)
+		local sim = newSim()
+		local StoryClient = sim:require("Client.Controllers.StoryClient")
+		local GuideHud = sim:require("Client.Ui.GuideHud")
+		local GuideClient = sim:require("Client.Controllers.GuideClient")
+		sim:run("StoryClient", StoryClient.init)
+		sim:run("GuideHud", GuideHud.init)
+		sim:run("GuideClient", GuideClient.init)
+		local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+		local function journal(state: string)
+			sim:run("StoryState", function()
+				remotes:WaitForChild("StoryState").OnClientEvent:Fire({
+					side = "hero",
+					missions = 3,
+					choices = {},
+					pinned = 0,
+					sq = { { bit = b, state = state } },
+				})
+			end)
+			sim:run("tick", function()
+				sim.service("RunService").Heartbeat:Fire(1.1)
+			end)
+		end
+		journal("locked")
+		journal("open")
+		check(GuideClient.radio.once["sq" .. b] == true, "Patch said it")
+		local heard = false
+		for _ = 1, 10 do
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(1 / 30)
+			end)
+			for _, c in sim.playerGui:GetDescendants() do
+				if
+					c:IsA("TextLabel")
+					and string.find(c.Text, "side quest", 1, true)
+					and string.find(c.Text, "MAP", 1, true)
+				then
+					heard = true
+				end
+			end
+		end
+		check(heard, "the line says a side quest opened (" .. chain.name .. ") and points at the MAP")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
+	test(
+		"First 30: a person freed at Framed's ring is a rescue (cheer and chime, SAVED!) and cheers on the clip",
+		function()
+			if not T.placePath then
+				return
+			end
+			local sim = newSim()
+			local AudioController = sim:require("Client.Controllers.AudioController")
+			local played = {}
+			AudioController.play = function(id: string)
+				table.insert(played, id)
+			end
+			local StoryClient = sim:require("Client.Controllers.StoryClient")
+			local StoryFx = sim:require("Client.Fx.StoryFx")
+			sim:run("StoryFx", StoryFx.init)
+			local function frame()
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 30)
+				end)
+			end
+			StoryClient.mission = {
+				num = 3,
+				step = 2,
+				kind = "hold",
+				people = true,
+				points = { { 0, 20, 0 } },
+				held = { 2 },
+				seconds = 10,
+			}
+			frame()
+			check(not table.find(played, "rescue"), "no rescue while the ring is held")
+			StoryClient.mission.held = { 10 }
+			frame()
+			check(
+				table.find(played, "rescue") ~= nil,
+				"the ring done plays the rescue: " .. table.concat(played, ",")
+			)
+			local stop = os.clock() + 0.3
+			repeat
+				frame()
+			until os.clock() >= stop
+			local elbow = nil
+			for _, d in sim.workspace:GetDescendants() do
+				if d:IsA("Motor6D") and d.Name == "RightKnee" and d.Transform then
+					elbow = math.deg((d.Transform:ToEulerAnglesXYZ()))
+				end
+			end
+			check(
+				elbow ~= nil and math.abs(elbow) > 2,
+				"the freed person cheers with bent knees (" .. tostring(elbow) .. ")"
+			)
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+
+	test(
+		"First 30: the intro film's middle never goes quiet: Crane, his heroes, the Vigil and the Syndicate each arrive",
+		function()
+			local IntroFilm = require("../src/shared/IntroFilm")
+			local sp = world.spawns[1]
+			local st = IntroFilm.stage(Config, world, sp.x, sp.z) :: any
+			local fl = IntroFilm.film(Config, st)
+			-- no stretch of the film longer than 6 s without something landing (an event or a sound word)
+			local times = {}
+			for _, e in fl.events do
+				table.insert(times, e.t)
+			end
+			for _, w in fl.words do
+				table.insert(times, w.t)
+			end
+			table.sort(times)
+			local worst, at = 0, 0
+			for i = 2, #times do
+				if math.min(times[i], 37.5) - times[i - 1] > worst then -- (the quiet before the Spark is the beat)
+					worst, at = math.min(times[i], 37.5) - times[i - 1], times[i - 1]
+				end
+			end
+			check(worst <= 6, string.format("the longest quiet stretch is %.1f s from %.1f", worst, at))
+			if not T.placePath then
+				return
+			end
+			local sim, UiSim = newSim()
+			local AudioController = sim:require("Client.Controllers.AudioController")
+			local played = {}
+			AudioController.play = function(id: string)
+				table.insert(played, id)
+			end
+			local CinemaClient = sim:require("Client.Controllers.CinemaClient")
+			local IntroFilmFx = sim:require("Client.Fx.IntroFilm")
+			local now = 0
+			CinemaClient.time = function()
+				return now
+			end
+			local terrain
+			sim:run("film", function()
+				-- (the sim's place has no Terrain; the sound words hang off it)
+				terrain = sim.workspace:FindFirstChild("Terrain")
+				if not terrain then
+					terrain = UiSim.newInstance("Folder")
+					terrain.Name = "Terrain"
+					terrain.Parent = sim.workspace
+				end
+				sim.workspace._props.Terrain = terrain
+				IntroFilmFx.init()
+				local scene = IntroFilmFx.scene(st, { key = "intro" })
+				CinemaClient.current = scene
+			end)
+			check(
+				CinemaClient.current ~= nil and CinemaClient.current.follow ~= nil,
+				"the film is a follow scene"
+			)
+			local words = {}
+			for t = 19, 33, 0.25 do
+				now = t
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 4)
+				end)
+				for _, d in terrain:GetDescendants() do
+					if d:IsA("TextLabel") then
+						words[d.Text] = true
+					end
+				end
+			end
+			local dashes = 0
+			for _, id in played do
+				if id == "dash" then
+					dashes += 1
+				end
+			end
+			check(dashes == 3, "Crane and both sides whoosh (" .. table.concat(played, ",") .. ")")
+			check(
+				words["THUD!"] and words["FWOOSH!"] and words["SHHRAK!"],
+				"the sound words pop in the world ("
+					.. table.concat(
+						(function()
+							local seen = {}
+							for w in words do
+								table.insert(seen, w)
+							end
+							return seen
+						end)(),
+						","
+					)
+					.. ")"
+			)
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 end
