@@ -4009,12 +4009,15 @@ local function net(pos: Vector3, vel: Vector3, speed: number)
 		end
 	end
 	local turn = MeshFix.turn("Powers")
-	local life = math.min(1.6, 100 / speed)
+	-- a net that meets a wall stops there, pinned flat, and flashes before it fades
+	local life, hit = shotEnd(pos, vel, math.min(1.6, 100 / speed))
+	shotSplash(hit, life, color, F.shot.splash.sparks)
+	local pinned = if hit then F.shot.splash.netHold else 0
 	local t = 0
 	local conn: RBXScriptConnection
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
 		t += dt
-		if t >= life then
+		if t >= life + pinned then
 			conn:Disconnect()
 			for _, p in parts do
 				p:Destroy()
@@ -4025,8 +4028,9 @@ local function net(pos: Vector3, vel: Vector3, speed: number)
 			return
 		end
 		local open = math.clamp(t / 0.15, 0.3, 1)
-		local at = pos + vel * t
-		local cf = CFrame.lookAt(at, at + vel) * CFrame.Angles(0, 0, t * n.spin)
+		local ft = math.min(t, life)
+		local at = pos + vel * ft
+		local cf = CFrame.lookAt(at, at + vel) * CFrame.Angles(0, 0, ft * n.spin)
 		for i, p in parts do
 			p.CFrame = cf * CFrame.new(bars[i][1] * open)
 		end
@@ -4071,7 +4075,8 @@ function CombatFx.pathShot(pos: Vector3, vel: Vector3, set: string?, style: stri
 	if speed < 1 then
 		return
 	end
-	local life = math.min(1.6, 90 / speed)
+	local life, hit = shotEnd(pos, vel, math.min(1.6, 90 / speed))
+	shotSplash(hit, life, color, F.shot.splash.sparks)
 	local to = pos + vel * life
 	FxLib.emit("glow", color, pos, 1)
 	FxLib.trail(pos, pos + vel * math.min(life, 0.35), set, color)

@@ -3798,6 +3798,35 @@ return function(T: any)
 				(emits.hitspark or 0) == 2 and (emits.scorch or 0) == 2,
 				"a Sniper round sparks on the wall too"
 			)
+			-- a famous fake's path shot splashes in its own colour
+			sim:run("fake", function()
+				CombatFx.pathShot(
+					V(20, 5, 0),
+					V(0, 0, -60),
+					"Light",
+					"Comic",
+					roblox.Color3.fromRGB(255, 230, 120)
+				)
+			end)
+			sim:advance(0.6)
+			check(
+				(emits.hitspark or 0) == 3 and (emits.scorch or 0) == 3,
+				"a path shot stops on the wall too"
+			)
+			-- an Interceptor's net pins on the wall, holds, then goes
+			check((Config.Fx.shot.splash.netHold or 0) > 0, "the net's hold is tuned")
+			sim:run("net", function()
+				CombatFx.enemyShot(V(30, 5, 0), V(0, 0, -60), 2)
+			end)
+			sim:advance(0.6)
+			check(
+				(emits.hitspark or 0) == 4 and (emits.scorch or 0) == 4,
+				"a net sparks where it hits the wall"
+			)
+			check(
+				string.find(fs.readFile("src/client/Fx/CombatFx.luau"), "life + pinned", 1, true) ~= nil,
+				"the net holds on the wall before it goes"
+			)
 			-- in the open: no splash
 			ws._props.Raycast = function()
 				return nil
@@ -3806,7 +3835,7 @@ return function(T: any)
 				CombatFx.enemyShot(V(0, 5, 0), V(0, 0, -60), nil)
 			end)
 			sim:advance(2)
-			check((emits.scorch or 0) == 2, "a shot into the open fades as before")
+			check((emits.scorch or 0) == 4, "a shot into the open fades as before")
 			FxLib.emit = real
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end

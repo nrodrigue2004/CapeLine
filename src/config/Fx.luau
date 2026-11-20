@@ -89,8 +89,9 @@ return {
 		trail = 0.7,
 		life = 0.16,
 		-- (list-combat 2026-11-20, combat effects polish) a robot shot that meets a wall, a roof or the street stops
-		-- there in a spray of sparks, a flash and a small scorch; the muzzle flashes as it fires
-		splash = { sparks = 5, tracerSparks = 9, scorch = 1, muzzle = 2 },
+		-- there in a spray of sparks, a flash and a small scorch; the muzzle flashes as it fires;
+		-- a net pins flat on the wall for netHold s; a famous fake's path shot splashes in its own colour
+		splash = { sparks = 5, tracerSparks = 9, scorch = 1, muzzle = 2, netHold = 0.5 },
 	},
 	-- the newer robots' effects (CombatFx): the Sniper's aim laser (it thickens and blinks for the locked last
 	-- part) and its tracer round, the Interceptor's net, the Grappler's hook on its cable, the Bomber's grenade
