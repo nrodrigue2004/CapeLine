@@ -176,7 +176,7 @@ return function(T: any)
 		c.story.choices = { 2, 1, 2 } -- a save from before act1-choices
 		c.story.missions = 63
 		local loaded = ProfileSchema.load(p).characters[1].story
-		check(#loaded.choices == 6, "padded to today's 6 slots")
+		check(#loaded.choices == #Config.Story.choices, "padded to today's slots")
 		check(loaded.choices[1] == 2 and loaded.choices[2] == 1 and loaded.choices[3] == 2, "old picks kept")
 		check(
 			loaded.choices[4] == 0 and loaded.choices[5] == 0 and loaded.choices[6] == 0,

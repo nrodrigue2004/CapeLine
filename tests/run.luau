@@ -4433,7 +4433,10 @@ end)
 test("M7: Act 1 has 6 missions in order with level gates; replays pay once", function()
 	local StoryPlan = require("../src/shared/StoryPlan")
 	local S = Config.Story
-	check(#S.missions == 6 and S.missions[1].opening, "6 missions, the first is the opening")
+	check(
+		#StoryPlan.actMissions(Config, 1) == 6 and S.missions[1].opening,
+		"Act 1: 6 missions, the first is the opening"
+	)
 	local story = ProfileSchema.newCharacter().story
 	check(StoryPlan.state(Config, story, 1, 2) == "locked", "mission 2 waits for the opening")
 	check(not StoryPlan.canEnter(Config, story, 40, 1), "mission 1 is not entered from the board")
@@ -4444,7 +4447,7 @@ test("M7: Act 1 has 6 missions in order with level gates; replays pay once", fun
 	for n = 2, 6 do
 		StoryPlan.clear(story, n)
 	end
-	check(StoryPlan.nextMission(Config, story) == nil, "Act 1 done")
+	check((StoryPlan.nextMission(Config, story) or 99) > 6, "Act 1 done (next is a later act's)")
 	check(StoryPlan.canEnter(Config, story, 40, 4), "cleared missions can be replayed")
 	check(StoryPlan.actSkillPoints(Config) == 8, "Act 1 grants 8 Skill Points in all")
 	for n = 2, 6 do
@@ -10956,7 +10959,7 @@ do
 	test(
 		"Lore 5: Act 1 is the 6 missions of nate's lore doc, in order, at the old levels and rewards",
 		function()
-			check(#S.missions == 6, "6 missions")
+			check(#StoryPlan.actMissions(Config, 1) == 6, "6 missions")
 			for n, name in NAMES do
 				check(
 					S.missions[n].name == name and S.missions[n].num == n,
@@ -11121,7 +11124,7 @@ do
 				say = true,
 			}
 			local flags = {}
-			check(#S.choices == 6, "6 choices: one a mission in Act 1")
+			check(#StoryPlan.actChoices(Config, 1) == 6, "6 choices: one a mission in Act 1")
 			local missions = {}
 			for n, c in S.choices do
 				missions[c.mission] = true
@@ -11140,7 +11143,7 @@ do
 						local story = ProfileSchema.newCharacter(side).story
 						local ok, fx = StoryPlan.pick(Config, story, n, o, side)
 						check(
-							ok and fx.flag == opt.flag and fx.skillPoints == (if n <= 3 then 2 else 0),
+							ok and fx.flag == opt.flag and fx.skillPoints == (if n <= 3 then 2 else 0), -- Act 2's pay reputation only too
 							opt.label .. ": picked, flag, 2 points (the act1-choices three: none)"
 						)
 						check(story.choices[n] == o, opt.label .. ": saved in its slot")
@@ -11310,7 +11313,7 @@ do
 			-- a hero who finished the old Act 1 has finished the new one
 			local done = ProfileSchema.newCharacter().story
 			done.missions = 63
-			check(StoryPlan2.nextMission(Config, done) == nil, "all 6 cleared")
+			check((StoryPlan2.nextMission(Config, done) or 99) > 6, "all 6 cleared")
 			check(StoryPlan2.canEnter(Config, done, 8, 6), "and Live can be replayed")
 		end
 	)

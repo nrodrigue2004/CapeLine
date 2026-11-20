@@ -18,11 +18,27 @@ return function(T: any)
 	end
 
 	-- a copy of Config whose Story is a deep copy (so a test can add a pretend act)
-	local function withStory(edit: (any) -> ()): any
-		local story = ProfileSchema.deepCopy(S)
+	local function withStory(edit: (any) -> (), from: any?): any
+		local story = ProfileSchema.deepCopy(from or S)
 		edit(story)
 		return setmetatable({ Story = story }, { __index = Config })
 	end
+
+	-- Config as it was with Act 1 the only act out (missions lane 2026-11-20 opened Act 2): the act machinery's
+	-- tests below run on this shape, so a pretend act and the bad-data checks still mean what they meant
+	local A1 = withStory(function(st)
+		for i = #st.missions, 1, -1 do
+			if (st.missions[i].act or 1) > 1 then
+				table.remove(st.missions, i)
+			end
+		end
+		for i = #st.choices, 1, -1 do
+			if (st.choices[i].act or 1) > 1 then
+				table.remove(st.choices, i)
+			end
+		end
+		st.acts[2].soon = true
+	end)
 
 	-- a pretend Act 2: two missions after Act 1's six and one choice in its first (test data, not lore)
 	local function actTwo(soon: boolean?): any
@@ -38,7 +54,7 @@ return function(T: any)
 				hero = { { label = "Left", flag = "testLeft" }, { label = "Right", flag = "testRight" } },
 				villain = { { label = "Up", flag = "testUp" }, { label = "Down", flag = "testDown" } },
 			})
-		end)
+		end, A1.Story)
 	end
 
 	local function clearAct1(story: any)
@@ -48,29 +64,30 @@ return function(T: any)
 	end
 
 	test(
-		"WP11: Config.Story has three acts: Act 1 out, Acts 2 and 3 coming soon; the data checks out",
+		"WP11: Config.Story has three acts: Acts 1 and 2 out, Act 3 coming soon; the data checks out",
 		function()
 			check(#S.acts == 3, "three acts")
 			check(not StoryPlan.soon(Config, 1), "Act 1 is out")
-			check(StoryPlan.soon(Config, 2) and StoryPlan.soon(Config, 3), "Acts 2 and 3 are coming soon")
+			check(not StoryPlan.soon(Config, 2), "Act 2 is out (Most Wanted and The Line, 2026-11-20)")
+			check(StoryPlan.soon(Config, 3), "Act 3 is coming soon")
 			check(StoryPlan.soon(Config, 4), "an act not listed reads as coming soon")
 			local problems = StoryPlan.validate(Config)
 			check(#problems == 0, "the act data is valid: " .. table.concat(problems, "; "))
 			for num, m in S.missions do
-				check(m.act == 1, "mission " .. num .. " names Act 1")
+				check(m.act == (if num <= 6 then 1 else 2), "mission " .. num .. " names its act")
 			end
 			for n, c in S.choices do
-				check(c.act == 1, "choice " .. n .. " names Act 1")
+				check(c.act == S.missions[c.mission].act, "choice " .. n .. " names its mission's act")
 			end
 			check(#StoryPlan.actMissions(Config, 1) == 6, "Act 1 holds the 6 missions")
 			check(
 				#StoryPlan.actChoices(Config, 1) == 6,
 				"Act 1 holds the 6 choices (one a mission, act1-choices)"
 			)
-			for a = 2, 3 do
-				check(#StoryPlan.actMissions(Config, a) == 0, "Act " .. a .. " has no missions")
-				check(#StoryPlan.actChoices(Config, a) == 0, "Act " .. a .. " has no choices")
-			end
+			check(#StoryPlan.actMissions(Config, 2) == 2, "Act 2 holds its first 2 missions")
+			check(#StoryPlan.actChoices(Config, 2) == 2, "and their 2 choices")
+			check(#StoryPlan.actMissions(Config, 3) == 0, "Act 3 has no missions")
+			check(#StoryPlan.actChoices(Config, 3) == 0, "Act 3 has no choices")
 			check(
 				#S.missions <= S.saveRoom.missions and #S.choices <= S.saveRoom.choices,
 				"the save has room for today's missions and choices"
@@ -100,7 +117,7 @@ return function(T: any)
 			seen[t] = true
 			for k, v in t do
 				if k == "act" and path ~= "acts" then
-					check(v == 1, path .. ".act is Act 1's (" .. tostring(v) .. ")")
+					check(v == 1 or v == 2, path .. ".act is an act that is out (" .. tostring(v) .. ")")
 				end
 				walk(v, tostring(k))
 			end
@@ -118,6 +135,7 @@ return function(T: any)
 	end)
 
 	test("WP11: Act 1 plays exactly as before (gates, order, replays, pin, Skill Points)", function()
+		local Config = A1 -- Act 1 alone, as it shipped; the real Config's Act 2 is checked at the end
 		local story = ProfileSchema.newCharacter().story
 		check(story.act == 1, "a new hero is on Act 1")
 		check(StoryPlan.currentAct(Config, story) == 1, "currentAct 1")
@@ -151,6 +169,12 @@ return function(T: any)
 		check(StoryPlan.actSkillPoints(Config, 1) == 8, "the same asked by act")
 		check(StoryPlan.actSkillPoints(Config, 2) == 0, "Act 2 grants none yet")
 		check(StoryPlan.actDone(Config, story, 2) == false, "a coming-soon act is never done")
+		-- today's Config: Act 1 done moves the hero on to Act 2's Most Wanted
+		local real = T.Config
+		check(StoryPlan.currentAct(real, story) == 2, "with Act 2 out, the hero moves on to Act 2")
+		check(StoryPlan.nextMission(real, story) == 7, "the next mission is Most Wanted")
+		check(StoryPlan.actSkillPoints(real, 1) == 8, "Act 1 still grants 8 Skill Points")
+		check(StoryPlan.actSkillPoints(real, 2) == 0, "Act 2's choices pay reputation, no points (DRAFT)")
 	end)
 
 	test("WP11: a future act is data only (missions, a choice, the gates and the pin follow)", function()
@@ -174,7 +198,7 @@ return function(T: any)
 		check(StoryPlan.actLast(C, 6) and StoryPlan.actLast(C, 8), "each act has its own last mission")
 		check(not StoryPlan.actLast(C, 7), "Act 2's first is not its last")
 		-- the choice slot an old 3-slot save lacks reads as not yet, and pays once
-		check(#story.choices == 6, "today's save's 6 slots")
+		check(#story.choices == #S.choices, "today's save's slots")
 		local ok, fx = StoryPlan.pick(C, story, 7, 2, "hero")
 		check(ok and fx and fx.flag == "testRight" and fx.skillPoints == 2, "Act 2's choice picks")
 		check(not StoryPlan.pick(C, story, 7, 1, "hero"), "and only once")
@@ -208,7 +232,7 @@ return function(T: any)
 
 	test("WP11: the act check catches bad act data", function()
 		local function bad(edit: (any) -> (), why: string)
-			check(#StoryPlan.validate(withStory(edit)) > 0, why)
+			check(#StoryPlan.validate(withStory(edit, A1.Story)) > 0, why)
 		end
 		bad(function(st)
 			st.missions[3].act = nil
@@ -240,8 +264,8 @@ return function(T: any)
 		local st = p.characters[1].story
 		check(st.act == 1 and st.missions == 0 and st.pinned == 0, "a new save starts on Act 1")
 		check(
-			#st.choices == 6 and st.choices[1] == 0 and st.choices[6] == 0,
-			"six choice slots (act1-choices)"
+			#st.choices == #S.choices and st.choices[1] == 0 and st.choices[6] == 0,
+			"a choice slot for each choice (act1-choices' six and Act 2's)"
 		)
 		check(
 			ProfileSchema.VERSION >= 14,
@@ -250,7 +274,7 @@ return function(T: any)
 		-- today's saves load the same
 		local back = ProfileSchema.load(ProfileSchema.deepCopy(p))
 		local bs = back.characters[1].story
-		check(bs.act == 1 and bs.missions == 0 and #bs.choices == 6, "a default save round trips")
+		check(bs.act == 1 and bs.missions == 0 and #bs.choices == #S.choices, "a default save round trips")
 		local old = ProfileSchema.default()
 		local os_ = old.characters[1].story
 		os_.missions = 63
@@ -262,7 +286,7 @@ return function(T: any)
 				and ol.choices[1] == 1
 				and ol.choices[2] == 2
 				and ol.choices[3] == 1
-				and #ol.choices == 6
+				and #ol.choices == #S.choices
 				and ol.choices[4] == 0
 				and ol.choices[6] == 0,
 			"Act 1 done keeps (an old 3-slot save's new slots read 0, not yet)"
@@ -485,33 +509,38 @@ return function(T: any)
 				local b = find("Act_" .. a)
 				check(b ~= nil and b.Text == "ACT " .. a, d.name .. ": the ACT " .. a .. " tab")
 			end
-			check(find("ActSoon2") ~= nil and find("ActSoon3") ~= nil, d.name .. ": Acts 2 and 3 locked rows")
+			check(find("ActSoon2") == nil and find("ActSoon3") ~= nil, d.name .. ": only Act 3's locked row")
 			local text = table.concat(labels(), "\n")
 			check(
-				has(text, "Act 2: coming soon") and has(text, "Act 3: coming soon"),
-				d.name .. ": coming soon"
+				not has(text, "Act 2: coming soon") and has(text, "Act 3: coming soon"),
+				d.name .. ": Act 3 coming soon"
 			)
 			for num, m in S.missions do
-				check(has(text, string.upper(m.name)), d.name .. ": Act 1 lists " .. m.name)
-				check(has(text, num .. ". " .. string.upper(m.name)), d.name .. ": numbered as before")
+				if m.act == 1 then
+					check(has(text, string.upper(m.name)), d.name .. ": Act 1 lists " .. m.name)
+					check(has(text, num .. ". " .. string.upper(m.name)), d.name .. ": numbered as before")
+				end
 			end
 			check(has(text, "YOUR CHOICES") and has(text, "Save the Bridge"), d.name .. ": Act 1's choices")
-			-- ACT 2: only its locked row, no story
+			-- ACT 2: its own missions, numbered from 1, and none of Act 1's
 			sim:tap(find("Act_2"))
 			report("act 2")
 			text = table.concat(labels(), "\n")
-			check(has(text, "Act 2: coming soon"), d.name .. ": ACT 2 shows its locked row")
-			check(find("ActSoon3") == nil, d.name .. ": and nothing else")
-			for _, m in S.missions do
-				check(
-					not has(text, string.upper(m.name)),
-					d.name .. ": no mission on ACT 2 (" .. m.name .. ")"
-				)
+			check(not has(text, "Act 2: coming soon"), d.name .. ": ACT 2 has no locked row")
+			check(find("ActSoon3") ~= nil, d.name .. ": with Act 3's locked row after it")
+			for num, m in S.missions do
+				if m.act == 2 then
+					check(
+						has(text, StoryPlan.missionIndex(Config, num) .. ". " .. string.upper(m.name)),
+						d.name .. ": ACT 2 lists " .. m.name
+					)
+				else
+					check(
+						not has(text, string.upper(m.name)),
+						d.name .. ": no Act 1 mission on ACT 2 (" .. m.name .. ")"
+					)
+				end
 			end
-			check(
-				not has(text, "YOUR CHOICES") and not has(text, "PIN"),
-				d.name .. ": no choices or pin on ACT 2"
-			)
 			sim:tap(find("Act_3"))
 			report("act 3")
 			text = table.concat(labels(), "\n")
@@ -520,7 +549,10 @@ return function(T: any)
 				d.name .. ": ACT 3's locked row"
 			)
 			sim:tap(find("Act_1"))
-			check(find("ActSoon2") ~= nil, d.name .. ": back on ACT 1")
+			check(
+				find("ActSoon3") ~= nil and has(table.concat(labels(), "\n"), "SAFEHOUSE"),
+				d.name .. ": back on ACT 1"
+			)
 			-- the other tabs still open on their own pages
 			sim:run("open rep", function()
 				Journal.open("rep")

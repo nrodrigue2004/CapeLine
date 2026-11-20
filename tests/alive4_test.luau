@@ -38,7 +38,7 @@ return function(T: any)
 		c.created = 1
 		c.story.opening = 1
 		for num, m in Config.Story.missions do
-			if (m.minLevel or 1) <= level and (m.act or 1) == 1 then
+			if (m.minLevel or 1) <= level then -- every open act's missions (Act 2 since 2026-11-20)
 				c.story.missions = SP.setBit(c.story.missions, num)
 			end
 		end

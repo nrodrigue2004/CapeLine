@@ -1776,7 +1776,7 @@ return {
 					radio = {
 						{
 							who = "patch",
-							text = "Prison van, armoured and guarded. Crack it open before it gets away!",
+							text = "Prison van, armored and guarded. Crack it open before it gets away!",
 						},
 					},
 				},
@@ -2059,7 +2059,7 @@ return {
 			num = 7,
 			act = 2,
 			mission = 7,
-			skillPoints = 1,
+			skillPoints = 0, -- as Act 1's last three (act1-choices): reputation, no points
 			hero = {
 				{ label = "Through the Tunnels", flag = "tunnelsTaken", rep = { "side", 100 } },
 				{ label = "Across the Roofs", flag = "roofsTaken", rep = { "city", 100 } },
@@ -2073,7 +2073,7 @@ return {
 			num = 8,
 			act = 2,
 			mission = 8,
-			skillPoints = 1,
+			skillPoints = 0,
 			hero = {
 				{ label = "Blow Up the Line", flag = "lineBlown", rep = { "city", 100 } },
 				{ label = "Leave It Running", flag = "lineTracked", rep = { "side", 100 } },
@@ -2786,6 +2786,16 @@ return {
 						hero = "Level up! Bulwark's big show is coming. Live is open. Time to crack a face.",
 						villain = "Level up! Bulwark's big show is coming. Live is open. Let's ruin it.",
 					},
+					[7] = {
+						who = "patch",
+						hero = "Level up! Act 2 is here. Hunters are sweeping the city. Most Wanted is open.",
+						villain = "Level up! Act 2. The Chairman has a prison van job. Most Wanted is open.",
+					},
+					[8] = {
+						who = "patch",
+						hero = "Level up! I traced the fakes' parts to a plant at the Docks. The Line is open.",
+						villain = "Level up! A Crane plant at the Docks, with a priceless core. The Line is open.",
+					},
 				},
 				idle = {
 					[2] = {
@@ -2812,6 +2822,16 @@ return {
 						who = "patch",
 						hero = "Bulwark's show is tonight. Live is pinned in your Journal. Let's go!",
 						villain = "Bulwark's show is tonight. Live is in your Journal. Bring a crowbar.",
+					},
+					[7] = {
+						who = "patch",
+						hero = "A Spark family is hiding from the hunters. Most Wanted is pinned in your Journal.",
+						villain = "That prison van won't open itself. Most Wanted is in your Journal.",
+					},
+					[8] = {
+						who = "patch",
+						hero = "The fake factory is still running. The Line is pinned in your Journal.",
+						villain = "That copier core is still sitting there. The Line is in your Journal.",
 					},
 				},
 				-- first-30 (2026-11-20): a level-up that opens a skill slot or a move training rank (GuidePlan.powerAt);
