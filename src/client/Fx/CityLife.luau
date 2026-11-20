@@ -1240,8 +1240,8 @@ local function stepFlags(now: number)
 			flags[i] = fl
 		end
 		if fl then
-			-- a broken building takes its flag with it (Fx.BuildingFx's state: 0 intact)
-			local intact = BuildingFx.state(fl.def.id) == 0
+			-- a broken building takes its flag with it (Fx.BuildingFx's state: 0 intact); a safehouse's has no id
+			local intact = fl.def.id == nil or BuildingFx.state(fl.def.id) == 0
 			if intact ~= fl.shown then
 				fl.shown = intact
 				for _, p in fl.pole do
@@ -1266,6 +1266,206 @@ local function stepFlags(now: number)
 					cf *= CFrame.new(sw, 0, 0)
 				end
 			end
+		end
+	end
+end
+
+---------------------------------------------------------------------------- tower banners
+-- (alive-world round 2, 2026-11-20) tall cloth banners down Uptown's towers: a gold rod and a stack of cloth strips,
+-- each showing its slice of the picture, swinging out from the wall about the one above (LifePlan.billow)
+local BN = L.banners
+type Banner = { def: any, parts: { BasePart }, segs: { BasePart }, rod: CFrame, phase: number }
+local bannerDefs: { any } = {}
+local banners: { [number]: Banner } = {}
+local ROD = Color3.fromRGB(BN.rod[1], BN.rod[2], BN.rod[3])
+
+local function makeBanner(def: any, nseg: number): Banner?
+	local image = BN.images[def.district]
+	if not folder or not image then
+		return nil
+	end
+	local w, h = BN.size[1], BN.size[2]
+	local at = Vector3.new(def.x, def.y, def.z)
+	-- LookVector out of the wall: the strips' Front faces the street
+	local rodCf = CFrame.lookAt(at, at + Vector3.new(def.nx, 0, def.nz))
+	local rod = Instance.new("Part")
+	rod.Name = "BannerRod"
+	rod.Shape = Enum.PartType.Cylinder
+	rod.Size = Vector3.new(w + 1.2, 0.45, 0.45)
+	rod.Material = Enum.Material.Metal
+	rod.Color = ROD
+	rod.Anchored = true
+	rod.CanCollide = false
+	rod.CanQuery = false
+	rod.CanTouch = false
+	rod.CastShadow = false
+	rod.CFrame = rodCf
+	rod.Parent = folder
+	local sh = h / nseg
+	local segs: { BasePart } = {}
+	for i = 1, nseg do
+		local s = Instance.new("Part")
+		s.Name = "BannerCloth"
+		s.Anchored = true
+		s.CanCollide = false
+		s.CanQuery = false
+		s.CanTouch = false
+		s.CastShadow = false
+		s.Size = Vector3.new(w, sh + 0.05, 0.06)
+		s.Transparency = 1
+		local tex = Instance.new("Texture")
+		tex.Texture = "rbxassetid://" .. tostring(image)
+		tex.Face = Enum.NormalId.Front
+		tex.StudsPerTileU = w
+		tex.StudsPerTileV = h
+		tex.OffsetStudsV = -(i - 1) * sh -- strip i shows the picture's i-th slice from the top
+		tex.Parent = s
+		s.Parent = folder
+		table.insert(segs, s)
+	end
+	return { def = def, parts = { rod }, segs = segs, rod = rodCf, phase = (def.x + def.z) % 6.28 }
+end
+
+local function dropBanner(bn: Banner)
+	for _, p in bn.parts do
+		p:Destroy()
+	end
+	for _, s in bn.segs do
+		s:Destroy()
+	end
+end
+
+local function stepBanners(now: number)
+	local B = budget()
+	local f = focus()
+	local want: { { i: number, d: number } } = {}
+	for i, d in bannerDefs do
+		local dist = (Vector3.new(d.x, d.y, d.z) - f).Magnitude
+		-- a broken tower takes its banners with it (Fx.BuildingFx's state: 0 intact)
+		if dist < BN.range and BuildingFx.state(d.id) == 0 then
+			table.insert(want, { i = i, d = dist })
+		end
+	end
+	table.sort(want, function(a, b)
+		return a.d < b.d
+	end)
+	local keep: { [number]: boolean } = {}
+	for k = 1, math.min(#want, B.banners) do
+		keep[want[k].i] = true
+	end
+	for i, bn in banners do
+		if not keep[i] or #bn.segs ~= B.bannerSegs then
+			dropBanner(bn)
+			banners[i] = nil
+		end
+	end
+	for i in keep do
+		local bn = banners[i]
+		if not bn then
+			bn = makeBanner(bannerDefs[i], B.bannerSegs)
+			banners[i] = bn
+		end
+		if bn then
+			local n = #bn.segs
+			local sh = BN.size[2] / n
+			local cf = bn.rod
+			for k, s in bn.segs do
+				local a = LifePlan.billow(k, n, now, BN.wind, bn.phase)
+				local sway = math.sin(now * 1.7 * BN.wind + bn.phase + k * 0.6) * 0.012 * k / n
+				cf *= CFrame.Angles(a, 0, sway)
+				table.insert(bulkParts, s)
+				table.insert(bulkCFrames, cf * CFrame.new(0, -sh / 2, 0))
+				cf *= CFrame.new(0, -sh, 0)
+			end
+		end
+	end
+end
+
+---------------------------------------------------------------------------- cranes at work
+-- (alive-world round 2, 2026-11-20) each Docks crane near the camera runs its trolley and hook along the boom
+-- (Shared.LifePlan.crane); the server tags the boom's box LifeCrane and builds the trolley and cable as visual-only
+-- pieces beside it ("dress", attribute Look). Only this device's copies move; nothing that collides does
+local CR = L.cranes
+type Crane = { boom: BasePart, pieces: { { part: BasePart, cf: CFrame } }, phase: number }
+local cranes: { [BasePart]: Crane } = {}
+local craneless: { [BasePart]: number } = {} -- booms whose trolley was not found yet: when to look again
+
+local function findCrane(boom: BasePart): Crane?
+	local parent = boom.Parent
+	if not parent then
+		return nil
+	end
+	local at = boom.Position + Vector3.new(0, 0, CR.at)
+	local pieces = {}
+	for _, p in parent:GetChildren() do
+		local look = p:GetAttribute("Look")
+		if
+			p:IsA("BasePart")
+			and (look == "CraneTrolley" or look == "CraneCable")
+			and math.abs(p.Position.X - at.X) < CR.find[1]
+			and math.abs(p.Position.Z - at.Z) < CR.find[2]
+		then
+			table.insert(pieces, { part = p, cf = p.CFrame })
+		end
+	end
+	if #pieces == 0 then
+		return nil
+	end
+	return { boom = boom, pieces = pieces, phase = (boom.Position.X * 0.37) % 1 }
+end
+
+local function stepCranes(now: number)
+	local B = budget()
+	if B.cranes <= 0 then
+		return
+	end
+	local f = focus()
+	local near: { { c: BasePart, d: number } } = {}
+	for _, boom in CollectionService:GetTagged("LifeCrane") do
+		if boom:IsA("BasePart") and boom.Parent then
+			local d = (boom.Position - f).Magnitude
+			if d < CR.range then
+				table.insert(near, { c = boom, d = d })
+			end
+		end
+	end
+	table.sort(near, function(a, b)
+		return a.d < b.d
+	end)
+	for k = 1, math.min(#near, B.cranes) do
+		local boom = near[k].c
+		local c = cranes[boom]
+		if not c and now >= (craneless[boom] or 0) then
+			c = findCrane(boom)
+			if c then
+				cranes[boom] = c
+			else
+				craneless[boom] = now + 10
+			end
+		end
+		if c then
+			local z, swing = LifePlan.crane(CR, now, c.phase)
+			-- the pieces were built at the boom's look offset (CR.at); slide them by the difference, and swing them
+			-- about the trolley's wheels (a hook displaced along +z is a turn of -swing about x)
+			local slide = Vector3.new(0, 0, z - CR.at)
+			local pivot = c.boom.Position + Vector3.new(0, -CR.pivot, z)
+			local turn = CFrame.new(pivot) * CFrame.Angles(-swing, 0, 0) * CFrame.new(-pivot)
+			for _, pc in c.pieces do
+				if pc.part.Parent then
+					table.insert(bulkParts, pc.part)
+					table.insert(bulkCFrames, turn * (CFrame.new(slide) * pc.cf))
+				end
+			end
+		end
+	end
+	for boom in cranes do
+		if not boom.Parent then
+			cranes[boom] = nil
+		end
+	end
+	for boom in craneless do
+		if not boom.Parent then
+			craneless[boom] = nil
 		end
 	end
 end
@@ -1575,6 +1775,8 @@ local function step(dt: number)
 	stepPigeons(dt, now, list)
 	stepGulls(dt, now, list)
 	stepFlags(now)
+	stepBanners(now)
+	stepCranes(now)
 	stepDrones(dt, now)
 	if now >= slowAt then
 		slowAt = now + 1
@@ -1622,6 +1824,11 @@ function CityLife.init()
 		corners = LifePlan.corners(L.pigeons, lanes, crossings, half)
 		manholes = LifePlan.manholes(L.steam, lanes, crossings)
 		flagDefs = LifePlan.roofFlags(Config, info.buildings or {})
+		-- the safehouse pads' corner flags join the roof flags' budget (alive-world round 2, 2026-11-20)
+		for _, d in LifePlan.safeFlags(Config, info.safehouses or {}) do
+			table.insert(flagDefs, d)
+		end
+		bannerDefs = LifePlan.towerBanners(Config, info.buildings or {})
 		if vehicleArt then
 			for _, look in T.looks do
 				if SetPieceKit.ready(Config, look, vehicleHas) then

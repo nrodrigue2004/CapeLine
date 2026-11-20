@@ -1,0 +1,66 @@
+Pocket audit (art/city/audit_pockets.luau, 2026-11-20): each pocket's layout boxes by how they show.
+
+pocket      plain    tex   mesh   glow
+station         4     11      6      0
+tower           4     16      2      1
+rooftops        4     51      0      0
+dungeon         8      8    340     31
+arena           4      7      7      1
+bridge          5     10      0      0
+subway          4     79      0     48
+academy         4     30     61     11
+toyshop         4     20     83      5
+seacave         4     23     54     10
+velmara         6     21     54      9
+pit             7     29     83      8
+ashlab          6     28     47     40
+ironhall        5     29     69      7
+pound           5      6    127     10
+total          74    368    933    181
+deep            0      0    326     12
+hq vigil        1      0     97     30
+hq foundry      0      0      6      0
+
+Plain groups, biggest first (pocket, kind, colour, shape, size):
+   3  pit       prop      scorch         box 60x1x0
+   2  academy   ledge     glass          box 400x60x4
+   2  academy   ledge     glass          box 4x60x400
+   2  arena     ledge     glass          box 400x60x4
+   2  arena     ledge     glass          box 4x60x400
+   2  ashlab    ledge     glass          box 400x60x4
+   2  ashlab    ledge     glass          box 4x60x400
+   2  bridge    ledge     glass          box 400x60x4
+   2  bridge    ledge     glass          box 4x60x400
+   2  dungeon   ledge     glass          box 400x60x4
+   2  dungeon   ledge     glass          box 4x60x400
+   2  ironhall  ledge     glass          box 400x60x4
+   2  ironhall  ledge     glass          box 4x60x400
+   2  pit       ledge     glass          box 400x60x4
+   2  pit       ledge     glass          box 4x60x400
+   2  pound     ledge     glass          box 400x60x4
+   2  pound     ledge     glass          box 4x60x400
+   2  rooftops  ledge     glass          box 400x60x4
+   2  rooftops  ledge     glass          box 4x60x400
+   2  seacave   ledge     glass          box 400x60x4
+   2  seacave   ledge     glass          box 4x60x400
+   2  station   ledge     glass          box 400x60x4
+   2  station   ledge     glass          box 4x60x400
+   2  subway    ledge     glass          box 400x60x4
+   2  subway    ledge     glass          box 4x60x400
+   2  tower     ledge     glass          box 400x60x4
+   2  tower     ledge     glass          box 4x60x400
+   2  toyshop   ledge     glass          box 400x60x4
+   2  toyshop   ledge     glass          box 4x60x400
+   2  velmara   crop      kelp           box 1x12x1
+   2  velmara   ledge     glass          box 400x60x4
+   2  velmara   ledge     glass          box 4x60x400
+   1  ashlab    prop      slate          box 4x4x8
+   1  ashlab    prop      white          box 4x3x4
+   1  bridge    plaza     sidewalk       box 400x4x400
+   1  dungeon   prop      pkBrass        box 3x3x0
+   1  dungeon   prop      white          box 1x0x2
+   1  dungeon   prop      white          box 1x2x0
+   1  dungeon   prop      wood           box 4x3x3
+   1  ironhall  prop      relicRed       box 60x14x1
+   1  pound     plaza     sidewalk       box 400x4x400
+   1  safehouse mapScreen                34x12x0
