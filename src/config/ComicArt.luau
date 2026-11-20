@@ -76,7 +76,7 @@ return {
 	},
 	-- the portraits: 256 px cells, 4 to a row, on these sheets (image ids)
 	cell = 256,
-	sheets = { 87509785408282, 139690297509749, 110798494525982, 112539384512047 },
+	sheets = { 87509785408282, 139690297509749, 110798494525982, 134888285602277 },
 	-- each portrait's { sheet, column, row } (0-based column and row), keyed like
 	-- Config.Story.guides.speakers, Config.SideQuests.givers and Config.Mentors.list ids
 	portraits = {
@@ -137,6 +137,8 @@ return {
 		fence = { 4, 2, 1 },
 		producer = { 4, 3, 1 },
 		stagehand = { 4, 0, 2 },
+		parent = { 4, 1, 2 },
+		freed = { 4, 2, 2 },
 	},
 	-- the same portrait as another key
 	aliases = {
