@@ -3926,6 +3926,31 @@ local function shotTrail(p: BasePart, color: Color3, width: number, life: number
 	return t
 end
 
+-- Where a shot meets the world within `life` s (a wall, a roof, the street; never a robot, a hero or an effect):
+-- the time it gets there and the hit, else the full life and nil
+local SCORCH = Color3.fromRGB(40, 36, 34)
+local function shotEnd(pos: Vector3, vel: Vector3, life: number): (number, RaycastResult?)
+	groundParams.FilterDescendantsInstances = skipList()
+	local hit = Workspace:Raycast(pos, vel * life, groundParams)
+	if hit then
+		return math.max(0.02, (hit.Position - pos).Magnitude / vel.Magnitude), hit
+	end
+	return life, nil
+end
+
+-- The shot stops on what it met, `t` s after firing: sparks off the face, a flash and a small scorch mark
+local function shotSplash(hit: RaycastResult?, t: number, color: Color3, sparks: number)
+	if not hit then
+		return
+	end
+	local at, n = hit.Position, hit.Normal
+	task.delay(t, function()
+		FxLib.emit("hitspark", color, at + n * 0.2, sparks, n)
+		FxLib.emit("glow", color, at + n * 0.3, 1)
+		FxLib.emit("scorch", SCORCH, at + n * 0.1, F.shot.splash.scorch, n)
+	end)
+end
+
 -- A Sniper's round (shot style 1): a bright, long white-hot tracer with a red glow and a muzzle flash
 local function tracer(pos: Vector3, vel: Vector3, speed: number)
 	local tr = R.tracer
@@ -3937,7 +3962,8 @@ local function tracer(pos: Vector3, vel: Vector3, speed: number)
 	local flash = part(Vector3.one * 1.2, CFrame.new(pos), rgb(tr.color), Enum.PartType.Ball)
 	fade(flash, 0.12, { Size = Vector3.one * 3 })
 	FxLib.emit("spark", rgb(tr.glow), pos, 4, vel)
-	local life = math.min(1, 150 / speed)
+	local life, hit = shotEnd(pos, vel, math.min(1, 150 / speed))
+	shotSplash(hit, life, rgb(tr.glow), F.shot.splash.tracerSparks)
 	local goal = { CFrame = CFrame.lookAt(pos + vel * life, pos + vel * (life + 1)) }
 	for _, p in { core, glow } do
 		TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), goal):Play()
@@ -3983,12 +4009,15 @@ local function net(pos: Vector3, vel: Vector3, speed: number)
 		end
 	end
 	local turn = MeshFix.turn("Powers")
-	local life = math.min(1.6, 100 / speed)
+	-- a net that meets a wall stops there, pinned flat, and flashes before it fades
+	local life, hit = shotEnd(pos, vel, math.min(1.6, 100 / speed))
+	shotSplash(hit, life, color, F.shot.splash.sparks)
+	local pinned = if hit then F.shot.splash.netHold else 0
 	local t = 0
 	local conn: RBXScriptConnection
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
 		t += dt
-		if t >= life then
+		if t >= life + pinned then
 			conn:Disconnect()
 			for _, p in parts do
 				p:Destroy()
@@ -3999,8 +4028,9 @@ local function net(pos: Vector3, vel: Vector3, speed: number)
 			return
 		end
 		local open = math.clamp(t / 0.15, 0.3, 1)
-		local at = pos + vel * t
-		local cf = CFrame.lookAt(at, at + vel) * CFrame.Angles(0, 0, t * n.spin)
+		local ft = math.min(t, life)
+		local at = pos + vel * ft
+		local cf = CFrame.lookAt(at, at + vel) * CFrame.Angles(0, 0, ft * n.spin)
 		for i, p in parts do
 			p.CFrame = cf * CFrame.new(bars[i][1] * open)
 		end
@@ -4027,7 +4057,10 @@ function CombatFx.enemyShot(pos: Vector3, vel: Vector3, style: number?)
 	end
 	local p = part(Vector3.new(F.shot.width, F.shot.width, 2.2), CFrame.lookAt(pos, pos + vel), ENEMY)
 	shotTrail(p, ENEMY, F.shot.trail or 0.7, F.shot.life or 0.16)
-	local life = math.min(1.6, 80 / speed)
+	FxLib.emit("glow", ENEMY, pos, 1) -- the muzzle flash
+	FxLib.emit("spark", ENEMY, pos, F.shot.splash.muzzle, vel)
+	local life, hit = shotEnd(pos, vel, math.min(1.6, 80 / speed))
+	shotSplash(hit, life, ENEMY, F.shot.splash.sparks)
 	TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), {
 		CFrame = CFrame.lookAt(pos + vel * life, pos + vel * (life + 1)),
 	}):Play()
@@ -4042,7 +4075,8 @@ function CombatFx.pathShot(pos: Vector3, vel: Vector3, set: string?, style: stri
 	if speed < 1 then
 		return
 	end
-	local life = math.min(1.6, 90 / speed)
+	local life, hit = shotEnd(pos, vel, math.min(1.6, 90 / speed))
+	shotSplash(hit, life, color, F.shot.splash.sparks)
 	local to = pos + vel * life
 	FxLib.emit("glow", color, pos, 1)
 	FxLib.trail(pos, pos + vel * math.min(life, 0.35), set, color)

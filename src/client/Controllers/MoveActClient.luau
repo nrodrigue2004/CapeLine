@@ -22,6 +22,7 @@ local FrameProf = require(Shared:WaitForChild("FrameProf"))
 
 local State = require(script.Parent.Parent.State)
 local MoveController = require(script.Parent.MoveController)
+local InputController = require(script.Parent.InputController)
 local CameraController = require(script.Parent.CameraController)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local FxLib = require(script.Parent.Parent.Fx.FxLib)
@@ -210,6 +211,7 @@ end
 ---------------------------------------------------------------------------
 
 local samples: { MoveActs.Sample } = {}
+local tornadoBy: { [string]: any } = {} -- Tornado Run's numbers per device (MoveActs.tornadoFor)
 local peak, peakAt = 0, 0
 local wakeFx = 0
 local blazeUntil = 0
@@ -283,13 +285,16 @@ local function step(dt: number)
 	-- Tornado Run: the run's path, checked five times a second
 	if MoveController.has("tornadoRun") then
 		table.insert(samples, { x = p.X, z = p.Z, t = now, s = speed })
-		while #samples > 0 and now - samples[1].t > MOVES.tornadoRun.window do
+		local device = InputController.device
+		local tm = tornadoBy[device] or MoveActs.tornadoFor(MOVES.tornadoRun, device) -- forgiving on phones, pads
+		tornadoBy[device] = tm
+		while #samples > 0 and now - samples[1].t > tm.window do
 			table.remove(samples, 1)
 		end
 		acc += dt
 		if acc >= 0.2 then
 			acc = 0
-			local ok, cx, cz = MoveActs.circled(MOVES.tornadoRun, samples, now)
+			local ok, cx, cz = MoveActs.circled(tm, samples, now)
 			if ok and MoveController.canUse("tornadoRun") then
 				table.clear(samples)
 				MoveController.act(
