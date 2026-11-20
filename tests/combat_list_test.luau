@@ -974,8 +974,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 57,
-			"57 meshes in 23 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash): "
+			n == 60,
+			"60 meshes in 24 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan): "
 				.. n
 		)
 		for _, look in
@@ -2837,6 +2837,55 @@ return function(T: any)
 			end
 		end
 		check(big > 15, "the splitter's crescent is giant (" .. big .. ")")
+		sim:advance(1)
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
+	test("List combat: shock rings and cone blasts are Blender meshes (Everything Left 381)", function()
+		local roblox = require("@lune/roblox")
+		local S = Config.PowerArt.Shock
+		check(S and S.ShockRing and S.ConeFan and S.ConeStreaks, "the Shock look")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		local c = roblox.Color3.fromRGB(80, 200, 255)
+		local function count(name: string): (number, any)
+			local n, last = 0, nil
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == name then
+					n += 1
+					last = d
+				end
+			end
+			return n, last
+		end
+		local before = count("ShockRing")
+		sim:run("ring", function()
+			CombatFx.ring(V(0, 0, 0), 12, c, 0.4)
+		end)
+		local n, r = count("ShockRing")
+		check(n == before + 1, "a burst's ring is the shock ring")
+		check(r and r.CFrame.Position.Y > 0 and r.CFrame.Position.Y < 1, "standing on the ground point")
+		sim:run("nova", function()
+			CombatFx.nova(V(0, 3, 0), 15, "Comic", c, true, "Volt")
+		end)
+		check(count("ShockRing") >= before + 3, "novas ring out in it")
+		sim:run("cone", function()
+			CombatFx.cone(V(0, 5, 0), V(0, 0, -1), 20, 60, "Comic", c, "Frost")
+		end)
+		check(count("ConeFan") == 1 and count("ConeStreaks") == 1, "a cone power blasts a fan with streaks")
+		sim:run("anime cone", function()
+			CombatFx.cone(V(0, 5, 0), V(0, 0, -1), 20, 60, "Anime", c, "Frost")
+		end)
+		check(count("ConeFan") == 1, "Anime keeps its white rays and speed lines")
 		sim:advance(1)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)

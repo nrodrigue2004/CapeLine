@@ -387,6 +387,40 @@ def crescent(r, half, w0, h0, n=25, edge=False):
 mesh("Slash", tint("SlashCrescent"), [crescent(1.0, 70, 0.16, 0.05)], (120, 200, 255), "Neon", alpha=0.15)
 mesh("Slash", "SlashEdge", [crescent(1.04, 66, 0.03, 0.03, edge=True)], WHITE, "Neon")
 
+# ================================================================ the shock pieces (Everything Left 381, 2026-11-20): a hollow shockwave ring
+# (anchor: its centre on the ground; radius 1, a raised rounded crest at the outer edge thinning to a sharp inner
+# lip) for every burst's ring, and a blast fan for the cone powers (anchor: the hand; an open flared horn 1 long
+# down -z, 1 across at its mouth, with streak ridges along it)
+prof = []
+for j in range(9):  # the ring's cross-section, inner lip to outer crest and back down
+    t = j / 8
+    prof.append((0.78 + 0.22 * t, 0.02 + 0.1 * math.sin(t * math.pi * 0.85)))
+rings_ = []
+for i in range(49):
+    a = 2 * math.pi * i / 48
+    rings_.append([(math.cos(a) * r, y, math.sin(a) * r) for r, y in prof]
+                  + [(math.cos(a) * r, 0.0, math.sin(a) * r) for r, y in reversed(prof)])
+shock = rings_mesh(rings_, cap=(False, False))  # the 49th section is the first again: a closed ring
+mesh("Shock", tint("ShockRing"), [shock], (255, 220, 120), "Neon", alpha=0.15)
+horn = []
+for k in range(8):  # the outer skin from the hand to the mouth, then the inner skin back (a thin closed shell)
+    t = k / 7
+    r = 0.04 + 0.46 * t ** 0.8
+    horn.append([(math.cos(2 * math.pi * i / 24) * r * (1.06 if i % 3 == 0 and t > 0.2 else 1.0),
+                  math.sin(2 * math.pi * i / 24) * r * (1.06 if i % 3 == 0 and t > 0.2 else 1.0), -t) for i in range(24)])
+for k in range(7, -1, -1):
+    t = k / 7
+    r = (0.04 + 0.46 * t ** 0.8) * 0.9
+    horn.append([(math.cos(2 * math.pi * i / 24) * r, math.sin(2 * math.pi * i / 24) * r, -t + 0.03) for i in range(24)])
+fan = rings_mesh(horn)
+streaks = []
+for i in range(8):
+    a = 2 * math.pi * (i + 0.5) / 8
+    streaks.append(T([(math.cos(a) * 0.05, math.sin(a) * 0.05, -0.02), (math.cos(a) * 0.3, math.sin(a) * 0.3, -0.55),
+                      (math.cos(a) * 0.52, math.sin(a) * 0.52, -1.0)], [0.012, 0.022, 0.004], segs=5))
+mesh("Shock", tint("ConeFan"), [fan], (255, 220, 120), "Neon", alpha=0.45)
+mesh("Shock", "ConeStreaks", streaks, WHITE, "Neon")
+
 # ================================================================ the nemesis's armour (NemesisFx, Everything Left 218): each piece drawn to fill
 # the box of the part it replaces on the Brute Bot (centred on it), so NemesisFx sizes it to that same box.
 # shoulders: 5 x 1 x 3 (times the build's width)
@@ -500,11 +534,12 @@ if "--preview" in sys.argv:
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2),
-             "Slash": (-26, -16, 2)}
+             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
-                 "HaloRim": (10, 0, 0.2), "Slash": (4, -5, 4.5)}
+                 "HaloRim": (10, 0, 0.2), "Slash": (4, -5, 4.5),
+                 "Shock": (-6, -6, 1.2)}
     for look, meshes in LOOKS.items():
         if look not in spots:
             for ob in meshes.values():
@@ -522,7 +557,8 @@ if "--preview" in sys.argv:
             ob.rotation_euler = (0, 0, math.radians({"SpiritBeast": 100, "Wave": 235, "Guardian": 215}.get(look, 35)))
             if close:
                 ob.scale = {"Sun": (1.6,) * 3, "BlackHole": (2.2,) * 3, "KiRing": (1.4,) * 3, "EmberRim": (2,) * 3,
-                            "HaloRim": (2,) * 3, "Slash": (3,) * 3}[look]
+                            "HaloRim": (2,) * 3, "Slash": (3,) * 3,
+                            "Shock": (2.4,) * 3}[look]
                 if look == "BlackHole":
                     ob.rotation_euler = (math.radians(25), 0, 0)
                 if look == "Slash":

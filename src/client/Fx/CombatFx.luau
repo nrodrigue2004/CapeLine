@@ -150,7 +150,22 @@ local function flatLook(dir: Vector3): Vector3
 end
 
 -- A flat expanding ring (shockwaves, novas, landings)
-local function ring(center: Vector3, radius: number, color: Color3, time: number, thick: number?)
+local function ring(center: Vector3, radius: number, color: Color3, time: number, thick: number?): BasePart
+	-- a hollow shockwave ring in its Blender look (Art.Powers Shock, Everything Left 381): a rounded crest at the
+	-- rim thinning to a sharp inner lip, growing out and fading; the flat neon disc before it is imported
+	if PowerMeshes.ready("Shock") then
+		local h = math.max(0.35, (thick or 0.3) * 1.6)
+		local mp = PowerMeshes.part("ShockRing", Vector3.new(2, h, 2))
+		if mp then
+			mp.Color = color
+			mp.Material = Enum.Material.Neon
+			mp.Transparency = 0.15
+			mp.CFrame = CFrame.new(center + Vector3.new(0, h / 2, 0)) * MeshFix.turn("Powers")
+			mp.Parent = folder
+			fade(mp, time, { Size = Vector3.new(radius * 2, h * 0.5, radius * 2) })
+			return mp
+		end
+	end
 	local p = part(
 		Vector3.new(thick or 0.3, 2, 2),
 		CFrame.new(center) * CFrame.Angles(0, 0, math.rad(90)),
@@ -448,6 +463,29 @@ function CombatFx.cone(
 	end
 	if style == "Anime" then
 		speedLines(origin + f * 3, 1.2, color, 6)
+	elseif PowerMeshes.ready("Shock") then
+		-- the blast as a flared fan opening from the hand with streaks along it (Art.Powers Shock ConeFan and
+		-- ConeStreaks, Everything Left 381), thrown out to the cone's reach and fading
+		local wide = 2 * math.tan(math.min(half, math.rad(75))) * range
+		for _, name in { "ConeFan", "ConeStreaks" } do
+			local m = Config.PowerArt.Shock[name]
+			local mp = PowerMeshes.part(name, Vector3.new(wide * 0.3, wide * 0.3, range * 0.3))
+			if mp then
+				mp.Color = if name == "ConeFan" then color else WHITE
+				mp.Material = Enum.Material.Neon
+				mp.Transparency = m.alpha or 0
+				local off = function(k: number): CFrame
+					return CFrame.new(0, 0, -range * k * 0.5)
+				end
+				mp.CFrame = CFrame.lookAt(origin, origin + f) * off(0.3) * MeshFix.turn("Powers")
+				mp.Parent = folder
+				TweenService:Create(mp, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+					Size = Vector3.new(wide, wide, range),
+					CFrame = CFrame.lookAt(origin, origin + f) * off(1) * MeshFix.turn("Powers"),
+				}):Play()
+				fade(mp, 0.2, nil, 0.1)
+			end
+		end
 	else
 		local p = part(
 			Vector3.new(0.3, range * 0.9, range * 0.9),
