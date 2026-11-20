@@ -317,6 +317,7 @@ local function npcModel(
 		Enum.Material.Neon
 	)
 	mark.Name = "Marker"
+	SiteKit.skin(mark, "QuestMark")
 	mark.CFrame = head.CFrame * CFrame.new(0, 2.6, 0)
 	local tag = Instance.new("BillboardGui")
 	tag.Size = UDim2.fromOffset(160, 26)
@@ -338,18 +339,21 @@ local function npcModel(
 end
 
 -- A relay giver (lore step 11, the character lines: Patch, a voice on the radio): a little relay box on a post
--- with a blinking aerial instead of a person; talking to it is talking to the voice. PLACEHOLDER ART: plain
--- parts.
+-- with a blinking aerial instead of a person; talking to it is talking to the voice. Its post, box and aerial
+-- wear their Blender meshes (SiteKit.skin; plain parts until Art.SiteProps is imported).
 local function relayModel(name: string, color: { number }, pos: Vector3): (Model, BasePart)
 	local m = SiteKit.model("Giver" .. name)
 	local tint = Color3.fromRGB(color[1], color[2], color[3])
 	local steel = Color3.fromRGB(70, 74, 86)
-	SiteKit.part(
-		m,
-		Vector3.new(0.5, 4, 0.5),
-		CFrame.new(pos + Vector3.new(0, 2, 0)),
-		steel,
-		Enum.Material.Metal
+	SiteKit.skin(
+		SiteKit.part(
+			m,
+			Vector3.new(0.5, 4, 0.5),
+			CFrame.new(pos + Vector3.new(0, 2, 0)),
+			steel,
+			Enum.Material.Metal
+		),
+		"RelayPost"
 	)
 	local box = SiteKit.part(
 		m,
@@ -359,6 +363,7 @@ local function relayModel(name: string, color: { number }, pos: Vector3): (Model
 		Enum.Material.Metal
 	)
 	box.CanQuery = true
+	SiteKit.skin(box, "RelayBox")
 	SiteKit.part(
 		m,
 		Vector3.new(1.4, 0.5, 0.1),
@@ -366,12 +371,15 @@ local function relayModel(name: string, color: { number }, pos: Vector3): (Model
 		tint,
 		Enum.Material.Neon
 	)
-	SiteKit.part(
-		m,
-		Vector3.new(0.12, 2.6, 0.12),
-		CFrame.new(pos + Vector3.new(0.7, 6.7, 0)),
-		steel,
-		Enum.Material.Metal
+	SiteKit.skin(
+		SiteKit.part(
+			m,
+			Vector3.new(0.12, 2.6, 0.12),
+			CFrame.new(pos + Vector3.new(0.7, 6.7, 0)),
+			steel,
+			Enum.Material.Metal
+		),
+		"RelayAerial"
 	)
 	local blink = SiteKit.part(
 		m,
@@ -395,6 +403,7 @@ local function relayModel(name: string, color: { number }, pos: Vector3): (Model
 		Enum.Material.Neon
 	)
 	mark.Name = "Marker"
+	SiteKit.skin(mark, "QuestMark")
 	local tag = Instance.new("BillboardGui")
 	tag.Size = UDim2.fromOffset(160, 26)
 	tag.StudsOffset = Vector3.new(0, 3.2, 0)

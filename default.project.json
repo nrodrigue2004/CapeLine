@@ -57,6 +57,7 @@
         "Foes": { "$path": "art/models/Foes.rbxm" },
         "Finds": { "$path": "art/models/Finds.rbxm" },
         "Stage": { "$path": "art/models/Stage.rbxm" },
+        "SiteProps": { "$path": "art/models/SiteProps.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },

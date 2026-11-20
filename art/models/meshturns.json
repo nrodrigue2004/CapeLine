@@ -287,6 +287,13 @@
   "turned": 92,
   "verdict": "rotY180"
  },
+ "SiteProps": {
+  "asDrawn": 3,
+  "either": 3,
+  "meshes": 8,
+  "turned": 8,
+  "verdict": "rotY180"
+ },
  "Stage": {
   "asDrawn": 6,
   "either": 6,

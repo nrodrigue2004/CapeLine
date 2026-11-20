@@ -328,9 +328,14 @@ return function(T: any)
 		)
 		check(has(mc, 'Net.send("MoveLine", anchor)'), "other devices learn where the line hangs")
 		local fx = fs.readFile("src/client/Fx/SwingFx.luau")
+		check(has(fx, 'GetAttribute("SwingAt")'), "SwingFx draws everyone's lines")
+		-- (list-combat 2026-11-20, Everything Left 393) the line wears its drawn energy cord texture, tiled along it
+		local F = Config.Move.mobility.swing.feel
+		check(F.texture > 0 and F.texWidth > F.width and F.texLength > 0, "the line's texture and its width")
+		check(fs.isFile("art/export/fx/SwingLine.png"), "drawn by art/fx/swing_line.py")
 		check(
-			has(fx, "PLACEHOLDER ART") and has(fx, 'GetAttribute("SwingAt")'),
-			"SwingFx draws everyone's lines"
+			has(fx, 'b.Texture = "rbxassetid://" .. FEEL.texture') and has(fx, "Enum.TextureMode.Wrap"),
+			"the beam wears it, tiled"
 		)
 		check(has(fx, "FEEL.others[QualityController.name]"), "other heroes' lines are budgeted by preset")
 		check(has(fx, 'FrameProf.wrap("SwingFx"'), "its frame loop is profiled")

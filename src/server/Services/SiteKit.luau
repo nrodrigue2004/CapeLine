@@ -29,6 +29,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local RigMath = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RigMath"))
 local NpcRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NpcRig"))
 local EnemyVariety = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemyVariety"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -80,6 +81,36 @@ function SiteKit.part(
 	return p
 end
 local part = SiteKit.part
+
+-- A part dressed in its Blender mesh (Everything Left 399, 401, 402: art/blender/siteprops.py, ReplicatedStorage.Art.
+-- SiteProps, Config.SitePropArt): the mesh drawn to fill the part's box goes inside it (it moves, welds and clears
+-- with it) in the part's colour and material, and the part goes invisible. Nothing while the mesh is not imported
+-- (the plain part shows: PLACEHOLDER ART).
+function SiteKit.skin(p: BasePart, name: string): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("SiteProps")
+	local src = set and set:FindFirstChild(name, true)
+	if not (src and src:IsA("MeshPart")) then
+		return nil
+	end
+	local m = MeshFix.clone(src)
+	for _, c in m:GetChildren() do
+		c:Destroy()
+	end
+	m.Name = name
+	m.Anchored = p.Anchored
+	m.CanCollide = false
+	m.CanQuery = false
+	m.CanTouch = false
+	m.CastShadow = p.CastShadow
+	m.Size = p.Size
+	m.CFrame = p.CFrame * MeshFix.turn("SiteProps")
+	m.Color = p.Color
+	m.Material = p.Material
+	p.Transparency = 1
+	m.Parent = p
+	return m
+end
 
 -- Tag a prop with its look (Shared.ActivityKit.KINDS); a model built in world studs (no Root) gets an unseen Root
 -- at `foot`, the look's foot point. scale: a ring's LookScale.
@@ -245,25 +276,35 @@ local function citizenModel(pos: Vector3, cat: boolean?, person: (() -> any)?): 
 			CFrame.new(pos + Vector3.new(0, 0.5, 0)),
 			Color3.fromRGB(240, 150, 60)
 		)
-		part(
-			m,
-			Vector3.new(1.1, 1, 1),
-			CFrame.new(pos + Vector3.new(0, 1.2, -1.2)),
-			Color3.fromRGB(240, 150, 60)
-		)
-		for _, s in { -0.35, 0.35 } do
+		SiteKit.skin(body, "CatBody")
+		SiteKit.skin(
 			part(
 				m,
-				Vector3.new(0.3, 0.5, 0.2),
-				CFrame.new(pos + Vector3.new(s, 1.9, -1.2)),
+				Vector3.new(1.1, 1, 1),
+				CFrame.new(pos + Vector3.new(0, 1.2, -1.2)),
 				Color3.fromRGB(240, 150, 60)
+			),
+			"CatHead"
+		)
+		for _, s in { -0.35, 0.35 } do
+			SiteKit.skin(
+				part(
+					m,
+					Vector3.new(0.3, 0.5, 0.2),
+					CFrame.new(pos + Vector3.new(s, 1.9, -1.2)),
+					Color3.fromRGB(240, 150, 60)
+				),
+				"CatEar"
 			)
 		end
-		part(
-			m,
-			Vector3.new(0.25, 0.25, 1.6),
-			CFrame.new(pos + Vector3.new(0, 1.2, 1.6)) * CFrame.Angles(math.rad(-40), 0, 0),
-			Color3.fromRGB(220, 130, 50)
+		SiteKit.skin(
+			part(
+				m,
+				Vector3.new(0.25, 0.25, 1.6),
+				CFrame.new(pos + Vector3.new(0, 1.2, 1.6)) * CFrame.Angles(math.rad(-40), 0, 0),
+				Color3.fromRGB(220, 130, 50)
+			),
+			"CatTail"
 		)
 	else
 		-- a person on the heroes' blocky R15 rig (nate, 2026-11-16: "literally everyone should be r15"), both

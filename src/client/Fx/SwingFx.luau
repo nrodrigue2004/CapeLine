@@ -6,7 +6,9 @@
 -- to hang from flicks out along the aim and drops away (the miss cue) with a dull click; a shot thwips; a
 -- release whooshes (louder on a sweet one, Config.Move.mobility.swing.release.sweet). The line takes the worn
 -- travel style's colour (MoveController.lineColor, TravelStyleFx). Looks only: it never moves anyone.
--- PLACEHOLDER ART: a plain white beam until a web texture is drawn and uploaded; recorded sounds (Config.Audio swingShoot, swingRelease, swingMiss).
+-- The line wears its drawn texture (feel.texture: an energy cord of two twisting strands, tinted by the travel
+-- style; art/fx/swing_line.py); a plain white beam if the id is 0. Recorded sounds (Config.Audio swingShoot,
+-- swingRelease, swingMiss).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -51,9 +53,17 @@ local function newLine(): Line
 	b.Name = "SwingLine"
 	b.Attachment0 = a0
 	b.Attachment1 = a1
-	b.Width0 = FEEL.width
-	b.Width1 = FEEL.width * 0.7
+	local tex = (FEEL.texture or 0) > 0
+	local w = if tex then FEEL.texWidth else FEEL.width
+	b.Width0 = w
+	b.Width1 = w * 0.7
 	b.FaceCamera = true
+	if tex then
+		b.Texture = "rbxassetid://" .. FEEL.texture
+		b.TextureMode = Enum.TextureMode.Wrap
+		b.TextureLength = FEEL.texLength
+		b.TextureSpeed = 0.6 -- the strands crawl toward the anchor
+	end
 	b.LightEmission = 0.25
 	b.Segments = 12
 	b.Color = ColorSequence.new(WHITE)

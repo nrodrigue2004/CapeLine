@@ -445,6 +445,12 @@ return {
 				shoot = 0.09,
 				whoosh = 45,
 				width = 0.16,
+				-- the line's texture (list-combat 2026-11-20, Everything Left 393: art/fx/swing_line.py, an energy cord
+				-- of two twisting strands, white so the travel style tints it); 0 keeps the plain beam. With it the
+				-- line is drawn texWidth wide (the strands need the room), one tile every texLength studs
+				texture = 81973620355174,
+				texWidth = 0.3,
+				texLength = 3,
 				others = { low = 3, medium = 6, high = 8 }, -- other heroes' lines drawn at once, by quality preset
 				othersRange = 350,
 			},
