@@ -103,6 +103,10 @@ return {
 	-- (list-combat 2026-11-20) Shadow's Eclipse in the Blender sun: the corona and black core's sizes in studs and the
 	-- corona's turn (radians) over its 1.4 s
 	eclipse = { corona = 22, core = 14, turn = 0.8 },
+	-- (list-combat 2026-11-20, the supers round) the supers' own Blender meshes: the light column's helix `helix` x its
+	-- width; Dawnburst's sunburst `dawn` x the radius (the mesh is 2 across); Meteor Leap's crater `crater` x the
+	-- radius, held `craterHold` s before it fades
+	supers = { helix = 1.35, dawn = 1.3, crater = 0.65, craterHold = 1.6 },
 	hurt = {
 		heavy = 0.12,
 		gap = 0.08,
