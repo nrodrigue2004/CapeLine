@@ -3392,7 +3392,7 @@ return function(T: any)
 		)
 	end)
 
-	test("List combat: the prologue tunnel's roof chunks and pinning beam wear Blender meshes", function()
+	test("List combat: the prologue tunnel's roof chunks and pinning beam and the run's barrier wear Blender meshes", function()
 		local roblox = require("@lune/roblox")
 		if not T.placePath then
 			return
@@ -3416,6 +3416,13 @@ return function(T: any)
 		end)
 		sim:run("slab", function()
 			PrologueFx.moment("slab", { at = { 6, 0, 2 } }, "hit")
+		end)
+		sim:run("barrier", function()
+			PrologueFx.moment(
+				"barrier",
+				{ at = { 30, 0, 0 }, from = { 30, 0, 10 }, to = { 30, 0, -10 } },
+				"show"
+			)
 		end)
 		local folder = sim.service("Workspace"):FindFirstChild("Prologue")
 		check(folder ~= nil, "the prologue's folder")
@@ -3441,6 +3448,23 @@ return function(T: any)
 			)
 			local w = beam:FindFirstChildWhichIsA("WeldConstraint")
 			check(w ~= nil and w.Part0 == host and not beam.Anchored, "welded so it falls with the part")
+		end
+		-- the run's barrier: the sawhorse barricade standing on its feet, over its hidden part
+		local bar = {}
+		for _, d in (if folder then folder:GetDescendants() else {}) do
+			if d:IsA("MeshPart") and string.sub(d.Name, 1, 7) == "Barrier" then
+				bar[d.Name] = d
+			end
+		end
+		for _, name in { "Barrier", "BarrierStripes", "BarrierLegs", "BarrierLamp" } do
+			check(bar[name] ~= nil, "the barrier's " .. name)
+		end
+		if bar.Barrier and bar.BarrierLegs then
+			check(bar.Barrier.Parent.Transparency == 1, "over its hidden part")
+			local legs = bar.BarrierLegs
+			local low = legs.CFrame.Position.Y - legs.Size.Y / 2
+			check(math.abs(low) < 0.4, string.format("standing on its feet (%.2f)", low))
+			check(math.abs(bar.Barrier.CFrame.Position.X - 30) < 1, "where the beat puts it")
 		end
 		check(chunk ~= nil, "the falling roof chunk is a broken block")
 		if chunk then

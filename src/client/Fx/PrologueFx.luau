@@ -1140,7 +1140,8 @@ end
 -- never damage). Everything here is on this device only and goes when the prologue ends.
 -- The tunnel's falling roof chunks are Art.Rubble's broken blocks and the beam that pins the hero is the Blender
 -- steel girder (Art.Powers Girder) since 2026-11-20, welded over their plain parts (which hide); before the meshes
--- are imported the parts show. PLACEHOLDER ART: the run's knocked-over barrier is still plain parts.
+-- are imported the parts show; the run's knocked-over barrier is Art.Rubble's sawhorse barricade (striped planks,
+-- steel A-frame legs, a warning lamp), standing knocked askew across the street, over its hidden parts.
 ---------------------------------------------------------------------------
 
 -- A mesh welded over a plain part so it follows the part's tweens; the part hides
@@ -1174,6 +1175,57 @@ local function coverChunk(c: BasePart, k: number)
 	m.CastShadow = true
 	weldOver(c, m)
 	PrologueMeshes.hide(c)
+end
+
+-- The run's barrier as Art.Rubble's sawhorse barricade (Barrier: planks, stripes, legs, lamp), standing on its
+-- feet at `at` facing along `flat`, knocked askew; the plain part and its stripe bars hide under it
+local BARRIER = { scale = 0.85, yaw = 12, roll = 5 }
+local function coverBarrier(b: BasePart, at: Vector3, flat: Vector3)
+	local row = Config.RubbleArt and Config.RubbleArt.Barrier
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Rubble")
+	if not (row and set) then
+		return
+	end
+	local srcs = {}
+	for name, m in row do
+		if name ~= "box" then
+			local src = set:FindFirstChild(name, true)
+			if not (src and src:IsA("MeshPart")) then
+				return -- all or none
+			end
+			srcs[name] = { src, m }
+		end
+	end
+	local k = BARRIER.scale
+	-- the feet (2.4 below the planks' centre as drawn) on the ground
+	local frame = CFrame.lookAt(at + Vector3.new(0, 2.4 * k, 0), at + Vector3.new(0, 2.4 * k, 0) + flat)
+		* CFrame.Angles(0, math.rad(BARRIER.yaw), math.rad(BARRIER.roll))
+	for name, pair in srcs do
+		local src, m = pair[1], pair[2]
+		local p = MeshFix.clone(src)
+		p:ClearAllChildren()
+		p.Name = name
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = m.mat ~= "Neon"
+		p.Size = Vector3.new(m.size[1], m.size[2], m.size[3]) * k
+		p.CFrame = frame * CFrame.new(Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k) * MeshFix.of(p)
+		p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
+		local ok, mat = pcall(function()
+			return (Enum.Material :: any)[m.mat]
+		end)
+		p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
+		p.Parent = b
+	end
+	PrologueMeshes.hide(b)
+	for _, c in b:GetChildren() do
+		if c:IsA("Part") then -- the old stripe bars
+			PrologueMeshes.hide(c)
+		end
+	end
 end
 
 -- The pinning beam as the Blender girder (riveted, torn at one end), its length along the part's x
@@ -1296,6 +1348,7 @@ function PrologueFx.moment(kind: string?, seg: { [string]: any }, phase: string)
 				)
 				stripe.Parent = b
 			end
+			coverBarrier(b, at, flat)
 			props.barrier = b
 		elseif phase == "miss" then
 			shoveHero(0.35)

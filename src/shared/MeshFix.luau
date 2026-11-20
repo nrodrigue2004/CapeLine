@@ -71,7 +71,7 @@ for _, set in
 		"Powers", -- list-combat: the power summons, rides and forms, 37 of 37 with the nemesis armour (2026-11-20)
 		"Prologue",
 		"Robots",
-		"Rubble", -- list-combat: the rubble heaps, 8 of 8 (2026-11-20)
+		"Rubble", -- list-combat: the rubble heaps, chunks and the prologue barrier, 15 of 15 (2026-11-20)
 		"SetPieces",
 		"Shapes", -- shapes-2: the living world's round 2, 59 of 59 match it (2026-11-19)
 		"Shoulders",

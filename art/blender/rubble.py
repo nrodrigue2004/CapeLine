@@ -104,6 +104,35 @@ for k in range(3):
     mesh("Chunk%d" % (k + 1), "Chunk%d" % (k + 1), [ob], CONCRETE, "Concrete", shade=False)
 
 
+# the knocked-over crowd barrier (list-combat 2026-11-20, the Ceremony prologue's run: PrologueFx "barrier", was a
+# yellow box with three dark bars): a sawhorse barricade, two yellow planks with black diagonal stripes on both faces,
+# on splayed steel A-frame legs with a warning lamp on top. Drawn upright with its top plank filling a 9 x 2.4 x 0.6
+# box (the part it dresses); the legs and lamp hang off that box at their own offsets.
+YELLOW, INK, STEEL, LAMP = (250, 200, 40), (30, 30, 34), (140, 144, 150), (255, 140, 30)
+planks, stripes = [], []
+for y in (0.6, -0.6):  # two planks, a gap between
+    planks.append(B(9.0, 1.0, 0.3, 0, y, 0, bev=0.05))
+    for i in range(-4, 5):
+        x = i * 1.1
+        for side in (-1, 1):
+            poly = [(x - 0.25, y - 0.5), (x + 0.15, y - 0.5), (x + 0.45, y + 0.5), (x + 0.05, y + 0.5)]
+            if max(px for px, _ in poly) > 4.45 or min(px for px, _ in poly) < -4.45:
+                continue
+            z0 = side * 0.15
+            z1 = side * 0.17
+            stripes.append(rings_mesh([[(px, py, z0) for px, py in poly], [(px, py, z1) for px, py in poly]]))
+mesh("Barrier", "Barrier", [kit.join("Barrier", planks, shade=False)], YELLOW, "SmoothPlastic", shade=False)
+mesh("Barrier", "BarrierStripes", stripes, INK, "SmoothPlastic", shade=False)
+legs = []
+for x in (-3.6, 3.6):
+    for side in (-1, 1):
+        legs.append(T([(x, 1.1, 0), (x, -0.4, side * 0.6), (x, -2.4, side * 1.3)], [0.09, 0.09, 0.09], segs=6))
+    legs.append(T([(x, -1.7, -1.0), (x, -1.7, 1.0)], [0.06, 0.06], segs=6))
+    legs.append(B(0.5, 0.12, 0.5, x, 1.15, 0))
+mesh("Barrier", "BarrierLegs", legs, STEEL, "Metal")
+mesh("Barrier", "BarrierLamp", [C(0.28, 0.4, -3.6, 1.25, 0, segs=10), S(0.26, -3.6, 1.7, 0, segs=10, rings=6)], LAMP, "Neon")
+
+
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
     lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs)))
@@ -165,12 +194,14 @@ if "--preview" in sys.argv:
         for name, ob in LOOKS[look].items():
             rgb, mat, _ = INFO[name]
             ob.data.materials.append(kit.material("m_" + name, rgb, metal=0.5 if mat == "Metal" else 0, rough=0.8))
-            if look.startswith("Chunk"):  # the loose chunks in a row in front
+            if look == "Barrier":  # the barrier at the back, standing
+                ob.location = (0, 8, 2.4)
+            elif look.startswith("Chunk"):  # the loose chunks in a row in front
                 ob.location = (int(look[5:]) * 4 - 8, -5, 1.2)
             else:
                 ob.location = (int(look[6:]) * 5 - 12.5, 0, 0)
             ob.scale = (1, 1, 1)
     ground = kit.box("ground", 60, 30, 0.2, at=(0, 0, -0.1))
     ground.data.materials.append(kit.material("g", (90, 94, 100)))
-    kit.camera((0, -20, 8), (0, -2, 0.6), lens=36)
+    kit.camera((0, -22, 10), (0, 1, 0.6), lens=34)
     kit.render(os.path.join(kit.ROOT, "preview", "rubble.png"))

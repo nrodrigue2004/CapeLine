@@ -302,10 +302,10 @@
   "verdict": "rotY180"
  },
  "Rubble": {
-  "asDrawn": 0,
-  "either": 0,
-  "meshes": 11,
-  "turned": 11,
+  "asDrawn": 3,
+  "either": 3,
+  "meshes": 15,
+  "turned": 15,
   "verdict": "rotY180"
  },
  "SetPieces": {
