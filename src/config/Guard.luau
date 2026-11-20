@@ -77,5 +77,18 @@ return {
 		shatter = { 255, 140, 60 },
 		cut = { 120, 255, 200 },
 	},
-	shield = { color = { 110, 180, 255 }, transparency = 0.55, size = 6 }, -- PLACEHOLDER ART: a disc shield
+	-- the held guard (item 149): a force-field face with a glowing core and an eight-sided neon rim that snaps up
+	-- (raise seconds, from 0.3 of its size), kicks and flashes on each hit it takes, and runs from rim to low as
+	-- your guard drains (flickering under flicker of it). PLACEHOLDER ART: Roblox parts until the effects pass.
+	shield = {
+		color = { 110, 180, 255 },
+		transparency = 0.55,
+		size = 6,
+		rim = { 205, 235, 255 },
+		low = { 255, 110, 80 },
+		sides = 8,
+		raise = 0.14,
+		kick = 1.14,
+		flicker = 0.3,
+	},
 }

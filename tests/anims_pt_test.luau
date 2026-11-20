@@ -215,8 +215,22 @@ return function(T: any)
 	test("PT anims: two-handed weapons keep both hands on the weapon", function()
 		local n = 0
 		for id, class in HeroAnim.TWO_HAND_WEAPON do
-			local h = HeroAnim.TWO_HAND[class]
+			local h = table.clone(HeroAnim.TWO_HAND[class])
 			local fit = Config.WeaponArt[id]
+			h.gap = HeroAnim.twoHandGap(id)
+			-- item 200: the off hand's spot is the mesh's own grip2 (within 0.05 studs), not the class's gap
+			if fit and fit.grip2 then
+				local a, g, g2 = h.aim, fit.grip.pos, fit.grip2.pos
+				local l = math.sqrt(a[1] ^ 2 + a[2] ^ 2 + a[3] ^ 2)
+				local off = 0
+				for j = 1, 3 do
+					off += (g[j] + a[j] / l * h.gap - g2[j]) ^ 2
+				end
+				check(
+					math.sqrt(off) < 0.05,
+					string.format("weapon %d: the off hand lands on grip2 (%.2f off)", id, math.sqrt(off))
+				)
+			end
 			-- the class's line matches the weapon mesh's own aim in the right hand
 			if fit and fit.aim and fit.aim.at == "rhand" then
 				local d = fit.aim.dir

@@ -1825,7 +1825,25 @@ do
 	local rig = if script
 		then require((script :: any).Parent.Parent:WaitForChild("Config"):WaitForChild("HeroRig"))
 		else (require :: any)("../config/HeroRig")
+	local art = if script
+		then require((script :: any).Parent.Parent:WaitForChild("Config"):WaitForChild("WeaponArt"))
+		else (require :: any)("../config/WeaponArt")
 	local arm = AnimIK.arm(rig)
+	-- each weapon's own gap (item 200): how far along the weapon's line its mesh's grip2 sits from its grip, so
+	-- the left hand closes on the shaft or hilt where the Blender mesh has it (the class's gap without a grip2)
+	local gaps: { [number]: number } = {}
+	for id, class in HeroAnim.TWO_HAND_WEAPON do
+		local h, fit = HeroAnim.TWO_HAND[class], art[id]
+		if fit and fit.grip and fit.grip2 and fit.grip2.at == fit.grip.at then
+			local a, g, g2 = h.aim, fit.grip.pos, fit.grip2.pos
+			local l = math.sqrt(a[1] * a[1] + a[2] * a[2] + a[3] * a[3])
+			local gap = ((g2[1] - g[1]) * a[1] + (g2[2] - g[2]) * a[2] + (g2[3] - g[3]) * a[3]) / l
+			gaps[id] = math.floor(gap * 100 + 0.5) / 100
+		end
+	end
+	function HeroAnim.twoHandGap(id: number): number
+		return gaps[id] or HeroAnim.TWO_HAND[HeroAnim.TWO_HAND_WEAPON[id] or "hilt"].gap
+	end
 	local function sampleAll(clip: Clip, t: number): { [string]: { number } }
 		local out = {}
 		for joint, keys in clip.joints do
@@ -1833,11 +1851,12 @@ do
 		end
 		return out
 	end
-	local function pinned(name: string, class: string): string
-		local pin = name .. "@" .. class
+	local function pinned(name: string, class: string, id: number?): string
+		local h = HeroAnim.TWO_HAND[class]
+		local gap = if id then HeroAnim.twoHandGap(id) else h.gap
+		local pin = name .. "@" .. class .. (if gap == h.gap then "" else tostring(id))
 		if not C[pin] then
-			local h = HeroAnim.TWO_HAND[class]
-			C[pin] = AnimIK.pin(C[name], arm, h.aim, h.gap, sampleAll)
+			C[pin] = AnimIK.pin(C[name], arm, h.aim, gap, sampleAll)
 		end
 		return pin
 	end
@@ -1847,17 +1866,17 @@ do
 		if m then
 			local combo = {}
 			for i, c in m.combo do
-				combo[i] = if HeroAnim.ONE_HAND_MOVES[c] then c else pinned(c, class)
+				combo[i] = if HeroAnim.ONE_HAND_MOVES[c] then c else pinned(c, class, id)
 			end
 			local function one(c: string): string
-				return if HeroAnim.ONE_HAND_MOVES[c] then c else pinned(c, class)
+				return if HeroAnim.ONE_HAND_MOVES[c] then c else pinned(c, class, id)
 			end
 			WEAPON_MOVES[id] = W(combo, one(m.Z), one(m.X), one(m.C), one(m.V))
 		end
 		-- the rifle's stance keeps its own hand-set arms (the solve draws the stock up into the face)
 		local stance = HeroAnim.holdClip(id, if class == "long" then "ranged" else "two")
 		if stance and class ~= "long" then
-			HOLD_WEAPON[id] = pinned(stance, class)
+			HOLD_WEAPON[id] = pinned(stance, class, id)
 		end
 	end
 	for _, name in HeroAnim.ROBOT_SWINGS do

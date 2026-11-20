@@ -21,6 +21,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
 
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
+local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local Juice = require(script.Parent.Juice)
 local FxLib = require(script.Parent.FxLib)
 
@@ -138,6 +139,29 @@ local function popWreck(m: Model)
 	FxLib.wreckMoment("pop", at + Vector3.new(0, 0.5, 0), SPARK, suit, metal)
 	FxLib.dust(at - Vector3.new(0, main.Size.Y * 0.4, 0), 4)
 	Juice.fire("wreckPop", at, { mine = false })
+end
+
+-- item 154: a throwable's look on this device (Config.Throw.dress): a street prop's meshes, or a small part
+-- build, welded onto the server's plain box, which then hides here (it still takes the hits and the carry)
+function ThrowFx.dress(m: Instance): number
+	local kind = m:GetAttribute("ThrowKind")
+	local d = T.dress and type(kind) == "string" and T.dress[kind]
+	if not m:IsA("Model") or not d or m:GetAttribute("Dressed") then
+		return 0
+	end
+	local body = m:FindFirstChild("Body")
+	if not (body and body:IsA("BasePart")) then
+		return 0
+	end
+	m:SetAttribute("Dressed", true) -- this device's own flag (not replicated back)
+	local made = if d.mesh then CityProps.dress(d.mesh, body, T.kinds[kind].size[2]) else 0
+	if made == 0 and d.parts then
+		made = CityProps.dressParts(body, d.parts)
+	end
+	if made > 0 then
+		body.LocalTransparencyModifier = 1
+	end
+	return made
 end
 
 local function watchWreck(m: Instance)
@@ -261,10 +285,21 @@ function ThrowFx.init()
 		if not props then
 			return
 		end
-		for _, m in props:GetChildren() do
+		local function added(m: Instance)
 			watchWreck(m)
+			if m:IsA("Model") and T.dress[m:GetAttribute("ThrowKind") :: any] then
+				-- the box streams in after its model: dress it once it is there
+				task.spawn(function()
+					if m:WaitForChild("Body", 10) then
+						ThrowFx.dress(m)
+					end
+				end)
+			end
 		end
-		props.ChildAdded:Connect(watchWreck)
+		for _, m in props:GetChildren() do
+			added(m)
+		end
+		props.ChildAdded:Connect(added)
 		props.ChildRemoved:Connect(function(m: Instance)
 			if m:IsA("Model") then
 				wrecks[m] = nil

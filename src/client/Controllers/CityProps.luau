@@ -153,6 +153,90 @@ function CityProps.make(name: string, at: CFrame, parent: Instance): number
 	return makeProp(pr, parent)
 end
 
+-- A throwable's look (item 154, ThrowFx): the street prop `name`'s meshes welded onto `body` (the server's
+-- plain box), scaled as one so the prop stands `height` studs tall with its foot at the box's bottom. Loose,
+-- massless, no collision or queries: the box keeps the hits and the carry. Returns the parts made (0 until the
+-- art is imported; the box then shows as today).
+function CityProps.dress(name: string, body: BasePart, height: number): number
+	if not street then
+		local art = ReplicatedStorage:FindFirstChild("Art")
+		street = art and art:FindFirstChild("Street")
+		lifeRoot = art and art:FindFirstChild(Config.Life.set)
+	end
+	local list = piecesOf(name)
+	if #list == 0 then
+		return 0
+	end
+	local top = 0
+	for _, pc in list do
+		top = math.max(top, pc.fit.offset[2] + pc.fit.size[2] / 2)
+	end
+	local k = if top > 0 then height / top else 1
+	local foot = body.CFrame * CFrame.new(0, -body.Size.Y / 2, 0)
+	for _, pc in list do
+		local p = MeshFix.clone(pc.src)
+		for _, c in p:GetChildren() do
+			if not c:IsA("SurfaceAppearance") then
+				c:Destroy()
+			end
+		end
+		local f = pc.fit
+		p.Name = "Dress_" .. pc.piece
+		p.Anchored = false
+		p.Massless = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3]) * k
+		p.CFrame = foot * CFrame.new(f.offset[1] * k, f.offset[2] * k, f.offset[3] * k) * MeshFix.of(p)
+		p.Color = pc.color
+		p.Material = pc.material
+		p.Transparency = pc.see
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = body
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = body.Parent
+	end
+	return #list
+end
+
+local function dressPart(body: BasePart, spec: any): BasePart
+	local p = Instance.new("Part")
+	p.Name = "Dress"
+	if spec.shape then
+		p.Shape = (Enum.PartType :: any)[spec.shape]
+	end
+	p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
+	local r = spec.rot or { 0, 0, 0 }
+	p.CFrame = body.CFrame
+		* CFrame.new(spec.at[1], spec.at[2], spec.at[3])
+		* CFrame.Angles(math.rad(r[1]), math.rad(r[2]), math.rad(r[3]))
+	p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
+	p.Material = (Enum.Material :: any)[spec.mat] or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Anchored = false
+	p.Massless = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = body
+	weld.Part1 = p
+	weld.Parent = p
+	p.Parent = body.Parent
+	return p
+end
+
+-- A throwable's small part build (Config.Throw.dress parts) welded onto its box; returns the parts made
+function CityProps.dressParts(body: BasePart, specs: { any }): number
+	for _, spec in specs do
+		dressPart(body, spec)
+	end
+	return #specs
+end
+
 local function clearCell(c: Cell)
 	for _, pr in c.props do
 		pr.model = nil

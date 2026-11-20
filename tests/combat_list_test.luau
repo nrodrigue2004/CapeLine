@@ -270,4 +270,100 @@ return function(T: any)
 			"the hit"
 		)
 	end)
+
+	test("List combat: the held guard is a built energy shield", function()
+		local S = Config.Guard.shield
+		check(S.sides >= 6 and S.raise > 0 and S.raise < 0.3 and S.kick > 1, "the shield's shape and timing")
+		-- each rim piece sits on the edge, tangent to it, and the pieces meet: rotate about x, push up by the
+		-- apothem, the piece's long axis (z) along the edge
+		local r = S.size / 2
+		local ap = r * math.cos(math.pi / S.sides)
+		local side = 2 * r * math.tan(math.pi / S.sides) + 0.05
+		for i = 1, S.sides do
+			local a = (i - 0.5) / S.sides * 2 * math.pi
+			local cy, cz = ap * math.cos(a), ap * math.sin(a) -- the piece's centre (Angles(a,0,0) * (0, ap, 0))
+			local ty, tz = -math.sin(a), math.cos(a) -- its long axis
+			check(math.abs(cy * ty + cz * tz) < 1e-6, "rim piece " .. i .. " is tangent")
+			local ey, ez = cy + ty * side / 2, cz + tz * side / 2
+			check(math.sqrt(ey * ey + ez * ez) >= r - 0.01, "rim piece " .. i .. " reaches the corner")
+		end
+		local fx = fs.readFile("src/client/Fx/GuardFx.luau")
+		for _, needle in
+			{
+				"buildShield()",
+				"Workspace:BulkMoveTo(hs.parts, cfs",
+				"BlockClient.guard()",
+				"hs.hitAt = os.clock()",
+				'FrameProf.wrap("GuardFx", step)',
+				"CFrame.Angles(a, 0, 0) * CFrame.new(0, r * math.cos(math.pi / S.sides), 0)",
+			}
+		do
+			check(string.find(fx, needle, 1, true) ~= nil, "GuardFx: " .. needle)
+		end
+		-- the body's guard pose is played while Blocking (HeroAnimator), so the hero is not just walking
+		local ha = fs.readFile("src/client/Controllers/HeroAnimator.luau")
+		check(
+			string.find(ha, 'return if shield then "guardShield" else "guard"', 1, true) ~= nil,
+			"the guard pose"
+		)
+		check(Config.Guard.block.moveMult <= 0.5, "blocking slows you to half speed or less")
+	end)
+
+	test("List combat: throwables look like what they are", function()
+		local Th = Config.Throw
+		local n = 0
+		for kind, K in Th.kinds do
+			if K.wreck or K.vehicle or kind == "robot" or not K.size then
+				continue
+			end
+			local d = Th.dress[kind]
+			check(d ~= nil, kind .. " has a look")
+			if not d then
+				continue
+			end
+			n += 1
+			if d.mesh then
+				local def = Config.City.kit.props[d.mesh]
+				check(def ~= nil, kind .. ": " .. d.mesh .. " is a kit prop")
+				local fit = Config.StreetArt[d.mesh] or Config.LifeArt[d.mesh]
+				for piece in (if def then def.pieces else {}) do
+					check(fit ~= nil and fit[piece] ~= nil, kind .. ": " .. piece .. " has its fit")
+				end
+			end
+			for i, p in d.parts or {} do
+				-- every piece stays in or near its box (the box keeps the hits)
+				local r = 0
+				for j = 1, 3 do
+					r = math.max(r, math.abs(p.at[j]) - K.size[j] / 2)
+				end
+				check(r <= 0.65, string.format("%s piece %d sits on its box (%.2f out)", kind, i, r))
+				check(p.color and #p.color == 3 and #p.size == 3, kind .. " piece " .. i .. " is complete")
+			end
+		end
+		check(n >= 9, "every street throwable has a look (" .. n .. ")")
+		-- the runtime path: ThrowFx dresses each Throwables model; the place has the meshes it uses
+		local fx = fs.readFile("src/client/Fx/ThrowFx.luau")
+		check(
+			string.find(fx, "CityProps.dress(d.mesh, body, T.kinds[kind].size[2])", 1, true) ~= nil,
+			"mesh path"
+		)
+		check(string.find(fx, "body.LocalTransparencyModifier = 1", 1, true) ~= nil, "the box hides here")
+		check(string.find(fx, "CityProps.dressParts(body, d.parts)", 1, true) ~= nil, "part path")
+		check(string.find(fx, "props.ChildAdded:Connect(added)", 1, true) ~= nil, "new props are dressed")
+		if T.placePath then
+			local roblox = require("@lune/roblox")
+			local game = roblox.deserializePlace(fs.readFile(T.placePath))
+			local art = game:GetService("ReplicatedStorage"):FindFirstChild("Art")
+			for kind, d in Th.dress do
+				if d.mesh then
+					local fromLife = Config.LifeArt[d.mesh] ~= nil and Config.StreetArt[d.mesh] == nil
+					local root = art and art:FindFirstChild(if fromLife then Config.Life.set else "Street")
+					for piece in Config.City.kit.props[d.mesh].pieces do
+						local m = root and root:FindFirstChild(piece, true)
+						check(m ~= nil and m:IsA("MeshPart"), kind .. ": the place has " .. piece)
+					end
+				end
+			end
+		end
+	end)
 end

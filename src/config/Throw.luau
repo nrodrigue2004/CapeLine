@@ -183,4 +183,172 @@ return {
 	},
 	-- Titan's Lift and Throw stays the strong version: it lifts any weight from further, with a bigger nova
 	titan = { reach = 20, radiusMult = 1.4 },
+	-- item 154: how each throwable looks on a device (ThrowFx; the server keeps the plain box for hits, carry and
+	-- flight). `mesh`: a street prop's meshes (CityProps.dress: Art.Street, or Art.Life for the vending machine)
+	-- scaled to the box's height; `parts`: a small build of Roblox parts in the box's own frame (x right, y up,
+	-- z back, the box's centre at 0), used too while a mesh is missing. at: centre, rot: degrees about x, y, z.
+	-- PLACEHOLDER ART for the part builds (sign, dumpster, slab, rubble, mailbox) until they get Blender meshes.
+	dress = {
+		bench = { mesh = "Bench" },
+		trashCan = { mesh = "Bin" },
+		lampPost = { mesh = "StreetLamp" },
+		vending = { mesh = "VendingMachine" },
+		mailbox = {
+			parts = {
+				{ size = { 1.4, 0.9, 1.2 }, at = { 0, -1.35, 0 }, color = { 30, 40, 60 }, mat = "Metal" },
+				{ size = { 1.8, 1.8, 1.6 }, at = { 0, 0, 0 }, color = { 44, 82, 160 }, mat = "Metal" },
+				{
+					size = { 1.5, 1.8, 1.8 },
+					at = { 0, 0.9, 0 },
+					rot = { 0, 90, 0 },
+					shape = "Cylinder",
+					color = { 44, 82, 160 },
+					mat = "Metal",
+				},
+				{
+					size = { 1.82, 0.18, 1.62 },
+					at = { 0, -0.35, 0 },
+					color = { 235, 235, 240 },
+					mat = "SmoothPlastic",
+				},
+				{
+					size = { 1.0, 0.14, 0.06 },
+					at = { 0, 0.55, -0.82 },
+					color = { 18, 20, 28 },
+					mat = "SmoothPlastic",
+				},
+			},
+		},
+		sign = {
+			parts = {
+				{ size = { 0.3, 5, 0.3 }, at = { 0, 0, 0.05 }, color = { 120, 124, 130 }, mat = "Metal" },
+				{
+					size = { 1.85, 1.85, 0.1 },
+					at = { 0, 1.35, -0.13 },
+					rot = { 0, 0, 45 },
+					color = { 35, 35, 38 },
+					mat = "SmoothPlastic",
+				},
+				{
+					size = { 1.65, 1.65, 0.1 },
+					at = { 0, 1.35, -0.19 },
+					rot = { 0, 0, 45 },
+					color = { 230, 190, 40 },
+					mat = "SmoothPlastic",
+				},
+			},
+		},
+		dumpster = {
+			parts = {
+				{ size = { 5.8, 3.0, 3.3 }, at = { 0, 0.1, 0 }, color = { 46, 110, 70 }, mat = "Metal" },
+				{
+					size = { 6, 0.3, 3.6 },
+					at = { 0, 1.75, 0.05 },
+					rot = { -5, 0, 0 },
+					color = { 30, 62, 42 },
+					mat = "Metal",
+				},
+				{ size = { 0.3, 0.35, 3.5 }, at = { -3.0, 0.7, 0 }, color = { 30, 62, 42 }, mat = "Metal" },
+				{ size = { 0.3, 0.35, 3.5 }, at = { 3.0, 0.7, 0 }, color = { 30, 62, 42 }, mat = "Metal" },
+				{ size = { 5.82, 0.25, 3.32 }, at = { 0, -0.6, 0 }, color = { 38, 92, 58 }, mat = "Metal" },
+				{
+					size = { 0.4, 0.8, 0.8 },
+					at = { -2.3, -1.6, -1.2 },
+					rot = { 0, 90, 0 },
+					shape = "Cylinder",
+					color = { 25, 25, 28 },
+					mat = "Rubber",
+				},
+				{
+					size = { 0.4, 0.8, 0.8 },
+					at = { 2.3, -1.6, -1.2 },
+					rot = { 0, 90, 0 },
+					shape = "Cylinder",
+					color = { 25, 25, 28 },
+					mat = "Rubber",
+				},
+				{
+					size = { 0.4, 0.8, 0.8 },
+					at = { -2.3, -1.6, 1.2 },
+					rot = { 0, 90, 0 },
+					shape = "Cylinder",
+					color = { 25, 25, 28 },
+					mat = "Rubber",
+				},
+				{
+					size = { 0.4, 0.8, 0.8 },
+					at = { 2.3, -1.6, 1.2 },
+					rot = { 0, 90, 0 },
+					shape = "Cylinder",
+					color = { 25, 25, 28 },
+					mat = "Rubber",
+				},
+			},
+		},
+		slab = {
+			parts = {
+				{ size = { 8, 2.4, 6 }, at = { 0, 0, 0 }, color = { 128, 124, 118 }, mat = "Concrete" },
+				{
+					size = { 1.6, 0.8, 1.2 },
+					at = { -3.3, 0.85, 2.5 },
+					rot = { 8, 15, -6 },
+					color = { 108, 104, 98 },
+					mat = "Concrete",
+				},
+				{
+					size = { 0.15, 0.15, 2.2 },
+					at = { 3.0, 0.4, 3.6 },
+					rot = { 10, 0, 0 },
+					color = { 140, 80, 50 },
+					mat = "CorrodedMetal",
+				},
+				{
+					size = { 0.15, 0.15, 1.8 },
+					at = { 2.2, -0.3, 3.5 },
+					rot = { -8, 12, 0 },
+					color = { 140, 80, 50 },
+					mat = "CorrodedMetal",
+				},
+				{
+					size = { 0.15, 0.15, 2.0 },
+					at = { -2.8, 0.2, -3.5 },
+					rot = { 6, -10, 0 },
+					color = { 140, 80, 50 },
+					mat = "CorrodedMetal",
+				},
+			},
+		},
+		rubble = {
+			parts = {
+				{
+					size = { 1.6, 1.2, 1.4 },
+					at = { -0.3, -0.2, 0 },
+					rot = { 12, 0, 8 },
+					color = { 140, 136, 128 },
+					mat = "Concrete",
+				},
+				{
+					size = { 1.0, 0.9, 1.0 },
+					at = { 0.6, 0.1, 0.4 },
+					rot = { 0, 30, 20 },
+					color = { 120, 116, 110 },
+					mat = "Concrete",
+				},
+				{
+					size = { 0.9, 0.6, 0.8 },
+					at = { 0.5, -0.4, -0.5 },
+					rot = { 10, -20, 0 },
+					color = { 156, 150, 140 },
+					mat = "Concrete",
+				},
+				{
+					size = { 0.12, 0.12, 1.4 },
+					at = { 0, 0.4, 0 },
+					rot = { 30, 20, 0 },
+					color = { 140, 80, 50 },
+					mat = "CorrodedMetal",
+				},
+			},
+		},
+	},
 }
