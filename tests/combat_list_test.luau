@@ -1164,4 +1164,56 @@ return function(T: any)
 			"the fit table is sound: " .. table.concat(WeaponMesh.check(Config), "; ")
 		)
 	end)
+
+	test("List combat: weapons wear baked texture sets (Everything Left 192)", function()
+		local roblox = require("@lune/roblox")
+		local model = roblox.deserializeModel(fs.readFile("art/models/Weapons.rbxm"))[1]
+		check(Config.Weapons.textures == true, "Config.Weapons.textures")
+		local flat, textured = 0, 0
+		for _, w in Config.WeaponArt do
+			for _, p in w.pieces do
+				local mp = model:FindFirstChild(p.mesh, true)
+				local sa = mp and mp:FindFirstChildOfClass("SurfaceAppearance")
+				if p.glow or p.neon then
+					check(sa == nil, p.mesh .. ": a glow piece stays flat light")
+					flat += 1
+				else
+					check(sa ~= nil and sa.ColorMap ~= "", p.mesh .. " has its texture set")
+					textured += 1
+				end
+			end
+		end
+		check(textured > 100, "most pieces are textured: " .. textured .. " (flat " .. flat .. ")")
+		if not T.placePath then
+			return
+		end
+		local WeaponSim = require("./weaponsim")
+		local sim = WeaponSim.new(roblox.deserializePlace(fs.readFile(T.placePath)))
+		local function count(look)
+			local folder = sim:weapon(sim:body(), look)
+			local sas, glow, n = 0, 0, 0
+			for _, m in folder:GetChildren() do
+				if m:IsA("MeshPart") then
+					n += 1
+					local sa = m:FindFirstChildOfClass("SurfaceAppearance")
+					if sa then
+						sas += 1
+						check(sa.AlphaMode == roblox.Enum.AlphaMode.Overlay, "the colour shows through")
+					end
+					if m.Material == roblox.Enum.Material.Neon then
+						glow += 1
+						check(sa == nil, "a glowing piece keeps no texture")
+					end
+				end
+			end
+			return n - glow, sas
+		end
+		-- the Sword (5) in Steel: blade and hilt textured; in Wood the blade keeps the wood material, the hilt its maps
+		local n, steel = count({ id = 5, style = 1, finish = 1, glowLevel = 0 })
+		check(n > 0 and steel == n, "every unlit Steel sword piece is textured: " .. steel .. " of " .. n)
+		local _, wood = count({ id = 5, style = 1, finish = 5, glowLevel = 0 })
+		check(wood > 0 and wood < steel, "a Wood blade drops its metal maps: " .. wood)
+		local _, energy = count({ id = 5, style = 4, finish = 1, glowLevel = 0 })
+		check(energy < steel, "the Energy style's light blade is untextured: " .. energy)
+	end)
 end

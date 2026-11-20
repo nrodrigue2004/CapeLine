@@ -21,7 +21,7 @@ local TURN = CFrame.Angles(0, math.pi, 0)
 -- turned like the rest: NpcRig turns a rig built on them. LookKit.wearBodySet's in-place ApplyMesh cannot turn, so it
 -- uses BodyTorsos (the torsos uploaded pre-turned, fix-bodies 2026-11-19), which is not listed: identity.
 local TURNS: { [string]: CFrame } = {
-	Weapons = TURN, -- 304 of 304 meshes match a 180 degree turn about y (2026-11-19; re-measured 2026-11-20 with the new style meshes)
+	Weapons = TURN, -- 304 of 304 meshes match a 180 degree turn about y (2026-11-19; re-measured 2026-11-20 with the new style meshes and again with the baked textures)
 }
 for _, set in
 	{

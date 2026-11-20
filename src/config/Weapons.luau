@@ -126,6 +126,8 @@ return {
 		{ name = "Wood", mat = "Wood" },
 		{ name = "Energy", mat = "Neon" },
 	},
+	-- the weapon meshes' baked texture sets (Everything Left 192): false draws them in flat colours again
+	textures = true,
 	glowLevels = 3, -- glow strength 0 (off) to 3
 	trails = { "None", "Streak", "Ember", "Frost", "Spark", "Shadow" }, -- swing trails (index 1 = none)
 	-- Swing trails (list-combat 2026-11-20; creator plan: "swing trails per weapon, earned"): a Trail along the

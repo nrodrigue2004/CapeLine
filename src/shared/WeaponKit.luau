@@ -420,8 +420,19 @@ local function buildMeshes(
 		local part, offset = parts[i][1], parts[i][2]
 		local shift, f = fitFrame(part)
 		local m = src:Clone()
+		-- the baked texture set (Everything Left 192, art/blender/weapons.py --bake): brushed metal, wood grain and
+		-- wraps over the part colour (AlphaMode Overlay, so the finish and colours still paint it). A glowing piece,
+		-- and a blade in a finish that is not metal (Obsidian, Crystal, Wood, Energy), keeps its own material instead.
+		local textured = W.textures ~= false
+			and not neon
+			and alpha == 0
+			and (not p.blade or finish.mat == "Metal")
 		for _, c in m:GetChildren() do
-			c:Destroy()
+			if textured and c:IsA("SurfaceAppearance") then
+				c.AlphaMode = Enum.AlphaMode.Overlay
+			else
+				c:Destroy()
+			end
 		end
 		m.Name = "Weapon"
 		m:SetAttribute("Piece", p.mesh) -- which mesh it is (TetherFx swings the line weapons' lines and tips)

@@ -1358,6 +1358,79 @@ def all_obs(wid):
     return [p.ob for p in b["pieces"]] + [v.ob for vs in b["variants"].values() for v in vs.values()]
 
 
+# ---------------------------------------------------------------- --bake: one texture set a weapon (Everything Left 192)
+# Every mesh of a weapon (its Classic, Broad and Jagged meshes) shares one baked texture set (hbake: the same UV
+# unwrap, AO, pattern and export material as the HQ and the gear): brushed metal on blades and metal fittings, wood
+# grain, fabric and leather wraps on grips, a soft plastic grain elsewhere, with the baked creases and a normal map.
+# Every region is tinted (SurfaceAppearance AlphaMode Overlay: the colour map is see-through with only its shading
+# and pattern laid over), so the colour WeaponKit gives each MeshPart (the finish, main, trim) still paints it.
+# Glow and neon meshes are never baked (they stay the game's flat light). The weapons are baked at 3x their size so
+# the patterns (drawn per stud for room-sized pieces) read at a hand weapon's size.
+TEX = os.path.join(kit.ROOT, "export", "weapons", "tex")
+BAKED = {}  # wid -> export material
+if "--bake" in sys.argv and not THUMBS:
+    import hbake  # noqa: E402
+
+    WKIND = {"Metal": "metal", "Fabric": "fabric", "Wood": "wood", "Leather": "rubber", "Glass": "plastic"}
+    for wid in ids:
+        b = BUILT[wid]
+        pieces = list(b["pieces"]) + [v for vs in b["variants"].values() for v in vs.values()]
+        objs = []
+        for p in pieces:
+            if p.glow or p.neon:
+                continue
+            kind = "metal" if p.blade else WKIND.get(p.mat, "plastic")
+            hbake.paint(p.ob, (190, 195, 205), pat=kind, tint=True)
+            objs.append(p.ob)
+        if not objs:
+            continue
+        for o in objs:
+            o.scale = (3, 3, 3)
+        bpy.context.view_layer.update()
+        BAKED[wid] = hbake.bake("W%02d" % wid, objs, TEX, res=256 if len(objs) <= 3 else 512, ao_samples=12)
+        for o in objs:
+            o.scale = (1, 1, 1)
+        bpy.context.view_layer.update()
+        print("baked", wid, WEAPONS[wid][0], len(objs), "meshes")
+    glow_mat = bpy.data.materials.new("WeaponGlow")
+    glow_mat.use_nodes = True
+    for wid in ids:
+        b = BUILT[wid]
+        for p in list(b["pieces"]) + [v for vs in b["variants"].values() for v in vs.values()]:
+            if p.glow or p.neon:
+                p.ob.data.materials.clear()
+                p.ob.data.materials.append(glow_mat)
+
+if BAKED and "--bakeview" in sys.argv:  # art/preview/weapon_textures.png: the baked weapons in Steel and Gold
+    for o in list(bpy.context.scene.objects):
+        o.hide_render = True
+    kit.studio(res=(1600, 900), samples=32)
+    ROLE_RGB = {"p": (190, 195, 205), "s": (70, 60, 52), "white": (240, 240, 240), "dark": (40, 40, 46)}
+    shown_ids = [w for w in ids if w in BAKED][:12]
+    for k, wid in enumerate(shown_ids):
+        for row, gold in enumerate((False, True)):
+            for p in BUILT[wid]["pieces"]:
+                cp = p.ob.copy()
+                cp.data = p.ob.data.copy()
+                bpy.context.scene.collection.objects.link(cp)
+                cp.hide_render = False
+                rgb = ROLE_RGB.get(p.role, (190, 195, 205))
+                if p.role == "p" and gold:
+                    rgb = (255, 200, 80)
+                cp.data.materials.clear()
+                if p.glow or p.neon or p.role == "a":
+                    cp.data.materials.append(kit.material("g%d" % k, (120, 220, 255), emit=2.0))
+                else:
+                    cp.data.materials.append(hbake.preview_material(BAKED[wid], rgb))
+                cp.location = ((k % 6) * 2.6 - 6.5, 0, 2.6 - (k // 6) * 2.9 + (1.3 if gold else 0) * 0)
+                cp.location.x += 0.9 if gold else -0.4
+                cp.location.y += 0.0
+    ground = kit.box("ground", 80, 40, 0.2, at=(0, 6, -4))
+    ground.data.materials.append(kit.material("gr", (60, 64, 74)))
+    kit.camera((0, -19, 0.5), (0, 0, 0.2), lens=40)
+    kit.render(os.path.join(kit.ROOT, "preview", "weapon_textures.png"))
+    sys.exit(0)
+
 if ONLY is None and "--no-export" not in sys.argv and not THUMBS:
     export = []
     for wid in ids:
@@ -1373,7 +1446,16 @@ if ONLY is None and "--no-export" not in sys.argv and not THUMBS:
             cp.data.name = nm
             assert cp.name == nm, nm
             export.append((cp, ob, nm))
-    kit.export_fbx([cp for cp, _, _ in export], os.path.join(kit.ROOT, "export", "Weapons.fbx"))
+    if BAKED:  # the texture sets go inside the FBX: the importer turns them into SurfaceAppearances
+        bpy.ops.object.select_all(action="DESELECT")
+        for cp, _, _ in export:
+            cp.select_set(True)
+        bpy.ops.export_scene.fbx(filepath=os.path.join(kit.ROOT, "export", "Weapons.fbx"), use_selection=True,
+                                 apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
+                                 object_types={"MESH"}, use_mesh_modifiers=True, mesh_smooth_type="FACE",
+                                 add_leaf_bones=False, bake_anim=False, path_mode="COPY", embed_textures=True)
+    else:
+        kit.export_fbx([cp for cp, _, _ in export], os.path.join(kit.ROOT, "export", "Weapons.fbx"))
     for cp, ob, nm in export:
         bpy.data.objects.remove(cp, do_unlink=True)
         ob.name = nm
