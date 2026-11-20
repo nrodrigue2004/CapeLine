@@ -57,7 +57,7 @@ return {
 		},
 	},
 	-- what each liftable kind is (props are built by ThrowService; vehicles come from VehicleService).
-	-- size: the prop's box (x, y, z studs). PLACEHOLDER ART: plain parts until the street kit's meshes.
+	-- size: the prop's box (x, y, z studs). The server's plain box; each device dresses it (`dress` below).
 	kinds = {
 		bench = {
 			weight = "light",
@@ -187,13 +187,16 @@ return {
 	-- flight). `mesh`: a street prop's meshes (CityProps.dress: Art.Street, or Art.Life for the vending machine)
 	-- scaled to the box's height; `parts`: a small build of Roblox parts in the box's own frame (x right, y up,
 	-- z back, the box's centre at 0), used too while a mesh is missing. at: centre, rot: degrees about x, y, z.
-	-- PLACEHOLDER ART for the part builds (sign, dumpster, slab, rubble, mailbox) until they get Blender meshes.
+	-- `art`: the kind's own Blender meshes (art/blender/throw_meshes.py, Config.ThrowArt[kind], Art.Throwables;
+	-- list-combat 2026-11-20, Everything Left 390) standing on the box's foot, scaled to its height; its `parts` stay
+	-- the fallback while Art.Throwables is not imported.
 	dress = {
 		bench = { mesh = "Bench" },
 		trashCan = { mesh = "Bin" },
 		lampPost = { mesh = "StreetLamp" },
 		vending = { mesh = "VendingMachine" },
 		mailbox = {
+			art = true, -- Blender meshes (Config.ThrowArt, Art.Throwables); the parts while they are missing
 			parts = {
 				{ size = { 1.4, 0.9, 1.2 }, at = { 0, -1.35, 0 }, color = { 30, 40, 60 }, mat = "Metal" },
 				{ size = { 1.8, 1.8, 1.6 }, at = { 0, 0, 0 }, color = { 44, 82, 160 }, mat = "Metal" },
@@ -220,6 +223,7 @@ return {
 			},
 		},
 		sign = {
+			art = true, -- Blender meshes (Config.ThrowArt, Art.Throwables); the parts while they are missing
 			parts = {
 				{ size = { 0.3, 5, 0.3 }, at = { 0, 0, 0.05 }, color = { 120, 124, 130 }, mat = "Metal" },
 				{
@@ -239,6 +243,7 @@ return {
 			},
 		},
 		dumpster = {
+			art = true, -- Blender meshes (Config.ThrowArt, Art.Throwables); the parts while they are missing
 			parts = {
 				{ size = { 5.8, 3.0, 3.3 }, at = { 0, 0.1, 0 }, color = { 46, 110, 70 }, mat = "Metal" },
 				{
@@ -286,6 +291,7 @@ return {
 			},
 		},
 		slab = {
+			art = true, -- Blender meshes (Config.ThrowArt, Art.Throwables); the parts while they are missing
 			parts = {
 				{ size = { 8, 2.4, 6 }, at = { 0, 0, 0 }, color = { 128, 124, 118 }, mat = "Concrete" },
 				{
@@ -319,6 +325,7 @@ return {
 			},
 		},
 		rubble = {
+			art = true, -- Blender meshes (Config.ThrowArt, Art.Throwables); the parts while they are missing
 			parts = {
 				{
 					size = { 1.6, 1.2, 1.4 },

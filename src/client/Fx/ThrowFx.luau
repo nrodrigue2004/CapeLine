@@ -21,6 +21,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
 
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local Juice = require(script.Parent.Juice)
 local FxLib = require(script.Parent.FxLib)
@@ -143,6 +144,56 @@ end
 
 -- item 154: a throwable's look on this device (Config.Throw.dress): a street prop's meshes, or a small part
 -- build, welded onto the server's plain box, which then hides here (it still takes the hits and the carry)
+-- A kind's own Blender meshes (Config.ThrowArt[kind], Art.Throwables) welded over the box, standing on its foot and
+-- scaled to its height; 0 (nothing made) unless every piece is imported
+local function dressArt(kind: string, body: BasePart): number
+	local fit = Config.ThrowArt and Config.ThrowArt[kind]
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Throwables")
+	if not (fit and set) then
+		return 0
+	end
+	local srcs: { [string]: MeshPart } = {}
+	local top = 0
+	for piece, f in fit do
+		local src = set:FindFirstChild(piece, true)
+		if not (src and src:IsA("MeshPart")) then
+			return 0
+		end
+		srcs[piece] = src
+		top = math.max(top, f.offset[2] + f.size[2] / 2)
+	end
+	local k = if top > 0 then body.Size.Y / top else 1
+	local foot = body.CFrame * CFrame.new(0, -body.Size.Y / 2, 0)
+	local made = 0
+	for piece, f in fit do
+		local p = MeshFix.clone(srcs[piece])
+		for _, c in p:GetChildren() do
+			c:Destroy()
+		end
+		p.Name = "Dress_" .. piece
+		p.Anchored = false
+		p.Massless = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = true
+		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3]) * k
+		p.CFrame = foot
+			* CFrame.new(f.offset[1] * k, f.offset[2] * k, f.offset[3] * k)
+			* MeshFix.turn("Throwables")
+		p.Color = Color3.fromRGB(f.color[1], f.color[2], f.color[3])
+		p.Material = (Enum.Material :: any)[f.mat] or Enum.Material.SmoothPlastic
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = body
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = body.Parent
+		made += 1
+	end
+	return made
+end
+
 function ThrowFx.dress(m: Instance): number
 	local kind = m:GetAttribute("ThrowKind")
 	local d = T.dress and type(kind) == "string" and T.dress[kind]
@@ -154,7 +205,10 @@ function ThrowFx.dress(m: Instance): number
 		return 0
 	end
 	m:SetAttribute("Dressed", true) -- this device's own flag (not replicated back)
-	local made = if d.mesh then CityProps.dress(d.mesh, body, T.kinds[kind].size[2]) else 0
+	local made = if d.art then dressArt(kind, body) else 0
+	if made == 0 and d.mesh then
+		made = CityProps.dress(d.mesh, body, T.kinds[kind].size[2])
+	end
 	if made == 0 and d.parts then
 		made = CityProps.dressParts(body, d.parts)
 	end

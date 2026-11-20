@@ -1940,6 +1940,84 @@ return function(T: any)
 		end
 	)
 
+	test("List combat: the part-built throwables wear Blender meshes (Everything Left 390)", function()
+		local roblox = require("@lune/roblox")
+		local Th = Config.Throw
+		local model = roblox.deserializeModel(fs.readFile("art/models/Throwables.rbxm"))[1]
+		local kinds = 0
+		for kind, d in Th.dress do
+			if not d.art then
+				continue
+			end
+			kinds += 1
+			local fit = Config.ThrowArt[kind]
+			check(fit ~= nil, kind .. " has its fit table")
+			check(d.parts ~= nil, kind .. " keeps its parts as the fallback")
+			local box = Th.kinds[kind].size
+			local top = 0
+			for piece, f in fit or {} do
+				local mp = model:FindFirstChild(piece, true)
+				check(mp ~= nil and mp:IsA("MeshPart"), kind .. ": " .. piece .. " is imported")
+				top = math.max(top, f.offset[2] + f.size[2] / 2)
+			end
+			-- scaled to the box's height, every piece stays within (or just past) the box
+			local k = box[2] / top
+			for piece, f in fit or {} do
+				for j = 1, 3 do
+					local lo = (f.offset[j] - f.size[j] / 2) * k
+					local hi = (f.offset[j] + f.size[j] / 2) * k
+					local half = if j == 2 then nil else box[j] / 2
+					if half then
+						check(
+							lo >= -half - 0.35 and hi <= half + 0.35,
+							string.format("%s %s inside its box on %d", kind, piece, j)
+						)
+					else
+						check(lo >= -0.05, kind .. " " .. piece .. " stands on the foot")
+					end
+				end
+			end
+		end
+		check(kinds == 5, "the mailbox, sign, dumpster, slab and rubble (" .. kinds .. ")")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local ThrowFx = sim:require("Client.Fx.ThrowFx")
+		for kind, d in Th.dress do
+			if not d.art then
+				continue
+			end
+			local m = UiSim.newInstance("Model")
+			m:SetAttribute("ThrowKind", kind)
+			local body = UiSim.newInstance("Part")
+			body.Name = "Body"
+			local sz = Th.kinds[kind].size
+			body.Size = roblox.Vector3.new(sz[1], sz[2], sz[3])
+			body.Parent = m
+			m.Parent = sim.workspace
+			local made = 0
+			sim:run("dress " .. kind, function()
+				made = ThrowFx.dress(m)
+			end)
+			local n = 0
+			for _ in Config.ThrowArt[kind] do
+				n += 1
+			end
+			check(made == n, kind .. " is dressed in its " .. n .. " meshes (" .. made .. ")")
+			local first = m:FindFirstChildWhichIsA("MeshPart")
+			check(
+				first ~= nil and string.sub(first.Name, 1, 6) == "Dress_",
+				kind .. "'s meshes are on the model"
+			)
+		end
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

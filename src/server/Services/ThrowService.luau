@@ -15,7 +15,8 @@
 -- free physics), and when it lands CombatService.thrown hits robots (and heroes flagged against the thrower),
 -- knocks props over and blasts the Structure grid for heavy things. Cars go home through VehicleService's
 -- reset; props come back after 60 s once nobody is near (ThrowBack).
--- PLACEHOLDER ART: props are plain coloured parts (Config.Throw.kinds) until the street kit's meshes.
+-- The server keeps each prop a plain coloured box (Config.Throw.kinds) for hits, carry and flight; every device dresses it
+-- (Fx.ThrowFx: the street kit's meshes, or Art.Throwables' own meshes for the mailbox, sign, dumpster, slab and rubble).
 -- Downed robots (WP6, gap G10): a robot a hero beats leaves its wreck where it fell (EnemyService.Killed), a
 -- medium throwable with the usual carry rules, for Config.Throw.wreck.life seconds (a few seconds once thrown
 -- or set down), then it falls apart (WreckGone: sparks and a pop on every screen, ThrowFx). At most

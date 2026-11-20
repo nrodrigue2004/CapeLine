@@ -62,6 +62,7 @@
         "Guard": { "$path": "art/models/Guard.rbxm" },
         "Juice": { "$path": "art/models/Juice.rbxm" },
         "NemParts": { "$path": "art/models/NemParts.rbxm" },
+        "Throwables": { "$path": "art/models/Throwables.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },

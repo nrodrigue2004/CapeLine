@@ -343,6 +343,13 @@
   "turned": 65,
   "verdict": "rotY180"
  },
+ "Throwables": {
+  "asDrawn": 4,
+  "either": 4,
+  "meshes": 14,
+  "turned": 14,
+  "verdict": "rotY180"
+ },
  "Trooper": {
   "asDrawn": 0,
   "either": 0,
