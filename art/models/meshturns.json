@@ -119,6 +119,13 @@
   "turned": 13,
   "verdict": "rotY180"
  },
+ "Foes": {
+  "asDrawn": 10,
+  "either": 10,
+  "meshes": 28,
+  "turned": 28,
+  "verdict": "rotY180"
+ },
  "Gear": {
   "asDrawn": 119,
   "either": 119,

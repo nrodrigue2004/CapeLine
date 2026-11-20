@@ -41,6 +41,7 @@ for _, set in
 		"Deep",
 		"Ears",
 		"Eyes",
+		"Foes", -- list-combat: the robots' gear and the foes' props, 28 of 28 (2026-11-20)
 		"Gear",
 		"Gloves",
 		"Hair",
@@ -55,7 +56,7 @@ for _, set in
 		"Park", -- the city park: 67 of 67 match it (2026-11-20)
 		"PocketProps",
 		"PocketProps2",
-		"Powers", -- list-combat: the power summons, rides and forms, 30 of 30 (2026-11-20)
+		"Powers", -- list-combat: the power summons, rides and forms, 37 of 37 with the nemesis armour (2026-11-20)
 		"Prologue",
 		"Robots",
 		"Rubble", -- list-combat: the rubble heaps, 8 of 8 (2026-11-20)

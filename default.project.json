@@ -54,6 +54,7 @@
         "LoreBook": { "$path": "art/models/LoreBook.rbxm" },
         "Powers": { "$path": "art/models/Powers.rbxm" },
         "Rubble": { "$path": "art/models/Rubble.rbxm" },
+        "Foes": { "$path": "art/models/Foes.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },

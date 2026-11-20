@@ -297,11 +297,36 @@ local meshCache: { [string]: MeshPart | false } = {}
 local deepArt = artFolder and artFolder:FindFirstChild("Deep")
 local DEEP: { [string]: string } =
 	{ Helmet = "DiverDome", HelmetFrame = "HelmetFrame", Tank = "DiverTank", Tank2 = "DiverTank" }
+-- the newer robots' gear and the side quest foes' props (art/blender/foes.py, Art.Foes, Config.FoeArt; list-combat
+-- 2026-11-20, Everything Left 223 and 229): each mesh fills the box of the part with its name; numbered and sided
+-- pieces share one mesh
+local foeArt = artFolder and artFolder:FindFirstChild("Foes")
+local FOE_ALIAS: { [string]: string } = {
+	Grenade1 = "Grenade",
+	Grenade2 = "Grenade",
+	Grenade3 = "Grenade",
+	ClawA = "ClawFinger",
+	ClawB = "ClawFinger",
+	KeyBowL = "KeyBow",
+	KeyBowR = "KeyBow",
+	AnchorFlukeL = "AnchorFluke",
+	AnchorFlukeR = "AnchorFluke",
+	TridentProng1 = "TridentProng",
+	TridentProng2 = "TridentProng",
+	TridentProng3 = "TridentProng",
+}
 
 local function meshFor(name: string): MeshPart?
 	local deep = DEEP[name] and deepArt and deepArt:FindFirstChild(DEEP[name], true)
 	if deep and deep:IsA("MeshPart") then
 		return deep
+	end
+	local foeName = FOE_ALIAS[name] or name
+	if foeArt and Config.FoeArt[foeName] then
+		local foe = foeArt:FindFirstChild(foeName, true)
+		if foe and foe:IsA("MeshPart") then
+			return foe
+		end
 	end
 	if not robotArt then
 		return nil
@@ -799,7 +824,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		end
 	end
 	if body.spear then
-		-- Skylance's spear, held upright in the right hand (PLACEHOLDER ART)
+		-- Skylance's spear, held upright in the right hand (Art.Foes meshes once imported, else these parts)
 		local hand = size("RightHand")
 		local len = h * 1.15
 		add(
@@ -821,7 +846,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	end
 	if body.windKey and not artCfg then
 		-- the Toymaker's toys (lore step 11, the Suburbs chain): a brass wind-up key in the back, its shaft out of
-		-- the upper torso and two round bows across the top (PLACEHOLDER ART)
+		-- the upper torso and two round bows across the top (Art.Foes meshes once imported, else these parts)
 		local brass = Color3.fromRGB(215, 170, 70)
 		local k = UT.X * 0.18
 		add(
@@ -847,7 +872,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	end
 	if body.hook then
 		-- Captain Brine's Salt Dogs (lore step 11, the Coast chain): a steel hook for the left hand and a red
-		-- bandana tied round the dome, its knot at the back (PLACEHOLDER ART)
+		-- bandana tied round the dome, its knot at the back (Art.Foes meshes once imported, else these parts)
 		local hand = size("LeftHand")
 		local steel = Color3.fromRGB(190, 195, 205)
 		add(
@@ -887,7 +912,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	end
 	if body.anchor then
 		-- Captain Brine's anchor, swung in the right hand: the shank, the stock across its top and the two flukes
-		-- at its foot (PLACEHOLDER ART)
+		-- at its foot (Art.Foes meshes once imported, else these parts)
 		local hand = size("RightHand")
 		local iron = Color3.fromRGB(70, 75, 85)
 		local len = h * 0.55
@@ -922,7 +947,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	end
 	if body.trident then
 		-- the Tidewright's trident, held upright in the right hand: a bronze shaft, a crossbar and three prongs
-		-- (PLACEHOLDER ART)
+		-- (Art.Foes meshes once imported, else these parts)
 		local bronze = rgb(body.trim or body.metal)
 		local len = h * 0.7
 		add(
@@ -1082,7 +1107,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			0.25
 		)
 	end
-	-- The newer kinds' gear (PLACEHOLDER ART: plain parts until Blender meshes are made for them)
+	-- The newer kinds' gear: Blender meshes from Art.Foes over these boxes once imported (meshFor), else the plain parts
 	if body.riot then
 		-- a riot shield on the left forearm: held out in front (the forearm points forward in the guard pose,
 		-- so the plate stands across the body), with a window near the top and a trim stripe
