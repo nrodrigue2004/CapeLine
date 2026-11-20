@@ -1071,6 +1071,52 @@ return function(T: any)
 				shell ~= nil and #shell == 6,
 				"chest, core, two sleeves, two greaves: " .. tostring(shell and #shell)
 			)
+			-- Bolt Ride's own streak (Everything Left 167): a zigzag bolt with forks and a scorch over the slice's
+			-- streak, only for Volt
+			local function fxCount()
+				local n = 0
+				for _, d in fxFolder:GetDescendants() do
+					if d:IsA("BasePart") then
+						n += 1
+					end
+				end
+				return n
+			end
+			local n0 = fxCount()
+			sim:run("bolt ride", function()
+				CombatFx.dash(at, at + roblox.Vector3.new(0, 0, -30), "Comic", color, "Volt")
+			end)
+			local volt = fxCount() - n0
+			n0 = fxCount()
+			sim:run("shadow dash", function()
+				CombatFx.dash(at, at + roblox.Vector3.new(0, 0, -30), "Comic", color, "Gunslinger")
+			end)
+			local other = fxCount() - n0
+			check(
+				volt >= other + 20,
+				"Bolt Ride draws its bolt, forks and scorch: " .. volt .. " vs " .. other
+			)
+			-- Flame Jets and Light Rail: particles, not a new part every other frame
+			for _, set in { "Fire", "Light" } do
+				local rideAt = at + roblox.Vector3.new(0, 0, 0)
+				n0 = fxCount()
+				sim:run("ride " .. set, function()
+					CombatFx.ride(set, function()
+						rideAt += roblox.Vector3.new(0, 0, -0.5)
+						return rideAt
+					end, 5, "Comic", color)
+				end)
+				local made = fxCount() - n0
+				for _ = 1, 60 do
+					sim:run("frame", function()
+						sim.service("RunService").RenderStepped:Fire(1 / 60)
+					end)
+				end
+				check(
+					fxCount() - n0 <= made,
+					set .. " ride adds no parts each frame: " .. (fxCount() - n0) .. " > " .. made
+				)
+			end
 			-- the nemesis armour (Everything Left 218): every trait piece in its Blender mesh, in the part's box
 			local NemesisFx = sim:require("Client.Fx.NemesisFx")
 			sim:run("NemesisFx", NemesisFx.init)

@@ -330,10 +330,66 @@ function CombatFx.chain(points: { Vector3 }, style: string, color: Color3?, set:
 	end
 end
 
+-- Bolt Ride's own streak (Everything Left 167, list-combat 2026-11-20): the hero rides a jagged lightning bolt.
+-- A white-hot zigzag core in the path colour's glow, two thin forks that split off it and die early, crackle
+-- along the bolt, a spark burst where it leaves and where it lands, and the scorch left glowing a moment. Added
+-- over the slice's own streak (nate's Volt look stays under it).
+local function boltRide(from: Vector3, to: Vector3, style: string, c: Color3)
+	local d = to - from
+	local len = d.Magnitude
+	if len < 2 then
+		return
+	end
+	local f = d.Unit
+	local side = f:Cross(Vector3.yAxis)
+	if side.Magnitude < 1e-3 then
+		side = Vector3.xAxis
+	end
+	side = side.Unit
+	local up = side:Cross(f).Unit
+	local segs = math.clamp(math.floor(len / 3), 4, 12)
+	local core = if style == "Anime" then WHITE else c
+	local pts = { from }
+	for k = 1, segs - 1 do
+		local j = (math.random() - 0.5) * 2.4
+		local h = (math.random() - 0.5) * 1.6
+		table.insert(pts, from + d * (k / segs) + side * j + up * h)
+	end
+	table.insert(pts, to)
+	for k = 1, #pts - 1 do
+		beam(pts[k], pts[k + 1], 0.9, c, 0.22)
+		beam(pts[k], pts[k + 1], 0.3, if style == "Anime" then c else WHITE, 0.16)
+	end
+	-- forks off the bolt's first and second thirds
+	for _, at in { math.max(2, math.floor(segs / 3)), math.max(3, math.floor(segs * 2 / 3)) } do
+		local a = pts[math.min(at, #pts)]
+		local out = side * (if math.random() < 0.5 then -1 else 1)
+		local b = a + f * 2.5 + out * 2.2 + up * (math.random() - 0.3) * 2
+		local e = b + f * 1.5 + out * 1.4 - up * 0.8
+		beam(a, b, 0.22, core, 0.12)
+		beam(b, e, 0.14, core, 0.1)
+	end
+	for _, at in pts do
+		FxLib.emit("crackle", c, at, 1)
+	end
+	FxLib.emit("spark", c, from, 8, -f)
+	FxLib.emit("spark", c, to, 12, f)
+	FxLib.emit("glow", c, to, 1)
+	-- the scorch: a short glowing streak on the ground under the bolt
+	local floor = (from + to) / 2 - Vector3.new(0, 2.9, 0)
+	local scorch = part(Vector3.new(1.2, 0.1, len), CFrame.lookAt(floor, floor + flatLook(d)), c)
+	scorch.Material = Enum.Material.Neon
+	scorch.Transparency = 0.4
+	fade(scorch, 0.8, { Size = Vector3.new(0.2, 0.1, len) }, 0.15)
+end
+
 -- A streak along a dash path
 function CombatFx.dash(from: Vector3, to: Vector3, style: string, color: Color3?, set: string?)
 	local c = color or SET_COLOR.Volt
 	FxLib.trail(from, to, set, c)
+	if set == "Volt" then
+		boltRide(from, to, style, c)
+	end
 	if style == "Anime" then
 		for k = 0, 2 do
 			local off = Vector3.new(0, (k - 1) * 0.8, 0)
@@ -885,6 +941,7 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 	end
 	local last: Vector3? = at()
 	local heading = CFrame.new()
+	local lastPuff = -1
 	local conn
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local t = os.clock() - start
@@ -911,11 +968,21 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 		for i, p in parts do
 			p.CFrame = base * pieces[i][2]
 		end
-		if set == "Fire" or set == "Light" then
-			if math.random() < 0.5 then
-				local spark =
-					part(Vector3.one * 0.6, CFrame.new(now - Vector3.new(0, 4, 0)), color, Enum.PartType.Ball)
-				fade(spark, 0.3, { Size = Vector3.one * 0.1, Position = now - Vector3.new(0, 7, 0) })
+		-- Flame Jets and Light Rail (Everything Left 169, 183): textured particles from the effects library ten
+		-- times a second in place of a new part every other frame: Fire pours flame and embers down out of the
+		-- two jets; Light sheds sparks and glints off the rail's back end
+		if (set == "Fire" or set == "Light") and t - lastPuff >= 0.1 then
+			lastPuff = t
+			local back = base * CFrame.new(0, -3.6, 3)
+			if set == "Fire" then
+				for _, x in { -0.6, 0.6 } do
+					local jet = (base * CFrame.new(x, -4.6, 0)).Position
+					FxLib.emit("flame", color, jet, 2, Vector3.new(0, -1, 0))
+					FxLib.emit("ember", color, jet, 1, Vector3.new(0, -1, 0))
+				end
+			else
+				FxLib.emit("spark", color, back.Position, 2, back.LookVector * -1)
+				FxLib.emit("glow", color, (base * CFrame.new(0, -3.4, -9)).Position, 1)
 			end
 		end
 	end))
@@ -2164,7 +2231,16 @@ SUPER.sunfall = function(x) -- Fire Sunfall: a small sun forms over the zone and
 	TweenService:Create(sun, drop, { CFrame = CFrame.new(x.c) }):Play()
 	fade(corona, 0.25, nil, 0.9)
 	fade(sun, 0.2, nil, 0.9)
+	-- the sun sheds embers and flame as it forms and falls (Everything Left 169)
+	for k = 0, 4 do
+		task.delay(k * 0.18, function()
+			local y = if k < 3 then 40 else 40 - (k - 2) * 18
+			FxLib.emit("flame", x.color, x.c + Vector3.new(0, y, 0), 3)
+			FxLib.emit("ember", x.accent, x.c + Vector3.new(0, y, 0), 4, Vector3.new(0, -1, 0))
+		end)
+	end
 	task.delay(0.9, function()
+		FxLib.burst(x.c, x.r, "Fire", x.color, true)
 		CombatFx.nova(x.c, x.r, x.style, x.color, false, "Fire")
 		column(x.c, 10, x.accent, x.style, 0.6)
 	end)
@@ -2429,6 +2505,9 @@ SUPER.heavenfall = function(x) -- Martial Heavenfall Beam: a thick ki beam wound
 		r.Transparency = 0.2
 		fade(r, 0.4, { Size = Vector3.new(0.1, w * 2.6, w * 2.6) }, k * 0.04)
 	end
+	-- ki along the beam and a heavy hit where it lands (Everything Left 177)
+	FxLib.trail(from, to, "Martial", x.color)
+	FxLib.impact(to, "Martial", x.color, 1.6, d.Unit, x.style)
 	column(to, 10, x.color, x.style, 0.6)
 end
 SUPER.siege = function(x) -- Juggernaut Siege Mode: four anchors slam into the ground, steam vents
@@ -2494,6 +2573,19 @@ SUPER.singularity = function(x) -- Pulse Singularity: a black hole with a spinni
 			local a = math.random() * math.pi * 2
 			local from = at + Vector3.new(math.cos(a) * x.r, math.random() * 8 - 4, math.sin(a) * x.r)
 			beam(from, at, if anime(x.style) then 0.08 else 0.25, x.color, 0.25)
+			-- matter pulled in (Everything Left 180): sparks fired at the hole from the edge
+			FxLib.emit("spark", x.color, from, 3, at - from)
+		end)
+	end
+	-- the swirl: the effects library's vortex and inward pull pulsing over the hole while it lives
+	for k = 0, 7 do
+		task.delay(k * 0.3, function()
+			FxLib.emit("vortex", x.color, at, 1)
+			FxLib.emit("implode", x.accent, at, 1)
+			if k == 7 then
+				FxLib.emit("glow", x.color, at, 1, nil, 2)
+				FxLib.shock(x.c - Vector3.new(0, 1.2, 0), x.r, x.color)
+			end
 		end)
 	end
 	if x.mine then
