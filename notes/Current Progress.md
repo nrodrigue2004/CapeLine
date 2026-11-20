@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 first-30 round 4: prologue prompts are untimed (wait for the press, wrong key ignored, pulse after 3 s, the server's clocks hold while a prompt waits). Studio 307. Next: polish pass on the intro film, Ceremony and cutscenes; context music; impact frames.
 - 2026-11-20 playtest-gaps21: gaps20 + mobility polish, shots on walls, boss wreck, deeper craters, load fixes, robots through walls, flags, banners, kites, cranes, Ambient sounds, hurt feedback, claw, punches, grenade, blocks.
 - 2026-11-20 alive-world round 4 (retention): the WELCOME BACK card on rejoin (Shared.ReturnPlan, Ui.ReturnHud: news since you left, a TO DO list with GO buttons, the friend boost) and TO DO in the MENU drawer; no dead end at level 10-20. Studio 509-513.
 - 2026-11-20 alive-world round 3: the missing sounds (Ambient atlas, CC0 + synth): Ceremony applause, gasp, scanner hum, Patch's radio key-up, gulls, crane winch, park birdsong, rain. Studio 504-508.

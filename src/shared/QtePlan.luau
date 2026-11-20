@@ -56,6 +56,22 @@ function QtePlan.prompts(Config: any, step: string, hop: number?): { Prompt }
 	return {}
 end
 
+-- first-30 (nate 2026-11-20: "Qtes shouldn't be timed in prologue"): while the device says a prompt waits for
+-- its press (OpeningAct 8, `r.qteUp`), the server's prologue run holds its clocks: the beat's start (the stuck
+-- timer and the Spark's backstop count from it) and the whole prologue's start (its timeout), up to Config's
+-- qte.waitMax s in all, so an away player's prologue still ends. Returns true while it holds.
+function QtePlan.holdClocks(Config: any, r: any, dt: number): boolean
+	local Q = Config.Story.opening.qte
+	if not (Q.wait and r.qteUp and (r.qteWaited or 0) < Q.waitMax) then
+		return false
+	end
+	r.qteWaited = (r.qteWaited or 0) + dt
+	r.qteStep = (r.qteStep or 0) + dt
+	r.stepAt += dt
+	r.startedAt += dt
+	return true
+end
+
 -- How long a prompt stays open: a press's window, a mash's or a hold's (each `ease` times longer after a miss);
 -- forever when prompts wait for their press (Config's `wait`, first-30 2026-11-20)
 function QtePlan.window(Config: any, misses: number, kind: string?): number

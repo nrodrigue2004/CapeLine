@@ -948,6 +948,17 @@ function UiSim:_env(script: any): { [string]: any }
 		return setmetatable({}, randomMt)
 	end
 	return {
+		-- sim.fakeClock = true (before requiring modules): os.clock follows sim:advance, for code timed on os.clock
+		os = if sim.fakeClock
+			then {
+				clock = function()
+					return sim.now
+				end,
+				time = os.time,
+				date = os.date,
+				difftime = os.difftime,
+			}
+			else os,
 		game = self.game,
 		workspace = self.workspace,
 		Workspace = self.workspace,

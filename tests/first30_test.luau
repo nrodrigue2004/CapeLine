@@ -1091,4 +1091,112 @@ return function(T: any)
 		GuidePlan.radioMark(R, 0, "boardOpen")
 		check(not GuidePlan.radioOk(Config, R, 1000, "boardOpen", ctx), "once a session")
 	end)
+	test(
+		"First 30: an untimed prologue prompt holds the server's clocks (the Spark never fires by itself)",
+		function()
+			local QtePlan = require("../src/shared/QtePlan")
+			local O = Config.Story.opening
+			local Q = O.qte
+			check(Q.wait == true, "prompts wait by default")
+			-- the spark beat with its prompt up for 60 s: the backstop (O.spark.auto) never comes due
+			local r = { qteUp = true, stepAt = 0, startedAt = 0 }
+			local dt = 1 / 30
+			local now = 0
+			for _ = 1, 60 * 30 do
+				now += dt
+				QtePlan.holdClocks(Config, r, dt)
+			end
+			check(now - r.stepAt < 1e-6, "the beat's clock held for a minute")
+			check(now - r.stepAt < O.spark.auto, "so the Spark's backstop never fires while the prompt waits")
+			check(now - r.startedAt < O.timeout, "and the whole prologue's timeout holds too")
+			-- answered (OpeningAct 9): the clocks run again
+			r.qteUp = false
+			check(not QtePlan.holdClocks(Config, r, dt), "an answered prompt holds nothing")
+			-- an away player: the hold ends after waitMax s in all
+			local away = { qteUp = true, stepAt = 0, startedAt = 0 }
+			local held = 0
+			for _ = 1, math.ceil((Q.waitMax + 5) / 0.5) do
+				if QtePlan.holdClocks(Config, away, 0.5) then
+					held += 0.5
+				end
+			end
+			check(
+				held >= Q.waitMax and held <= Q.waitMax + 0.5,
+				"the hold stops at waitMax (an away player still finishes)"
+			)
+			-- timed prompts (wait off) hold nothing
+			local Timed = { Story = { opening = { qte = setmetatable({ wait = false }, { __index = Q }) } } }
+			check(
+				not QtePlan.holdClocks(Timed, { qteUp = true, stepAt = 0, startedAt = 0 }, dt),
+				"wait off: no hold"
+			)
+			-- the runtime path: the server holds before any clock is read, takes 8 and 9, and the device sends them
+			local svc = fs.readFile("src/server/Services/OpeningService.luau")
+			local stepFn = string.match(svc, "local function step%(r: Run.-\nend\n") or ""
+			local h = string.find(stepFn, "QtePlan.holdClocks(Config, r, dt)", 1, true)
+			local t = string.find(stepFn, "now - r.startedAt > O.timeout", 1, true)
+			local sp = string.find(stepFn, "now - r.stepAt >= O.spark.auto", 1, true)
+			check(
+				h ~= nil and t ~= nil and sp ~= nil and h < t and h < sp,
+				"step() holds before the timeout and the Spark"
+			)
+			check(
+				string.find(svc, "act == 8 or act == 9", 1, true) ~= nil,
+				"the server takes OpeningAct 8 and 9"
+			)
+			local run = fs.readFile("src/client/Fx/PrologueQte.luau")
+			check(
+				string.find(run, 'Net.send("OpeningAct", if up then 8 else 9)', 1, true) ~= nil,
+				"the device sends them"
+			)
+		end
+	)
+
+	test(
+		"First 30: an untimed prologue prompt stays up, pulses after 3 s and answers only to its key",
+		function()
+			local sim = newSim()
+			sim.fakeClock = true
+			sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+			local QteHud = sim:require("Client.Ui.QteHud")
+			sim:run("QteHud", QteHud.init)
+			local QtePlan = require("../src/shared/QtePlan")
+			local Q = Config.Story.opening.qte
+			sim:run("show", function()
+				QteHud.show(Q.words.Leap, "Leap", QtePlan.window(Config, 0), "press")
+			end)
+			local gui = sim.game.Players.Tester.PlayerGui:FindFirstChild("Qte", true)
+			local prompt = gui and gui:FindFirstChild("Prompt", true)
+			local key = prompt and prompt:FindFirstChild("Key", true)
+			local clock = gui and gui:FindFirstChild("Clock", true)
+			check(prompt ~= nil and key ~= nil and clock ~= nil, "the prompt is built")
+			if not (prompt and key and clock) then
+				return
+			end
+			check(clock.Visible == false, "no running-out bar on an untimed prompt")
+			local paper = key.BackgroundColor3
+			local pulsedAt = nil
+			local t = 0
+			while t < 30 do
+				sim:advance(0.1)
+				t += 0.1
+				sim:run("frame", QteHud.frame)
+				if pulsedAt == nil and key.BackgroundColor3 ~= paper then
+					pulsedAt = t
+				end
+			end
+			check(QteHud.isOpen() and prompt.Visible, "still up after 30 s")
+			check(
+				pulsedAt ~= nil and pulsedAt >= Q.nag.after - 0.05 and pulsedAt <= Q.nag.after + 0.25,
+				"it pulses at " .. Q.nag.after .. " s (" .. tostring(pulsedAt) .. ")"
+			)
+			check(QtePlan.judge(Config, "Leap", "Block", 30, 0) == nil, "a wrong key 30 s in is ignored")
+			check(QtePlan.judge(Config, "Leap", "Leap", 30, 0) == "hit", "the right key 30 s in hits")
+			sim:run("hit", function()
+				QteHud.result("hit")
+			end)
+			check(not QteHud.isOpen() and not prompt.Visible, "answered: the prompt goes")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 end

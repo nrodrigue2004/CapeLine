@@ -55,6 +55,7 @@ local MissionRules = require(Shared:WaitForChild("MissionRules"))
 local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
 local FlowPlan = require(Shared:WaitForChild("FlowPlan"))
 local PrologueCine = require(Shared:WaitForChild("PrologueCine"))
+local QtePlan = require(Shared:WaitForChild("QtePlan"))
 local IntroFilm = require(Shared:WaitForChild("IntroFilm"))
 
 local BuildingService = require(script.Parent.BuildingService)
@@ -713,13 +714,8 @@ local function step(r: Run, now: number, dt: number)
 		end
 		return
 	end
-	if r.qteUp and (r.qteWaited or 0) < O.qte.waitMax then
-		-- first-30: a prompt is waiting for its press: every clock of the prologue holds still
-		r.qteWaited = (r.qteWaited or 0) + dt
-		r.qteStep = (r.qteStep or 0) + dt
-		r.stepAt += dt
-		r.startedAt += dt
-	end
+	-- first-30: a prompt waiting for its press holds every clock of the prologue still (QtePlan.holdClocks)
+	QtePlan.holdClocks(Config, r, dt)
 	if now - r.startedAt > O.timeout and CODE[s] < CODE.title then
 		setStep(r, "title")
 		return

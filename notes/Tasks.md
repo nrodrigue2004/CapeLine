@@ -2471,6 +2471,8 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 
 95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
 
+307. Untimed prologue prompts (QtePlan wait, QteHud nag, OpeningAct 8/9, first-30): as a new hero, at every prologue prompt (the Spark, JUMP, DODGE, GRAB, the SUIT UP hold, the tunnel mash, the drop) wait 30 s without pressing: the prompt stays up with no running-out bar, the hero holds in slow motion, after 3 s it pulses and its key plate flashes gold; press a wrong key: nothing happens (no TRY AGAIN); press the right one: NICE! and the scene goes on; the Spark never fires by itself and no beat skips ahead while you wait. On a phone, tapping the prompt answers it.
+
 306. Contract Board radio (GuidePlan.boardAt, GuideClient, first-30): reach level 4 out in the city; after the Framed unlock line, within about 90 s Patch says "Level up! The Contract Board is open at every safehouse. Look for the S on your MAP!" (villain: its own line), once; never inside a mission.
 
 305. Robot knockout (Fx.KoFx, Config.Fx.robots.ko, first-30): in Safehouse and Framed, take down a robot yourself: on the killing blow your hero holds for a beat, the camera kicks harder than a normal hit, a low heavy thud lands, and a big gold KO!, SCRAPPED!, WRECKED! or BUSTED! pops over it; sweep several at once and only one word shows; another hero's kill adds none of this for you; an elite still gets the slow-mo finisher; with Reduce flashing on, no hold and no heavy shake.
