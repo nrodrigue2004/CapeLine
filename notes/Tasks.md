@@ -268,6 +268,9 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps20: start here (2026-11-20, build playtest-gaps20)
+Everything in gaps19 plus first-30 round 1 and alive-world round 1: project files capeline/Capeline-playtest-gaps20-2026-11-20.rbxl (Output "playtest-gaps20 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps19: start here" first if not done, then Studio list items 118-121 (the Ceremony crowd's cheers and gasp, the level-up banner's real unlocks, the level 5 radio, the next-mission card with START) and the "Alive world" section's 7 steps (safehouse, crane, chimney and roof garden meshes, scared traffic, gulls, chimney smoke). Line status: capeline/notes/checklist-progress.md.
+
 ### Playtest gaps19: start here (2026-11-20, build playtest-gaps19)
 Everything in gaps18 plus the 20 mobility moves (ranks 3 and 5 are a choice of two, swapped free at a safehouse) and two destroy-all rounds: project files capeline/Capeline-playtest-gaps19-2026-11-20.rbxl (Output "playtest-gaps19 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps18: start here" first if not done, then Studio list items 98-117 (one per mobility move; train ranks from the LOADOUT MOBILITY tab, dev panel can grant levels and Credits) and "Studio list: destroy everything" items 1-14. Line status: capeline/notes/checklist-progress.md.
 
