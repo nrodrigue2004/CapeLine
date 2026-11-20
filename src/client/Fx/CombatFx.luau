@@ -1845,7 +1845,14 @@ PIECE.plate = function(s: number, c: Color3): BasePart
 	end
 	return part(Vector3.new(s, s * 0.15, s), CFrame.new(), c)
 end
-PIECE.tri = function(s: number, c: Color3): Part
+PIECE.tri = function(s: number, c: Color3): BasePart
+	-- Mind's psi gem: the Blender faceted crystal (Art.Powers Gem, 2026-11-20; symmetric under the import's half turn)
+	if PowerMeshes.ready("Gem") then
+		local mp = powerMesh("PsiGem", Vector3.new(s * 0.24, s * 0.8, s * 0.56), c, 0.1)
+		if mp then
+			return mp
+		end
+	end
 	return part(Vector3.new(s * 0.12, s * 0.7, s * 0.7), CFrame.new(), c)
 end
 PIECE.ring = function(s: number, c: Color3): Part

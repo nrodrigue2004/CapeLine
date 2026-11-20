@@ -661,6 +661,21 @@ for ob in flake:
     ob.data.update()
 mesh("Flake", tint("FlakeChip"), flake, (200, 235, 255), "Glass", alpha=0.1, shade=False)
 
+# ================================================================ the tri piece (CombatFx PIECE.tri, 2026-11-20): Mind's psi gem (its charge, fields,
+# the psi ring's core and the brow mark): a faceted crystal flat across x (0.3 thick), 1 tall in y and 0.7 deep in z,
+# a long point up and down; symmetric under the import's half turn.
+def gemring(k, x):
+    pts = []
+    for i in range(8):
+        a = math.pi / 2 + i * math.pi / 4
+        r = 1.0 if i % 2 == 0 else 0.78
+        pts.append((x, math.sin(a) * 0.5 * r * k, math.cos(a) * 0.35 * r * k))
+    return pts
+
+
+mesh("Gem", tint("PsiGem"), [rings_mesh([gemring(0.35, -0.15), gemring(1.0, 0.0), gemring(0.35, 0.15)])],
+     (255, 230, 250), "Neon", alpha=0.1, shade=False)
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -724,7 +739,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),

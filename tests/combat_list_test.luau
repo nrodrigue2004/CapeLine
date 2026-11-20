@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 78,
-			"78 meshes in 32 looks (the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 79,
+			"79 meshes in 33 looks (the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3718,7 +3718,7 @@ return function(T: any)
 	end)
 
 	test(
-		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates, flakes snowflakes",
+		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates, flakes snowflakes, tris psi gems",
 		function()
 			local roblox = require("@lune/roblox")
 			if not T.placePath then
@@ -3817,6 +3817,32 @@ return function(T: any)
 					sim.service("RunService").RenderStepped:Fire(1 / 60)
 				end)
 			end
+			-- Mind's charge circles psi gems (the tri piece)
+			sim:run("mind field", function()
+				CombatFx.field(
+					V(-150, 0, 0),
+					8,
+					1,
+					"Comic",
+					roblox.Color3.fromRGB(200, 140, 255),
+					false,
+					nil,
+					false,
+					"Mind"
+				)
+			end)
+			for _ = 1, 3 do
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 60)
+				end)
+			end
+			local gems = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "PsiGem" then
+					gems += 1
+				end
+			end
+			check(gems >= 1, "Mind's pieces are psi gems (" .. gems .. ")")
 			local flakes = 0
 			for _, d in sim.service("Workspace"):GetDescendants() do
 				if d:IsA("MeshPart") and d.Name == "FlakeChip" then
