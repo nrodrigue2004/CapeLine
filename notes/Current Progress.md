@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 playtest-gaps21: gaps20 + mobility polish, shots on walls, boss wreck, deeper craters, load fixes, robots through walls, flags, banners, kites, cranes, Ambient sounds, hurt feedback, claw, punches, grenade, blocks.
 - 2026-11-20 alive-world round 3: the missing sounds (Ambient atlas, CC0 + synth): Ceremony applause, gasp, scanner hum, Patch's radio key-up, gulls, crane winch, park birdsong, rain. Studio 504-508.
 - 2026-11-20 alive-world round 2: safehouse corner flags, Uptown tower banners, Docks crane trolleys at work, park kites; pockets, Deep and HQs audited (already dressed); city bed already live. Studio 500-503.
 - 2026-11-20 playtest-gaps20: gaps19 + crowd clips, next-mission card, level 5 cue, real unlock text; safehouses, cranes, chimneys and roof gardens as meshes, traffic flees fights, gulls, chimney smoke.
