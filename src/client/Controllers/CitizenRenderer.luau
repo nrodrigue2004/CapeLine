@@ -242,6 +242,27 @@ function CitizenRenderer.giveBack(body: Body)
 	release(body)
 end
 
+-- Another scene's person dressed like a citizen (Everything Left 406: the prologue's crowd and the intro film's
+-- citizens, Fx.PrologueFx): skin under the uploaded shirt and pants with their tints, a catalog face and catalog
+-- hair, all picked from `id` the same way on every device; the rig's plain colours stay while the clothes are off.
+function CitizenRenderer.dressRig(rig: NpcRig.Rig, id: number, skin: Color3)
+	local clothes: { [string]: { Texture } }? = nil
+	if ROBLOX then
+		for _, p in rig.parts do
+			p.Color = skin
+		end
+		clothes = NpcRig.dressPair(rig, SHIRTS[1], PANTS[1], Config.NpcLooks.offsetSign)
+	end
+	local body = {
+		rig = rig,
+		clothes = clothes,
+		face = rig.parts.Head:FindFirstChild("face") :: Decal?,
+		group = id % HAIR_GROUPS,
+	} :: any
+	dress(body, id)
+	looks(body, id)
+end
+
 local function lerpAngle(a: number, b: number, t: number): number
 	local d = (b - a + math.pi) % (2 * math.pi) - math.pi
 	return a + d * t

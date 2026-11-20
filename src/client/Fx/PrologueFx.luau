@@ -18,7 +18,9 @@
 -- parts show as before. The banner and the billboard show the printed pictures (art/prologue/ads.py, Config ids)
 -- and Silas Crane stands on the billboard as his own rig (his catalog face and hair; nothing drawn). The shield
 -- bubble and the scanner's red sweep are effects with FxLib's pooled particles (its budget, Reduce flashing).
--- PLACEHOLDER ART: the crowd and Crane are plain people on the rig until their art pass.
+-- The crowd (Everything Left 406, 2026-11-20) are Roblox-avatar people like the city's citizens
+-- (CitizenRenderer.dressRig: the uploaded shirts and pants, catalog faces and hair); Silas Crane wears his cast
+-- pick (catalog face and hair) over his dark suit and red tie.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -454,6 +456,7 @@ local function buildCeremony(o: { [string]: any })
 				rgb(Config.Creator.skins[i % 8 + 1]),
 				rgb(PANTS[(i + 1) % #PANTS + 1])
 			)
+			CitizenRenderer.dressRig(rig, O.plaza.crowd.seed + i, rgb(Config.Creator.skins[i % 8 + 1]))
 			table.insert(crowd, npc(rig, at, yawTo(at, stage) + (math.random() - 0.5) * 0.3))
 		end
 	end
@@ -1818,6 +1821,7 @@ function PrologueFx.cast(kind: string, parent: Instance, i: number?, look: any?)
 			rgb(Config.Creator.skins[k % 8 + 1]),
 			rgb(PANTS[(k + 1) % #PANTS + 1])
 		)
+		CitizenRenderer.dressRig(rig, O.plaza.crowd.seed + k, rgb(Config.Creator.skins[k % 8 + 1]))
 	elseif look then
 		rig = hero(kind, FakeRules.lookFrom(Config, look, kind))
 	else

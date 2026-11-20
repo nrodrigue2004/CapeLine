@@ -460,7 +460,7 @@ return {
 		-- the plaza: the stage in front of Crane's Hero Hall, the crowd on the street before it
 		plaza = {
 			stage = { gap = 4, depth = 14, width = 44, height = 4 }, -- from the Hall's face, studs
-			crowd = { count = 30, low = 14, rows = 4, near = 8, far = 34 }, -- low: the phone preset's crowd
+			crowd = { count = 30, low = 14, rows = 4, near = 8, far = 34, seed = 91000 }, -- low: the phone preset's crowd; seed: their citizen looks (CitizenRenderer.dressRig)
 			start = 18, -- the hero stands this far from the stage, among the crowd
 			kid = 4, -- the kid (Vigil) or the shover (Syndicate) stands this far from the spark point
 		},

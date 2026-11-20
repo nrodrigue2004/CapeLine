@@ -2398,6 +2398,67 @@ return function(T: any)
 		end
 	)
 
+	test("List combat: the prologue crowd are Roblox-avatar citizens (Everything Left 406)", function()
+		local roblox = require("@lune/roblox")
+		check(type(Config.Story.opening.plaza.crowd.seed) == "number", "the crowd's look seed")
+		check(
+			not string.find(
+				fs.readFile("src/client/Fx/PrologueFx.luau"),
+				"the crowd and Crane are plain",
+				1,
+				true
+			),
+			"the crowd is no longer placeholder art"
+		)
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local PrologueFx = sim:require("Client.Fx.PrologueFx")
+		local faces = {}
+		for _, f in Config.CatalogLooks.faces do
+			faces["rbxassetid://" .. f[3]] = true
+		end
+		local shirts = {}
+		for _, id in Config.Creator.clothes.shirts do
+			shirts["rbxassetid://" .. id] = true
+		end
+		local seen = {}
+		for i = 1, 6 do
+			local rig
+			sim:run("cast", function()
+				rig = PrologueFx.cast("citizen", sim.workspace, i)
+			end)
+			check(rig ~= nil, "a crowd citizen " .. i)
+			local face = rig.parts.Head:FindFirstChild("face")
+			check(face ~= nil and faces[face.Texture] == true, "a catalog face")
+			local shirt
+			for _, d in rig.model:GetDescendants() do
+				if d.ClassName == "Texture" and d.Name == "Clothes" and shirts[d.Texture] then
+					shirt = d.Texture
+					break
+				elseif d.ClassName == "Shirt" then
+					shirt = d.ShirtTemplate
+					break
+				end
+			end
+			check(shirt ~= nil, "wears an uploaded shirt " .. i)
+			if shirt then
+				seen[shirt] = true
+			end
+			rig.model:Destroy()
+		end
+		local n = 0
+		for _ in seen do
+			n += 1
+		end
+		check(n >= 2, "the crowd wears different shirts")
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do
