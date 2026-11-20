@@ -161,18 +161,22 @@ return {
 	-- near, cheer after a big hit they did not run from
 	citizens = { point = 70, photo = 26, cheer = 60, cheerFor = 4, flashEvery = 2.2 },
 	sounds = {
-		honk = s("electronicpingshort.wav", 0.35, 0.42, { range = 120, vary = 0.08 }),
-		flutter = s("swoosh.wav", 0.4, 1.9, { range = 70, vary = 0.15 }),
-		spray = s("action_falling.mp3", 0.45, 1.5, { range = 90 }),
-		cans = s("clickfast.wav", 0.5, 1.3, { range = 70, vary = 0.2 }),
-		pop = s("action_jump_land.mp3", 0.6, 1.4, { range = 110 }),
-		drone = s("electronicpingshort.wav", 0.12, 0.3, { range = 60 }),
-		-- the city bed (traffic hum, far sirens, gulls at the Docks): PLACEHOLDER SOUND, silent until nate picks
-		-- licence-checked Creator Store loops (Launch Checklist)
+		honk = s("electronicpingshort.wav", 0.35, 0.42, { clip = "honk", range = 120, vary = 0.08 }),
+		flutter = s("swoosh.wav", 0.4, 1.9, { clip = "flutter", range = 70, vary = 0.15 }),
+		spray = s("action_falling.mp3", 0.45, 1.5, { clip = "spray", range = 90 }),
+		cans = s("clickfast.wav", 0.5, 1.3, { clip = "cans", range = 70, vary = 0.2 }),
+		pop = s("action_jump_land.mp3", 0.6, 1.4, { clip = "pop", range = 110 }),
+		drone = s("electronicpingshort.wav", 0.12, 0.3, { clip = "drone", range = 60 }),
+		-- the city bed (AudioController.beds; the sounds pass, 2026-11-19): the traffic hum with far sirens and horns,
+		-- the Docks' water, bell, foghorn and gulls, the Outskirts' open air, and the wind on the rooftops (mixed in
+		-- by camera height, Config.Audio.bed). Our own mixes (art/audio/build.py) from CC0 loops and synth.
 		bed = {
-			Downtown = { asset = 0, volume = 0.25 },
-			Docks = { asset = 0, volume = 0.25 },
-			Outskirts = { asset = 0, volume = 0.2 },
+			Downtown = { asset = 0, volume = 0.3, clip = "bedDowntown" },
+			Uptown = { asset = 0, volume = 0.26, clip = "bedDowntown" },
+			OldTown = { asset = 0, volume = 0.18, clip = "bedDowntown" },
+			Docks = { asset = 0, volume = 0.32, clip = "bedDocks" },
+			Outskirts = { asset = 0, volume = 0.26, clip = "bedOutskirts" },
+			Rooftop = { asset = 0, volume = 0.35, clip = "bedRooftop" },
 		},
 	},
 }
