@@ -431,9 +431,47 @@ local Audio = {
 		patrolNight = { asset = 0, volume = 0.32, clip = "patrolNight" },
 		boss = { asset = 0, volume = 0.45, clip = "boss" },
 		victory = { asset = 0, volume = 0.5, sting = true, clip = "victory" },
+		-- the context loops (first-30, nate 2026-11-20: "Music should change according to context"; our own, from
+		-- art/audio/music.py in the Music atlas): Shared.MusicPlan picks one by what is going on
+		combat = { asset = 0, volume = 0.4, clip = "combat" },
+		mission = { asset = 0, volume = 0.34, clip = "mission" },
+		chase = { asset = 0, volume = 0.42, clip = "chase" },
+		ceremony = { asset = 0, volume = 0.36, clip = "ceremony" },
+		deep = { asset = 0, volume = 0.36, clip = "deep" },
+		hq = { asset = 0, volume = 0.3, clip = "hq" },
 		fade = 1.5, -- seconds to crossfade
 		duck = 0.6, -- music volume while the boss siren or a voice line plays (ducks 40%)
 		bossRange = 600, -- the boss theme plays within this many studs of a live boss
+	},
+
+	-- which loop plays when (Shared.MusicPlan; first-30, nate 2026-11-20: "Music should change according to context")
+	musicContext = {
+		menu = "hq", -- the creator and the main menu
+		-- the prologue's beats: the Ceremony's proud fanfare, then the chase from the Spark to the subway, the
+		-- subway fight, the rescue's tension and the fanfare again under the title card
+		opening = {
+			ceremony = "ceremony",
+			scan = "ceremony",
+			run = "chase",
+			spark = "chase",
+			leap = "chase",
+			chase = "chase",
+			suit = "chase",
+			descend = "chase",
+			tunnel = "chase",
+			fight = "combat",
+			swarm = "combat",
+			rescue = "mission",
+			title = "ceremony",
+		},
+		scene = "mission", -- a cutscene in the city or a mission
+		hq = "hq",
+		deep = "deep",
+		mission = "mission",
+		combat = "combat",
+		combatHold = 8, -- seconds the fight loop stays after the last hit dealt or taken
+		combatNear = 20, -- or this long while a robot is within enemyRange
+		enemyRange = 45,
 	},
 
 	-- voice packs: 6 lines each (Config.Shop.voiceSounds holds the ids); which event plays which line

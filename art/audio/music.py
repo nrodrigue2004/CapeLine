@@ -1,6 +1,6 @@
 # music.py: Capeline's own music (composed here, so licence-clean: the only samples are Meta's CC0 piano, the rest is
-# synth from dsp.py): the three loops of the spec (city patrol by day and by night, the boss theme) and the victory
-# sting, as one stereo atlas art/export/audio/Music.ogg + art/export/audio/music.json ({track: [start, length, loop]}).
+# synth from dsp.py): the three loops of the spec (city patrol by day and by night, the boss theme), the victory
+# sting and the context loops (combat, mission, chase, ceremony, deep, hq; first-30 2026-11-20), as one stereo atlas art/export/audio/Music.ogg + art/export/audio/music.json ({track: [start, length, loop]}).
 # Each loop is a whole number of bars with its reverb tail wrapped onto its head, so it loops with no seam.
 #   python3 -I art/audio/music.py <download root>
 import json
@@ -229,13 +229,159 @@ def victory():
     return y[:n]
 
 
+# -- the context loops (first-30, nate 2026-11-20: "Music should change according to context"): Shared.MusicPlan picks
+# one by what is going on (a fight, a mission, the prologue's chase and Ceremony, the deep, an HQ or the creator)
+
+
+def combat_theme():
+    T = Track(132, 16)
+    prog = ["Em", "Em", "C", "D"] * 2 + ["Am", "Em", "C", "D", "Am", "C", "D", "D"]
+    roots = {"Em": 40, "C": 36, "D": 38, "Am": 45}
+    for bar, c in enumerate(prog):
+        ch = chords_of(["Em" if c == "Em" else c] if c != "D" else ["Dsus"])[0]
+        b0 = bar * 4
+        r = roots[c]
+        for k in range(8):  # a galloping bass: two sixteenths and an eighth
+            T.put(bass(r, 0.22 * T.beat, 650), b0 + k * 0.5, -8)
+            T.put(bass(r + (7 if k % 4 == 3 else 0), 0.22 * T.beat, 650), b0 + k * 0.5 + 0.25, -11)
+        for k in range(4):
+            T.put(kick(), b0 + k, -6 if k in (0, 2) else -9)
+            if k in (1, 3):
+                T.put(snare(), b0 + k, -8, 0.1)
+            T.put(hat(), b0 + k + 0.5, -15, -0.4)
+        if bar % 4 == 3:
+            for k, f in enumerate((150, 130, 110, 95)):
+                T.put(tom(f), b0 + 3 + k * 0.25, -10, -0.5 + 0.3 * k)
+        if bar % 8 == 0:
+            T.put(crash(), b0, -11, 0.5)
+        for st in (0, 0.75, 2.5):
+            for m in ch:
+                T.put(brass(m + 12, 0.3 * T.beat, 2000), b0 + st, -15, 0.25)
+    for bar, beat, m, d in ((8, 0, 76, 1.5), (8, 1.5, 79, 0.5), (8, 2, 83, 2), (9, 0, 81, 2), (9, 2, 79, 2),
+                            (10, 0, 76, 1), (10, 1, 79, 1), (10, 2, 84, 2), (11, 0, 83, 4), (12, 0, 81, 2), (12, 2, 79, 2),
+                            (13, 0, 76, 2), (13, 2, 79, 2), (14, 0, 78, 4), (15, 0, 76, 4)):
+        T.put(brass(m - 12, d * T.beat * 0.95, 2400), bar * 4 + beat, -9, 0.1)
+    return T.render(1.1, 0.16, -13)
+
+
+def mission_theme():
+    T = Track(96, 16)
+    prog = ["Dm", "Dm", "Bb", "Bb", "Gm", "Gm", "A", "A"] * 2
+    roots = {"Dm": 38, "Bb": 34, "Gm": 31, "A": 33}
+    for bar, c in enumerate(prog):
+        ch = chords_of([c])[0]
+        b0 = bar * 4
+        T.put(pad([m + 12 for m in ch], 4 * T.beat, 1000), b0, -17, -0.2)
+        for k in range(8):  # a ticking low pulse: the clock is running
+            T.put(bass(roots[c], 0.3 * T.beat, 380), b0 + k * 0.5, -11 if k % 2 == 0 else -15)
+        for k in range(8):
+            T.put(hat(), b0 + k * 0.5, -20 if k % 2 else -17, 0.4)
+        if bar >= 8:
+            T.put(kick(), b0, -10)
+            T.put(kick(), b0 + 1.5, -14)
+            T.put(snare(), b0 + 3, -14, 0.1)
+    for bar, beat, m in ((2, 0, 74), (2, 1, 77), (2, 2, 76), (3, 0, 69), (6, 0, 74), (6, 1, 77), (6, 2, 79), (7, 0, 73),
+                         (10, 0, 74), (10, 1, 77), (10, 2, 76), (11, 0, 69), (14, 0, 77), (14, 1, 76), (14, 2, 74), (15, 0, 73)):
+        T.put(piano(m, 2, 1.6), bar * 4 + beat, -9, 0.15)
+    return T.render(1.8, 0.24, -16)
+
+
+def chase_theme():
+    T = Track(156, 16)
+    prog = ["Am", "F", "G", "Em"] * 2 + ["F", "G", "Am", "Am", "F", "G", "A", "A"]
+    roots = {"Am": 45, "F": 41, "G": 43, "Em": 40, "A": 45}
+    for bar, c in enumerate(prog):
+        ch = chords_of([c])[0]
+        b0 = bar * 4
+        r = roots[c]
+        for k in range(8):  # octave-jumping eighths
+            T.put(bass(r + (12 if k % 2 else 0), 0.42 * T.beat, 800), b0 + k * 0.5, -9)
+        for k in range(4):
+            T.put(kick(), b0 + k, -6)
+            T.put(snare(), b0 + k + 0.5, -11 if k % 2 == 0 else -8, 0.1)
+            for e in (0.25, 0.75):
+                T.put(hat(), b0 + k + e, -17, -0.4)
+        if bar % 4 == 0:
+            T.put(crash(), b0, -10, 0.5)
+        arp = [ch[0] + 24, ch[1] + 24, ch[2] + 24, ch[1] + 24]
+        for k in range(8):
+            T.put(piano(arp[k % 4], 2, 0.4), b0 + k * 0.5, -15, -0.3 + 0.2 * (k % 4))
+    for bar, beat, m, d in ((8, 0, 76, 2), (8, 2, 77, 2), (9, 0, 79, 3), (9, 3, 77, 1), (10, 0, 76, 2), (10, 2, 72, 2),
+                            (11, 0, 76, 4), (12, 0, 77, 2), (12, 2, 79, 2), (13, 0, 81, 3), (13, 3, 79, 1), (14, 0, 81, 2),
+                            (14, 2, 83, 2), (15, 0, 81, 4)):
+        T.put(brass(m - 12, d * T.beat * 0.95, 2600), bar * 4 + beat, -8, 0.1)
+    return T.render(1.0, 0.14, -13)
+
+
+def ceremony_theme():
+    T = Track(100, 8)
+    prog = ["C", "F", "G", "C", "Am", "F", "G", "G"]
+    roots = {"C": 36, "F": 41, "G": 43, "Am": 45}
+    for bar, c in enumerate(prog):
+        ch = chords_of([c])[0]
+        b0 = bar * 4
+        T.put(pad([m + 12 for m in ch], 4 * T.beat, 1800), b0, -18, 0.2)
+        T.put(bass(roots[c], 1.8 * T.beat, 420), b0, -9)
+        T.put(bass(roots[c] + 7, 1.8 * T.beat, 420), b0 + 2, -11)
+        T.put(tom(70), b0, -9)  # a timpani hit on each bar: a stately show
+        T.put(tom(70), b0 + 2.5, -14)
+        T.put(snare(), b0 + 3.75, -18, 0.2)
+        for m in ch:  # a held brass chord: the city's proud show
+            T.put(brass(m + 12, 3.6 * T.beat, 1800), b0, -17, -0.2)
+    for bar, beat, m, d in ((0, 0, 72, 1), (0, 1, 76, 1), (0, 2, 79, 2), (1, 0, 77, 1.5), (1, 1.5, 76, 0.5), (1, 2, 74, 2),
+                            (2, 0, 74, 1), (2, 1, 76, 1), (2, 2, 79, 2), (3, 0, 84, 4), (4, 0, 81, 1.5), (4, 1.5, 79, 0.5),
+                            (4, 2, 76, 2), (5, 0, 77, 2), (5, 2, 81, 2), (6, 0, 79, 3), (7, 0, 74, 4)):
+        T.put(brass(m, d * T.beat * 0.94, 2600), bar * 4 + beat, -8, 0.05)
+    if True:
+        T.put(crash(), 0, -14, 0.4)
+    return T.render(2.0, 0.26, -15)
+
+
+def deep_theme():
+    T = Track(70, 8)
+    prog = ["Dm", "Bb", "F", "A"] * 2
+    for bar, c in enumerate(prog):
+        ch = chords_of([c])[0]
+        b0 = bar * 4
+        T.put(pad([m for m in ch] + [ch[0] + 12], 4 * T.beat, 650), b0, -14, -0.3)
+        T.put(pad([ch[1] + 24], 4 * T.beat, 1200), b0, -24, 0.4)
+        for k, m in enumerate((ch[0] + 24, ch[2] + 24, ch[1] + 36)):
+            T.put(piano(m, 1, 3.0), b0 + k * 1.33, -14, -0.4 + 0.4 * k)
+    return T.render(3.4, 0.45, -18)
+
+
+def hq_theme():
+    T = Track(90, 8)
+    prog = ["F", "Em", "Dm", "C"] * 2
+    roots = {"F": 41, "Em": 40, "Dm": 38, "C": 36}
+    for bar, c in enumerate(prog):
+        ch = chords_of([c])[0]
+        b0 = bar * 4
+        for st in (0, 1.5, 2.5):  # soft piano comping
+            for m in ch:
+                T.put(piano(m + 12, 1, 1.2), b0 + st, -13, -0.1)
+        T.put(bass(roots[c], 1.4 * T.beat, 300), b0, -11)
+        T.put(bass(roots[c] + 7, 0.9 * T.beat, 300), b0 + 2.5, -13)
+        T.put(kick(), b0, -15)
+        T.put(kick(), b0 + 2.5, -18)
+        T.put(snare(), b0 + 1, -21, 0.2)
+        T.put(snare(), b0 + 3, -21, 0.2)
+        for k in range(4):
+            T.put(hat(), b0 + k + 0.5, -23, -0.4)
+    for bar, beat, m in ((1, 0, 76), (1, 2, 74), (3, 0, 72), (3, 2, 71), (5, 0, 76), (5, 2, 77), (7, 0, 72)):
+        T.put(piano(m + 12, 2, 1.8), bar * 4 + beat, -12, 0.25)
+    return T.render(1.6, 0.22, -17)
+
+
 def main():
     if len(sys.argv) < 2:
         print("usage: python3 -I art/audio/music.py <download root>")
         return 1
     dsp.ROOT = sys.argv[1]
     tracks = [("patrolDay", patrol_day(), True), ("patrolNight", patrol_night(), True), ("boss", boss_theme(), True),
-              ("victory", victory(), False)]
+              ("victory", victory(), False), ("combat", combat_theme(), True), ("mission", mission_theme(), True),
+              ("chase", chase_theme(), True), ("ceremony", ceremony_theme(), True), ("deep", deep_theme(), True),
+              ("hq", hq_theme(), True)]
     if dsp.MISSING:
         print("music.py: missing", sorted(dsp.MISSING))
         return 1

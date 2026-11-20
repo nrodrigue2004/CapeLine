@@ -1254,4 +1254,58 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+	test("First 30: the music follows what is going on (MusicPlan)", function()
+		local MusicPlan = require("../src/shared/MusicPlan")
+		local M = Config.Audio.music
+		local C = Config.Audio.musicContext
+		local function pick(ctx)
+			return MusicPlan.pick(Config, ctx)
+		end
+		check(
+			pick({}) == "patrolDay" and pick({ night = true }) == "patrolNight",
+			"the patrol loops by day and night"
+		)
+		check(pick({ override = "victory", menu = true }) == "victory", "the intro film's own pick first")
+		check(pick({ menu = true, boss = true }) == C.menu, "the creator and menu are calm")
+		check(pick({ opening = "ceremony" }) == "ceremony", "the Ceremony's fanfare")
+		check(pick({ opening = "chase" }) == "chase" and pick({ opening = "tunnel" }) == "chase", "the chase")
+		check(pick({ opening = "fight" }) == "combat", "the subway fight")
+		check(pick({ boss = true, mission = true }) == "boss", "a live boss near")
+		check(pick({ scene = true, hitAgo = 1 }) == C.scene, "a cutscene")
+		check(pick({ hq = true, hitAgo = 1 }) == "hq", "an HQ")
+		check(pick({ underwater = true }) == "deep", "the deep")
+		check(pick({ mission = true }) == "mission", "a mission between fights")
+		check(pick({ mission = true, hitAgo = 2 }) == "combat", "a fight in a mission")
+		check(pick({ hitAgo = C.combatHold - 0.5 }) == "combat", "a fight in the city")
+		check(pick({ hitAgo = C.combatHold + 1 }) == "patrolDay", "the fight loop lets go after the last hit")
+		check(
+			pick({ hitAgo = C.combatHold + 1, enemyNear = C.enemyRange - 1 }) == "combat",
+			"a robot close holds it"
+		)
+		check(pick({ hitAgo = C.combatNear + 1, enemyNear = 5 }) == "patrolDay", "but not for ever")
+		-- every loop the plan can pick has its spec and a clip in the Music atlas
+		local names =
+			{ "patrolDay", "patrolNight", "boss", C.menu, C.scene, C.hq, C.deep, C.mission, C.combat }
+		for _, v in C.opening do
+			table.insert(names, v)
+		end
+		for _, n in names do
+			check(M[n] ~= nil and Config.AudioClips.clips[M[n].clip] ~= nil, n .. ": a track with a clip")
+		end
+		for step in Config.Audio.musicContext.opening do
+			check(require("../src/shared/OpeningPlan").CODE[step] ~= nil, step .. " is a prologue beat")
+		end
+		for _, step in require("../src/shared/OpeningPlan").STEPS do
+			check(C.opening[step] ~= nil, step .. " has its music")
+		end
+		check(Config.AudioClips.atlases.Music > 0, "the Music atlas is uploaded")
+		-- the runtime path: the device fills the context and AudioController asks the plan
+		local boot = fs.readFile("src/client/init.client.luau")
+		check(
+			string.find(boot, "AudioController.musicContext = function()", 1, true) ~= nil,
+			"the boot fills it"
+		)
+		local ac = fs.readFile("src/client/Controllers/AudioController.luau")
+		check(string.find(ac, "MusicPlan.pick(Config, ctx)", 1, true) ~= nil, "AudioController asks the plan")
+	end)
 end
