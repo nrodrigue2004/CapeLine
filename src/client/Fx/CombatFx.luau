@@ -373,6 +373,21 @@ function CombatFx.word(pos: Vector3, set: string?, color: Color3, big: boolean?)
 	)
 end
 
+-- A comic word of your own over a point (first-30: Fx.KoFx's knockout words), big or small
+function CombatFx.say(pos: Vector3, text: string, color: Color3, big: boolean?)
+	floatText(
+		pos + Vector3.new(0, 3, 0),
+		text,
+		color,
+		Color3.new(0, 0, 0),
+		Enum.Font.Bangers,
+		if big then 2.6 else 1.6,
+		0.9,
+		3,
+		(math.random() - 0.5) * 16
+	)
+end
+
 -- Radial speed lines around a point (Anime)
 local function speedLines(pos: Vector3, scale: number, color: Color3, count: number?)
 	local n = count or (if QualityController.preset.emitters >= 5 then 10 else 7)

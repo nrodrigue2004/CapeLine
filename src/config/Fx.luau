@@ -147,6 +147,17 @@ return {
 		-- (list-combat 2026-11-20) any robot's melee blow: a hot streak `range` studs over `cone` degrees and a fist
 		-- flash, drawn within `near` studs of you, with Config.Audio.impact.whoosh
 		swing = { color = { 255, 150, 110 }, range = 5.5, cone = 100, near = 150 },
+		-- (first-30 2026-11-20) the blow that takes down a robot you hit (Fx.KoFx; elites get FinisherFx instead): a
+		-- `stop` s hit stop, a heavier shake {time, amount}, the heavy thud a little lower, and a big gold word from
+		-- `words` at most every `gap` s (a sweep of many robots shows one); none of it with Reduce flashing on
+		ko = {
+			stop = 0.08,
+			shake = { 0.22, 0.7 },
+			pitch = 0.8,
+			gap = 0.6,
+			color = { 255, 205, 70 },
+			words = { "KO!", "SCRAPPED!", "WRECKED!", "BUSTED!" },
+		},
 		lob = { gravity = 80, size = 0.7, blink = { 4, 16 }, mesh = 1.5 }, -- mesh: the Blender grenade's scale on size
 		zone = { color = { 255, 110, 30 }, core = { 255, 200, 70 }, every = 0.2 },
 		mend = { color = { 80, 240, 140 }, width = 0.25, packet = 0.3 },

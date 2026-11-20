@@ -958,4 +958,114 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+
+	test(
+		"First 30: a robot you take down is the big blow (hit stop, heavy shake, low thud, a gold KO word)",
+		function()
+			if not T.placePath then
+				return
+			end
+			local sim, UiSim = newSim()
+			local cam = sim.service("Workspace").CurrentCamera
+			cam.CFrame = roblox.CFrame.new(0, 5, 10)
+			local char = UiSim.newInstance("Model")
+			local root = UiSim.newInstance("Part")
+			root.Name = "HumanoidRootPart"
+			root.CFrame = roblox.CFrame.new(0, 3, 0)
+			root.Position = roblox.Vector3.new(0, 3, 0)
+			root.Parent = char
+			char.Parent = sim.workspace
+			sim.player.Character = char
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local Combat = sim:require("Client.Controllers.CombatClient")
+			sim:run("CombatClient", Combat.init)
+			local KoFx = sim:require("Client.Fx.KoFx")
+			sim:run("KoFx", KoFx.init)
+			local Audio = sim:require("Client.Controllers.AudioController")
+			local Camera = sim:require("Client.Controllers.CameraController")
+			local Anim = sim:require("Client.Controllers.HeroAnimator")
+			local shakes, thuds, stops = {}, 0, 0
+			local realShake, realPlay, realFreeze = Camera.shake, Audio.playSpec, Anim.freeze
+			Camera.shake = function(t, a)
+				table.insert(shakes, a)
+				return realShake(t, a)
+			end
+			Audio.playSpec = function(spec, at, opts, ...)
+				if opts and opts.pitch and spec.fallback == Config.Audio.impact.heavy.fallback then
+					thuds += 1
+				end
+				return realPlay(spec, at, opts, ...)
+			end
+			Anim.freeze = function(sec)
+				stops += 1
+				return realFreeze(sec)
+			end
+			local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+			local function die(id: number, typeId: number, by: number)
+				sim:run("die", function()
+					remotes
+						:WaitForChild("CombatEvents").OnClientEvent
+						:Fire({ { 3, id, 0, 3, -12, typeId, by } })
+				end)
+			end
+			local function words(): { string }
+				local out = {}
+				for _, d in sim.workspace:GetDescendants() do
+					if d:IsA("TextLabel") then
+						for _, w in Config.Fx.robots.ko.words do
+							if d.Text == w then
+								table.insert(out, w)
+							end
+						end
+					end
+				end
+				return out
+			end
+			local grunt = Config.Enemies.BurglarBot.typeId
+			die(901, grunt, sim.player.UserId + 1)
+			check(#words() == 0 and thuds == 0 and stops == 0, "another hero's kill adds nothing of yours")
+			die(902, grunt, sim.player.UserId)
+			check(#words() == 1, "a gold KO word over it (" .. table.concat(words(), ",") .. ")")
+			check(thuds == 1, "the low heavy thud (" .. thuds .. ")")
+			check(stops == 1, "a hit stop on your own hero")
+			local big = 0
+			for _, a in shakes do
+				big = math.max(big, a)
+			end
+			check(big >= Config.Fx.robots.ko.shake[2], "a heavy shake (" .. big .. ")")
+			-- a sweep: three down at once show one word, every one still thuds once the sound's gap allows
+			die(903, grunt, sim.player.UserId)
+			die(904, grunt, sim.player.UserId)
+			check(#words() == 1, "one word for a sweep")
+			-- an elite gets FinisherFx's slow-mo, not this
+			local eliteType
+			for _, e in Config.Enemies do
+				if type(e) == "table" and e.elite and e.typeId then
+					eliteType = e.typeId
+				end
+			end
+			if eliteType then
+				sim:advance(1)
+				local before = #words()
+				die(905, eliteType, sim.player.UserId)
+				check(#words() == before, "an elite's knockout is FinisherFx's")
+			end
+			-- Reduce flashing: no stop or shake, the word and the sound stay
+			Camera.reduceMotion = true
+			sim:advance(1)
+			local s0, n0 = stops, #shakes
+			die(906, grunt, sim.player.UserId)
+			check(stops == s0, "no hit stop with Reduce flashing")
+			local extra = 0
+			for i = n0 + 1, #shakes do
+				if shakes[i] >= Config.Fx.robots.ko.shake[2] then
+					extra += 1
+				end
+			end
+			check(extra == 0, "no heavy shake with Reduce flashing")
+			Camera.reduceMotion = false
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 end
