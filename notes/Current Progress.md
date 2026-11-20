@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 first-30: the Ceremony crowd cheers, claps and gasps on whole-body clips; the next mission with START on the HUD after the prologue; Patch flags level 5's power slot and move training; level-up unlocks read the real config; the scan lock beeps. Studio 97-100.
 - 2026-11-20 playtest-gaps18: gaps17 + torn wall edges with rebar, petals, prologue kid and shover dressed, logo slam title card, break targets jolt and burst.
 - 2026-11-20 playtest-gaps17: gaps16 + feathered wings, Interceptor net and Grappler claw, cage lances, hex plates, snowflakes, psi gems, ring pieces, robot scrap.
 - 2026-11-20 playtest-gaps16: gaps15 + prologue barrier mesh, robot shot streaks, shockwave rings, crater scorch, halo and spin hoops, glassy shatter stones, repair beams, Bomber flame rim.
