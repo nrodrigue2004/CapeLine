@@ -17,6 +17,7 @@ export type Key = {
 	step: number?,
 	default: number,
 	unit: string?,
+	codes: { [number]: boolean }?, -- kind "bind": the key numbers it may take (0: the default key)
 }
 
 local function bounds(k: Key): (number, number, number)
@@ -35,6 +36,9 @@ function SettingsRules.value(k: Key, v: any): number?
 	end
 	if type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge then
 		return nil
+	end
+	if k.kind == "bind" then
+		return if v == 0 or (k.codes and k.codes[v]) then v else nil
 	end
 	local lo, hi, step = bounds(k)
 	local snapped = lo + math.floor((v - lo) / step + 0.5) * step
@@ -84,6 +88,19 @@ function SettingsRules.set(Config: any, s: { [string]: number }, index: number, 
 	end
 	s[k.id] = ok
 	return true
+end
+
+-- The PC key binds in force (list-combat, Everything Left 140): action -> key name, the defaults with each saved
+-- bind over them; an action rebound to a key another action had takes it (that action keeps its other keys)
+function SettingsRules.binds(Config: any, s: { [string]: number }): { [string]: string }
+	local out = {}
+	for _, b in Config.Settings.binds do
+		local v = s["bind_" .. b.action] or 0
+		out[b.action] = if v ~= 0 and Config.Settings.bindNames[v]
+			then Config.Settings.bindNames[v]
+			else b.key
+	end
+	return out
 end
 
 -- Add or remove a muted user id; the oldest drop off past the cap. Returns the list.

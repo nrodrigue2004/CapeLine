@@ -10,16 +10,19 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local PromoRules = require(Shared:WaitForChild("PromoRules"))
+local SettingsRules = require(Shared:WaitForChild("SettingsRules"))
 
 local Kit = require(script.Parent.Kit)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local InputController = require(script.Parent.Parent.Controllers.InputController)
 
 local SettingsMenu = {}
 
@@ -360,6 +363,134 @@ function SettingsMenu.promoResult(r: { [string]: any })
 	end
 end
 
+-- KEYS (PC, list-combat, Everything Left 140): each action's key; tap it, then press the new key. A key another
+-- rebindable action uses swaps with it; a key a fixed action uses (MAP, GEAR...) or Roblox's own is refused.
+local S = Config.Settings
+local listening: string? = nil -- the action waiting for a key
+local keyNote: string? = nil
+local listenConn: RBXScriptConnection? = nil
+
+local function keyLabel(name: string): string
+	return string.upper(S.bindLabels[name] or name)
+end
+
+local function stopListening()
+	listening = nil
+	if listenConn then
+		listenConn:Disconnect()
+		listenConn = nil
+	end
+end
+
+local function rebind(action: string, keyName: string)
+	local now = SettingsRules.binds(Config, SettingsClient.values)
+	local mine = now[action]
+	if keyName == mine then
+		return
+	end
+	local code = S.bindable[keyName]
+	if not code then
+		keyNote = keyLabel(keyName)
+			.. " can't be used. Pick a letter, a number, Space, Shift, Ctrl, Caps or Tab."
+		return
+	end
+	-- who has it now: a fixed action keeps it; another rebindable action swaps keys with this one
+	local holder = InputController.actionOf((Enum.KeyCode :: any)[keyName])
+	if holder and not now[holder] then
+		keyNote = string.format("%s is %s's key. Pick another.", keyLabel(keyName), string.upper(holder))
+		return
+	end
+	for other, name in now do
+		if name == keyName and other ~= action then
+			SettingsClient.set("bind_" .. other, S.bindable[mine] or 0)
+			keyNote = string.format("Swapped: %s is on %s now.", other, keyLabel(mine))
+		end
+	end
+	local default = nil
+	for _, b in S.binds do
+		if b.action == action then
+			default = b.key
+		end
+	end
+	SettingsClient.set("bind_" .. action, if keyName == default then 0 else code)
+end
+
+local function keyRows()
+	if not UserInputService.KeyboardEnabled then
+		return -- touch and gamepad have no keys to bind
+	end
+	order += 1
+	local h = Kit.label({
+		Text = "KEYS (PC)",
+		Size = UDim2.new(1, -8, 0, 30),
+		LayoutOrder = order,
+		TextColor3 = Kit.color.gold,
+		maxText = 24,
+	})
+	h.Parent = body
+	if keyNote then
+		order += 1
+		local n = Kit.label({
+			Text = keyNote,
+			Size = UDim2.new(1, -8, 0, 26),
+			LayoutOrder = order,
+			TextColor3 = Kit.color.paper,
+			Font = Kit.bodyFont,
+			maxText = 14,
+		})
+		n.Parent = body
+	end
+	local now = SettingsRules.binds(Config, SettingsClient.values)
+	for _, b in S.binds do
+		local f = rowFrame()
+		label(f, b.name)
+		local waiting = listening == b.action
+		local btn = Kit.button({
+			Text = if waiting then "PRESS A KEY..." else keyLabel(now[b.action]),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Size = UDim2.new(0.42, 0, 0, T - 8),
+			Position = UDim2.new(1, -6, 0.5, 0),
+			BackgroundColor3 = if waiting then Kit.color.gold else Kit.color.paper,
+			maxText = 20,
+		}, function()
+			stopListening()
+			listening = b.action
+			keyNote = nil
+			listenConn = UserInputService.InputBegan:Connect(function(input)
+				if input.UserInputType ~= Enum.UserInputType.Keyboard then
+					return
+				end
+				local action = listening
+				stopListening()
+				if action and input.KeyCode ~= Enum.KeyCode.Escape then
+					rebind(action, input.KeyCode.Name)
+				end
+				draw()
+			end)
+			draw()
+		end)
+		btn.Parent = f
+	end
+	local f = rowFrame()
+	label(f, "Every key back to its default")
+	local reset = Kit.button({
+		Text = "RESET KEYS",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Size = UDim2.new(0.42, 0, 0, T - 8),
+		Position = UDim2.new(1, -6, 0.5, 0),
+		BackgroundColor3 = Kit.color.paper,
+		maxText = 20,
+	}, function()
+		stopListening()
+		for _, b in S.binds do
+			SettingsClient.set("bind_" .. b.action, 0)
+		end
+		keyNote = "Every key is back to its default."
+		draw()
+	end)
+	reset.Parent = f
+end
+
 draw = function()
 	if not gui.Enabled then
 		return
@@ -367,8 +498,11 @@ draw = function()
 	local y = body.CanvasPosition
 	clear()
 	for _, k in Config.Settings.keys do
-		settingRow(k)
+		if k.kind ~= "bind" then
+			settingRow(k)
+		end
 	end
+	keyRows()
 	muteRows()
 	promoRows()
 	body.CanvasPosition = y
@@ -383,6 +517,7 @@ function SettingsMenu.open()
 end
 
 function SettingsMenu.close()
+	stopListening()
 	gui.Enabled = false
 end
 

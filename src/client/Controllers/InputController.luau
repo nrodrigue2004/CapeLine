@@ -156,6 +156,37 @@ InputController.hints = {
 	LockCycle = "Tab",
 }
 
+-- PC key rebinds (list-combat, Everything Left 140; Settings > KEYS): the default keyboard keys, then each
+-- rebound action moved to its new key (SettingsRules.binds); the HUD's key hints follow
+local DEFAULT_KEYS: { [Enum.KeyCode]: string } = table.clone(KEYS)
+local DEFAULT_HINTS = table.clone(InputController.hints)
+function InputController.applyBinds(binds: { [string]: string })
+	table.clear(KEYS)
+	for k, a in DEFAULT_KEYS do
+		KEYS[k] = a
+	end
+	for action, hint in DEFAULT_HINTS do
+		InputController.hints[action] = hint
+	end
+	local labels = Config.Settings.bindLabels
+	-- first free every rebound action's default key, then put each on its own (so two actions can swap)
+	for _, b in Config.Settings.binds do
+		if binds[b.action] and binds[b.action] ~= b.key then
+			local old = (Enum.KeyCode :: any)[b.key]
+			if KEYS[old] == b.action then
+				KEYS[old] = nil
+			end
+		end
+	end
+	for _, b in Config.Settings.binds do
+		local name = binds[b.action]
+		if name and name ~= b.key then
+			KEYS[(Enum.KeyCode :: any)[name]] = b.action
+			InputController.hints[b.action] = labels[name] or name
+		end
+	end
+end
+
 -- The action a key or pad button is bound to, or nil (fix-flow, 2026-11-19: the prologue's quick-time prompts
 -- read keys while the hero's controls rest)
 function InputController.actionOf(key: Enum.KeyCode): string?

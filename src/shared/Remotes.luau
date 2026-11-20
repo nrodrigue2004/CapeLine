@@ -313,7 +313,7 @@ local Remotes: { [string]: RemoteDef } = {
 	LandingSet = { dir = "C2S", schema = { n(0, 31) }, rate = 1, burst = 3 }, -- an owned landing pose, 0 none
 	EmotePlay = { dir = "C2S", schema = { n(1, 31) }, rate = 1, burst = 2 }, -- an owned emote or landing pose
 	-- M10: settings (spec: Settings.Set {key, value} 2/s) and the saved mute list
-	SettingsSet = { dir = "C2S", schema = { n(1, 16), n(0, 1000) }, rate = 2, burst = 6 },
+	SettingsSet = { dir = "C2S", schema = { n(1, 64), n(0, 1000) }, rate = 2, burst = 20 }, -- 64 keys and a burst for RESET KEYS (list-combat)
 	SettingsMute = { dir = "C2S", schema = { n(1, 2 ^ 52), n(0, 1) }, rate = 2, burst = 4 }, -- user id, on
 	-- M10: squads (spec: Squad.Invite, Squad.Accept, Squad.Leave {userId or squadId} 1/s, Squad.State)
 	SquadInvite = { dir = "C2S", schema = { n(1, 2 ^ 52) }, rate = 1, burst = 3 }, -- user id

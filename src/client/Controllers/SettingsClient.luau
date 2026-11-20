@@ -94,6 +94,8 @@ local function apply(id: string)
 		Popups.setMode(v) -- fix-hud: All, Important only, Off (Config.Ui.popups.modes)
 	elseif id == "buttonSize" then
 		Kit.setButtonScale(v / 100) -- the touch cluster's size (TouchLayout keeps it on screen)
+	elseif string.sub(id, 1, 5) == "bind_" then
+		InputController.applyBinds(SettingsRules.binds(Config, SettingsClient.values)) -- PC key rebinds
 	end
 	SettingsClient.Changed:Fire(id, v)
 end

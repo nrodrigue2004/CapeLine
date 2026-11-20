@@ -650,4 +650,64 @@ return function(T: any)
 			check(Config.Fx.lib.kinds[kind] ~= nil, kind .. " is a library kind")
 		end
 	end)
+
+	test("List combat: PC keys can be rebound and are saved", function()
+		local SettingsRules = require("../src/shared/SettingsRules")
+		local roblox = require("@lune/roblox")
+		local S = Config.Settings
+		-- every bindable key's saved number is Roblox's own KeyCode value
+		for name, n in S.bindable do
+			local ok, code = pcall(function()
+				return (roblox.Enum.KeyCode :: any)[name]
+			end)
+			check(ok and code and code.Value == n, name .. " is KeyCode " .. n)
+		end
+		for _, bad in { "Escape", "Return", "Backspace", "Slash", "F9", "LeftAlt" } do
+			check(S.bindable[bad] == nil, bad .. " can't be bound")
+		end
+		-- every bind's default key is a bindable one and the action is the one InputController maps it to
+		local input = fs.readFile("src/client/Controllers/InputController.luau")
+		for _, b in S.binds do
+			check(S.bindable[b.key] ~= nil, b.action .. "'s default is bindable")
+			check(
+				string.find(input, "[Enum.KeyCode." .. b.key .. '] = "' .. b.action .. '"', 1, true) ~= nil,
+				b.action .. " is on " .. b.key .. " today"
+			)
+		end
+		check(#S.keys <= 64, "the Settings.Set key number fits the remote")
+		-- the save: defaults, a valid rebind, a refused one, and the binds in force
+		local s = SettingsRules.defaults(Config)
+		local function idx(id: string): number
+			for i, k in S.keys do
+				if k.id == id then
+					return i
+				end
+			end
+			return -1
+		end
+		check(SettingsRules.binds(Config, s).Leap == "Space", "Leap is Space by default")
+		check(SettingsRules.set(Config, s, idx("bind_Leap"), S.bindable.E), "Leap to E is saved")
+		check(SettingsRules.binds(Config, s).Leap == "E", "Leap is on E")
+		check(not SettingsRules.set(Config, s, idx("bind_Fly"), 27), "Escape (27) is refused")
+		check(not SettingsRules.set(Config, s, idx("bind_Fly"), 98.5), "a non-key number is refused")
+		local cleaned = SettingsRules.clean(Config, { bind_Boost = 999, bind_Down = S.bindable.Q })
+		check(cleaned.bind_Boost == 0 and cleaned.bind_Down == S.bindable.Q, "an old save cleans")
+		local remotes = fs.readFile("src/shared/Remotes.luau")
+		check(
+			string.find(remotes, 'SettingsSet = { dir = "C2S", schema = { n(1, 64)', 1, true) ~= nil,
+			"64 keys"
+		)
+		local menu = fs.readFile("src/client/Ui/SettingsMenu.luau")
+		check(string.find(menu, "keyRows()", 1, true) ~= nil, "the KEYS rows draw")
+		local sc = fs.readFile("src/client/Controllers/SettingsClient.luau")
+		check(
+			string.find(
+				sc,
+				"InputController.applyBinds(SettingsRules.binds(Config, SettingsClient.values))",
+				1,
+				true
+			) ~= nil,
+			"applied"
+		)
+	end)
 end

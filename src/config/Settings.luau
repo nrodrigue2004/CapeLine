@@ -1,10 +1,13 @@
+-- (list-combat 2026-11-20, Everything Left 140) the PC key rebinds: `binds` (each action's own key) and the keys
+-- a player may pick, by name with a fixed number each (the saved value; 0 = the default key). One Settings key
+-- per bind ("bind_<action>", kind "bind") is added after the list below, so the old key numbers stay.
 -- Settings (spec: Screens and UI; Accessibility "Text size 100% to 160%, colorblind-safe markers, reduce
 -- flashing, left-handed layout, controller support. Auto-aim on phones, optional tap-to-fly-to-marker,
 -- one-hand flight mode"; save "Graphics preset, text size, left-handed, reduce flashing, mute list";
 -- remote Settings.Set {key, value}). Saved per account; the device applies them at once.
 -- keys: index order is the Settings.Set key number. kind "choice" lists its options, "toggle" is 0 or 1,
 -- "range" is lo to hi in steps.
-return {
+local Settings = {
 	keys = {
 		{
 			id = "preset",
@@ -80,4 +83,72 @@ return {
 	},
 	maxMutes = 50, -- muted players kept on the save (user ids)
 	sendDelay = 0.6, -- seconds the device waits after the last change before sending (a slider drag sends once)
+	binds = {
+		{ action = "Leap", name = "Leap", key = "Space" },
+		{ action = "Fly", name = "Fly", key = "F" },
+		{ action = "Boost", name = "Boost", key = "LeftShift" },
+		{ action = "Down", name = "Down", key = "LeftControl" },
+		{ action = "Block", name = "Block", key = "Q" },
+		{ action = "Skill1", name = "Skill 1", key = "Z" },
+		{ action = "Skill2", name = "Skill 2", key = "X" },
+		{ action = "Skill3", name = "Skill 3", key = "C" },
+		{ action = "Skill4", name = "Skill 4", key = "V" },
+		{ action = "Super", name = "Super", key = "G" },
+		{ action = "Awaken", name = "Awaken", key = "Y" },
+		{ action = "HoldPower", name = "Hold power", key = "One" },
+		{ action = "HoldWeapon", name = "Hold weapon", key = "Two" },
+		{ action = "Gadget", name = "Gadget", key = "Three" },
+		{ action = "Emote", name = "Emotes", key = "H" },
+	},
+	bindable = {}, -- filled below: key name -> its saved number
+	bindNames = {}, -- and back
+	bindLabels = { -- how a key shows on a button (letters and digits show as themselves)
+		Space = "Space",
+		LeftShift = "Shift",
+		RightShift = "R-Shift",
+		LeftControl = "Ctrl",
+		RightControl = "R-Ctrl",
+		CapsLock = "Caps",
+		Tab = "Tab",
+		Zero = "0",
+		One = "1",
+		Two = "2",
+		Three = "3",
+		Four = "4",
+		Five = "5",
+		Six = "6",
+		Seven = "7",
+		Eight = "8",
+		Nine = "9",
+	},
 }
+
+-- the keys a bind may use: the letters, the digits, Space, Shift, Ctrl, Caps Lock and Tab (never Escape, Enter,
+-- Backspace, the slash or Roblox's own keys); numbers are Roblox's KeyCode values, fixed here for the save
+local codes: { [number]: boolean } = {}
+local function allow(name: string, n: number)
+	Settings.bindable[name] = n
+	Settings.bindNames[n] = name
+	codes[n] = true
+end
+for i = 0, 25 do
+	allow(string.char(65 + i), 97 + i)
+end
+for i, name in { "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" } do
+	allow(name, 47 + i)
+end
+allow("Space", 32)
+allow("Tab", 9)
+allow("CapsLock", 301)
+allow("RightShift", 303)
+allow("LeftShift", 304)
+allow("RightControl", 305)
+allow("LeftControl", 306)
+for _, b in Settings.binds do
+	table.insert(
+		Settings.keys,
+		{ id = "bind_" .. b.action, name = b.name .. " key", kind = "bind", default = 0, codes = codes }
+	)
+end
+
+return Settings

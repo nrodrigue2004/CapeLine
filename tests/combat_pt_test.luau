@@ -303,7 +303,7 @@ return function(T: any)
 			idx[k.id] = i
 		end
 		check(idx.softLock == 14 and idx.hardLock == 15, "appended after Camera motion")
-		check(#Config.Settings.keys <= 16, "inside Settings.Set's range")
+		check(#Config.Settings.keys <= 64, "inside Settings.Set's range")
 		local d = SettingsRules.defaults(Config)
 		check(d.softLock == 1 and d.hardLock == 1, "both on (nate: both)")
 		local sc = fs.readFile("src/client/Controllers/SettingsClient.luau")

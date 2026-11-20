@@ -11535,7 +11535,7 @@ do
 				"Guide radio, on by default"
 			)
 			-- (keys only ever append: lore step 7's Camera motion came after it, so its index stays 12)
-			check(idx == 12 and #Config.Settings.keys <= 16, "its own key, inside Settings.Set's range")
+			check(idx == 12 and #Config.Settings.keys <= 64, "its own key, inside Settings.Set's range")
 			check(SettingsRules.defaults(Config).guideRadio == 1, "the save's default")
 			local cli = clientSources()["src/client/Controllers/GuideClient.luau"]
 			check(
