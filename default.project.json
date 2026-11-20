@@ -66,6 +66,7 @@
         "Gadget": { "$path": "art/models/Gadget.rbxm" },
         "Tether": { "$path": "art/models/Tether.rbxm" },
         "SideGear": { "$path": "art/models/SideGear.rbxm" },
+        "Roof": { "$path": "art/models/Roof.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },

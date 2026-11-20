@@ -384,8 +384,9 @@ end
 -- side of the strip). The middle of every roof stays clear for landing; what stands is solid and low (AC
 -- units, tanks, skylights, a hatch, the posts) and what is only decoration is walk-through (the billboard's
 -- face, the washing line). The AC units are the street kit's RoofAC meshes and the billboard's face carries a
--- printed ad (list-combat 2026-11-20, Everything Left 268, 269); the tanks, hatch, skylights and washing line are
--- PLACEHOLDER ART: plain boxes in the city palette until the kit gets rooftop meshes for them.
+-- printed ad (list-combat 2026-11-20, Everything Left 268, 269), and the tanks, hatch, skylights, poles and washing
+-- are Art.Roof's meshes (art/blender/rooftop.py, the same day); the washing line itself stays a thin part (its
+-- length is the roof's). Each box stays until its meshes are imported.
 local ROW_DRESS: { [string]: { { any } } } = {
 	-- { kind, u, u studs, v, du, dy, dv, y (its foot above the roof), color, shape?, ghost? }: u and v are -1
 	-- to 1 across the roof's free half width and half depth (u plus a stud offset); sizes in studs, and a
@@ -395,10 +396,10 @@ local ROW_DRESS: { [string]: { { any } } } = {
 		{ "prop", -1, 0, 1, 4, 3, 5, 0, "steel", nil, nil, "RoofAC", 90 },
 		{ "prop", -1, 5, 1, 4, 3, 5, 0, "steel", nil, nil, "RoofAC", 90 },
 	},
-	hatch = { { "prop", 1, 0, -1, 4, 2.5, 4, 0, "roof" } },
+	hatch = { { "prop", 1, 0, -1, 4, 2.5, 4, 0, "roof", nil, nil, "RoofHatch", 0 } },
 	tank = {
-		{ "prop", -1, 0, 1, 8, 2, 8, 0, "steel" },
-		{ "prop", -1, -0.5, 1, 7, 10, 7, 2, "wood", "cylinder" },
+		{ "prop", -1, 0, 1, 8, 2, 8, 0, "steel", nil, nil, "RoofTankStand", 0 },
+		{ "prop", -1, -0.5, 1, 7, 10, 7, 2, "wood", "cylinder", nil, "RoofTank", 0 },
 	},
 	billboard = {
 		{ "prop", -1, 3, -1, 1, 15, 1, 0, "steel" },
@@ -406,16 +407,16 @@ local ROW_DRESS: { [string]: { { any } } } = {
 		{ "prop", 0, 0, -1, -2, 9, 0.6, 5.5, "white", nil, true, nil, nil, true },
 	},
 	skylights = {
-		{ "prop", -0.5, 0, 0.5, 6, 1.2, 8, 0, "glass" },
-		{ "prop", 0.5, 0, 0.5, 6, 1.2, 8, 0, "glass" },
+		{ "prop", -0.5, 0, 0.5, 6, 1.2, 8, 0, "glass", nil, nil, "RoofSkylight", 0 },
+		{ "prop", 0.5, 0, 0.5, 6, 1.2, 8, 0, "glass", nil, nil, "RoofSkylight", 0 },
 	},
 	laundry = {
-		{ "prop", -1, 2, 0.82, 0.6, 7, 0.6, 0, "steel" },
-		{ "prop", 1, -2, 0.82, 0.6, 7, 0.6, 0, "steel" },
+		{ "prop", -1, 2, 0.82, 0.6, 7, 0.6, 0, "steel", nil, nil, "LaundryPole", 0 },
+		{ "prop", 1, -2, 0.82, 0.6, 7, 0.6, 0, "steel", nil, nil, "LaundryPole", 0 },
 		{ "prop", 0, 0, 0.82, -6.6, 0.2, 0.2, 6.6, "white", nil, true },
-		{ "prop", -0.45, 0, 0.82, 2.4, 3, 0.2, 3.6, "white", nil, true },
-		{ "prop", 0, 0, 0.82, 2.4, 3, 0.2, 3.6, "roofRed", nil, true },
-		{ "prop", 0.45, 0, 0.82, 2.4, 3, 0.2, 3.6, "roofBlue", nil, true },
+		{ "prop", -0.45, 0, 0.82, 2.4, 3, 0.2, 3.6, "white", nil, true, "LaundrySheet", 0 },
+		{ "prop", 0, 0, 0.82, 2.4, 3, 0.2, 3.6, "roofRed", nil, true, "LaundryShirt", 0 },
+		{ "prop", 0.45, 0, 0.82, 2.4, 3, 0.2, 3.6, "roofBlue", nil, true, "LaundryTowel", 0 },
 	},
 }
 

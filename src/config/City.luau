@@ -643,6 +643,83 @@ return {
 					ACFan = { { 70, 74, 80 }, "Metal", false },
 				},
 			},
+			-- the rooftop row's dressing (Everything Left 268, 2026-11-20: art/blender/rooftop.py, Art.Roof,
+			-- Config.RoofArt), named by Shared.CityLayout's ROW_DRESS, never picked for streets
+			RoofTankStand = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 8, 8, 0 },
+				pieces = { TankStand = { { 150, 156, 162 }, "Metal", true } },
+			},
+			RoofTank = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 7, 7, 0 },
+				pieces = {
+					TankStaves = { { 150, 104, 62 }, "Wood", true },
+					TankHoops = { { 60, 64, 72 }, "Metal", false },
+					TankRoof = { { 90, 80, 72 }, "Slate", true },
+				},
+			},
+			RoofHatch = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 4, 4, 0 },
+				pieces = {
+					HatchHousing = { { 176, 168, 156 }, "Concrete", true },
+					HatchDoor = { { 70, 110, 90 }, "Metal", false },
+				},
+			},
+			RoofSkylight = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 6, 8, 0 },
+				pieces = {
+					SkylightFrame = { { 60, 64, 72 }, "Metal", true },
+					SkylightGlass = { { 170, 215, 235 }, "Glass", false, 0.35 },
+				},
+			},
+			LaundryPole = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 0.6, 0.6, 0 },
+				pieces = { LaundryPole = { { 150, 156, 162 }, "Metal", true } },
+			},
+			LaundryShirt = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 2.4, 0.2, 0 },
+				pieces = {
+					LaundryShirt = { { 200, 70, 60 }, "Fabric", false },
+					LaundryShirtPegs = { { 230, 210, 150 }, "Wood", false },
+				},
+			},
+			LaundrySheet = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 2.4, 0.2, 0 },
+				pieces = {
+					LaundrySheet = { { 240, 240, 236 }, "Fabric", false },
+					LaundrySheetPegs = { { 230, 210, 150 }, "Wood", false },
+				},
+			},
+			LaundryTowel = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 2.4, 0.2, 0 },
+				pieces = {
+					LaundryTowel = { { 70, 120, 200 }, "Fabric", false },
+					LaundryTowelBands = { { 245, 245, 245 }, "Fabric", false },
+				},
+			},
 			RoofVent = {
 				tier = 1,
 				server = true,

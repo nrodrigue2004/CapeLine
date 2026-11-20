@@ -294,6 +294,13 @@
   "turned": 38,
   "verdict": "rotY180"
  },
+ "Roof": {
+  "asDrawn": 9,
+  "either": 9,
+  "meshes": 15,
+  "turned": 15,
+  "verdict": "rotY180"
+ },
  "Rubble": {
   "asDrawn": 0,
   "either": 0,

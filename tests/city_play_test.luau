@@ -282,8 +282,14 @@ return function(T: any)
 					for piece in def.pieces do
 						check(
 							-- (the living world's shop fronts are Art.Life meshes: Config.LifeArt, 2026-11-19)
-							(Config.StreetArt[a.name] or Config.LifeArt[a.name])
-								and (Config.StreetArt[a.name] or Config.LifeArt[a.name])[piece] ~= nil,
+							-- (the rooftop row's dressing is Art.Roof: Config.RoofArt, 2026-11-20)
+							(Config.StreetArt[a.name] or Config.RoofArt[a.name] or Config.LifeArt[a.name])
+								and (
+										Config.StreetArt[a.name]
+										or Config.RoofArt[a.name]
+										or Config.LifeArt[a.name]
+									)[piece]
+									~= nil,
 							a.name .. "." .. piece .. " has a mesh"
 						)
 					end
@@ -298,9 +304,11 @@ return function(T: any)
 							local fz = math.abs(a.z - body.cz) - body.sz / 2
 							ok = ok and (math.abs(fx) < 0.01 or math.abs(fz) < 0.01)
 						else
-							-- on its own roof, inside its footprint
+							-- on its own roof, inside its footprint (the row's water tank stands on its stand, 2 up, and
+							-- the washing hangs 3.6 up: Art.Roof, 2026-11-20)
 							ok = ok
-								and math.abs(a.y - top) < 0.01
+								and a.y > top - 0.01
+								and a.y < top + 3.61
 								and math.abs(a.x - body.cx) <= body.sx / 2
 								and math.abs(a.z - body.cz) <= body.sz / 2
 						end
@@ -498,9 +506,10 @@ return function(T: any)
 		for name, def in K.props do
 			for piece, look in def.pieces do
 				check(
-					(Config.StreetArt[name] or Config.LifeArt[name])
-						and (Config.StreetArt[name] or Config.LifeArt[name])[piece] ~= nil,
-					name .. "." .. piece .. " in StreetArt (or LifeArt)"
+					(Config.StreetArt[name] or Config.RoofArt[name] or Config.LifeArt[name])
+						and (Config.StreetArt[name] or Config.RoofArt[name] or Config.LifeArt[name])[piece]
+							~= nil,
+					name .. "." .. piece .. " in StreetArt (or RoofArt or LifeArt)"
 				)
 				check(look[5] == nil or look[5] == true, name .. "." .. piece .. " tint flag")
 			end

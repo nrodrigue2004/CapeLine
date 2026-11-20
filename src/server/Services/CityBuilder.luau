@@ -261,6 +261,11 @@ local function streetMesh(piece: string): MeshPart?
 		local root = art and art:FindFirstChild("Street")
 		local src = root and root:FindFirstChild(piece, true)
 		if not (src and src:IsA("MeshPart")) then
+			-- the rooftop row's dressing (art/blender/rooftop.py, Everything Left 268)
+			local roof = art and art:FindFirstChild("Roof")
+			src = roof and roof:FindFirstChild(piece, true)
+		end
+		if not (src and src:IsA("MeshPart")) then
 			-- the living world's foot looks (shop fronts: art/blender/life.py)
 			local life = art and art:FindFirstChild(Config.Life.set)
 			src = life and life:FindFirstChild(piece, true)
@@ -295,7 +300,7 @@ end
 local function streetArt(b: any): { BasePart }?
 	local a = b.art
 	local def = a and KIT.props[a.name]
-	local fit = a and (STREET_FIT[a.name] or Config.LifeArt[a.name])
+	local fit = a and (STREET_FIT[a.name] or Config.RoofArt[a.name] or Config.LifeArt[a.name])
 	if not (def and fit) then
 		return nil
 	end
