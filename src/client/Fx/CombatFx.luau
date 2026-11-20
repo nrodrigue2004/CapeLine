@@ -3912,11 +3912,29 @@ local function net(pos: Vector3, vel: Vector3, speed: number)
 		{ Vector3.zero, Vector3.new(0.1, n.size, 0.1) },
 	}
 	local parts = {}
-	for _, b in bars do
-		local p = part(b[2], CFrame.new(pos), color)
-		p.Transparency = 0.15
-		table.insert(parts, p)
+	-- the Blender net (Art.Powers Net: woven glowing cords and corner weights, 2026-11-20) when imported
+	local woven: { { p: BasePart, size: Vector3, offset: Vector3 } }? = nil
+	if PowerMeshes.ready("Net") then
+		woven = {}
+		for name, m in Config.PowerArt.Net do
+			local mp = powerMesh(name, Vector3.one, if m.mat == "Neon" then color else rgb(m.color), 0.1)
+			if mp then
+				mp.Material = if m.mat == "Neon" then Enum.Material.Neon else Enum.Material.Metal
+				table.insert(woven :: any, {
+					p = mp,
+					size = Vector3.new(m.size[1], m.size[2], m.size[3]),
+					offset = Vector3.new(m.offset[1], m.offset[2], m.offset[3]),
+				})
+			end
+		end
+	else
+		for _, b in bars do
+			local p = part(b[2], CFrame.new(pos), color)
+			p.Transparency = 0.15
+			table.insert(parts, p)
+		end
 	end
+	local turn = MeshFix.turn("Powers")
 	local life = math.min(1.6, 100 / speed)
 	local t = 0
 	local conn: RBXScriptConnection
@@ -3927,6 +3945,9 @@ local function net(pos: Vector3, vel: Vector3, speed: number)
 			for _, p in parts do
 				p:Destroy()
 			end
+			for _, w in woven or {} do
+				w.p:Destroy()
+			end
 			return
 		end
 		local open = math.clamp(t / 0.15, 0.3, 1)
@@ -3934,6 +3955,11 @@ local function net(pos: Vector3, vel: Vector3, speed: number)
 		local cf = CFrame.lookAt(at, at + vel) * CFrame.Angles(0, 0, t * n.spin)
 		for i, p in parts do
 			p.CFrame = cf * CFrame.new(bars[i][1] * open)
+		end
+		local k = half * open -- the net is drawn 2 across
+		for _, w in woven or {} do
+			w.p.Size = w.size * Vector3.new(k, k, 1)
+			w.p.CFrame = cf * CFrame.new(w.offset * k) * turn
 		end
 	end))
 end
@@ -3997,13 +4023,35 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 	local clawColor = rgb(hk.claw)
 	local cable = part(Vector3.new(hk.cable, hk.cable, 1), CFrame.new(pos), rgb(hk.color))
 	cable.Material = Enum.Material.Metal
-	local claw = part(Vector3.new(0.9, 0.9, 0.6), CFrame.new(pos), clawColor)
-	claw.Material = Enum.Material.Metal
+	-- the Blender claw (Art.Powers Claw: a hub and three curved prongs, 2026-11-20) when imported, else parts
+	local CLAW = 1.3
+	local ART = if PowerMeshes.ready("Claw") then Config.PowerArt.Claw else nil
+	local turn = MeshFix.turn("Powers")
+	local claw: BasePart
 	local prongs = {}
-	for _, k in { -1, 1 } do
-		local p = part(Vector3.new(0.22, 0.3, 1), CFrame.new(pos), clawColor)
-		p.Material = Enum.Material.Metal
-		table.insert(prongs, { p = p, side = k })
+	if ART then
+		local h = ART.ClawHub
+		claw =
+			powerMesh("ClawHub", Vector3.new(h.size[1], h.size[2], h.size[3]) * CLAW, clawColor) :: MeshPart
+		claw.Material = Enum.Material.Metal
+		local pr = ART.ClawProng
+		for i = 1, 3 do
+			local p = powerMesh(
+				"ClawProng",
+				Vector3.new(pr.size[1], pr.size[2], pr.size[3]) * CLAW,
+				clawColor
+			) :: MeshPart
+			p.Material = Enum.Material.Metal
+			table.insert(prongs, { p = p, side = i })
+		end
+	else
+		claw = part(Vector3.new(0.9, 0.9, 0.6), CFrame.new(pos), clawColor)
+		claw.Material = Enum.Material.Metal
+		for _, k in { -1, 1 } do
+			local p = part(Vector3.new(0.22, 0.3, 1), CFrame.new(pos), clawColor)
+			p.Material = Enum.Material.Metal
+			table.insert(prongs, { p = p, side = k })
+		end
 	end
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -4080,12 +4128,28 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 		cable.Size = Vector3.new(hk.cable, hk.cable, len)
 		cable.CFrame = CFrame.lookAt(a + d / 2, tip)
 		local cf = CFrame.lookAt(tip, tip + dir)
-		claw.CFrame = cf
 		local spread = if phase == "fly" then 30 else 10 -- the prongs close on what they catch
-		for _, pr in prongs do
-			pr.p.CFrame = cf
-				* CFrame.new(pr.side * 0.35, 0, -0.5)
-				* CFrame.Angles(0, pr.side * math.rad(-spread), 0)
+		if ART then
+			local h, pr = ART.ClawHub, ART.ClawProng
+			claw.CFrame = cf * CFrame.new(Vector3.new(h.offset[1], h.offset[2], h.offset[3]) * CLAW) * turn
+			-- each prong turns about its root (0.25 up, 0.1 back on the hub): open in flight, shut on a catch
+			local root = Vector3.new(0, 0.25, 0.1) * CLAW
+			local off = Vector3.new(pr.offset[1], pr.offset[2], pr.offset[3]) * CLAW - root
+			for _, p in prongs do
+				p.p.CFrame = cf
+					* CFrame.Angles(0, 0, p.side * math.pi * 2 / 3)
+					* CFrame.new(root)
+					* CFrame.Angles(math.rad(spread - 15), 0, 0)
+					* CFrame.new(off)
+					* turn
+			end
+		else
+			claw.CFrame = cf
+			for _, p in prongs do
+				p.p.CFrame = cf
+					* CFrame.new(p.side * 0.35, 0, -0.5)
+					* CFrame.Angles(0, p.side * math.rad(-spread), 0)
+			end
 		end
 	end))
 end

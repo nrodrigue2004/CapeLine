@@ -609,6 +609,26 @@ _e = [(math.cos(math.radians(g)) * r, math.sin(math.radians(g)) * r, -0.04)
       for g, r in ((40, 0.1), (52, 1.0), (57, 2.0), (58, 3.4))]  # the leading edge along the top feather
 mesh("Wing", "WingEdge", [T(_e, [0.1, 0.08, 0.05, 0.01], segs=6)], WHITE, "Neon")
 
+# ================================================================ the Interceptor's net and the Grappler's claw (CombatFx net and hook, 2026-11-20)
+# Net (anchor: its centre; it faces z, 2 across, CombatFx scales it to Config.Fx.robots.net.size as it opens): a woven
+# square of glowing cords with a thicker rim and four weights at the corners.
+cords = []
+for i in range(5):
+    u = -1.0 + i * 0.5
+    sag = [0.0, -0.06, 0.0]
+    w = 0.05 if i in (0, 4) else 0.025
+    cords.append(T([(-1.0, u, 0.0), (0.0, u, sag[1] * (1 - abs(u))), (1.0, u, 0.0)], [w, w, w], segs=5))
+    cords.append(T([(u, -1.0, 0.0), (u, 0.0, sag[1] * (1 - abs(u))), (u, 1.0, 0.0)], [w, w, w], segs=5))
+mesh("Net", "NetCords", cords, (190, 235, 255), "Neon")
+mesh("Net", "NetWeights", [S(0.13, x, y, 0, segs=8, rings=6) for x in (-1.05, 1.05) for y in (-1.05, 1.05)],
+     (60, 60, 66), "Metal")
+# Claw (anchor: the hub's centre; it flies toward -z): a hub with a cable eye at the back, and one curved prong
+# rooted 0.25 above the axis that CombatFx sets three times round the hub, opening and closing them about their root.
+mesh("Claw", "ClawHub", [C(0.3, 0.55, 0, 0, 0.0, segs=10, axis="z"), TOR(0.14, 0.05, 0, 0, 0.42, axis="z", segs=12)],
+     (200, 120, 50), "Metal")
+mesh("Claw", "ClawProng", [T([(0, 0.25, 0.1), (0, 0.55, -0.4), (0, 0.5, -0.9), (0, 0.26, -1.15), (0, 0.12, -1.05)],
+                            [0.1, 0.09, 0.07, 0.04, 0.015], segs=7)], (200, 120, 50), "Metal")
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -671,7 +691,8 @@ if "--preview" in sys.argv:
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
-             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3)}
+             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
+             "Claw": (-31, -6, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),

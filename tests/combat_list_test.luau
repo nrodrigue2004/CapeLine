@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 72,
-			"72 meshes in 28 looks (the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 76,
+			"76 meshes in 30 looks (the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3480,7 +3480,7 @@ return function(T: any)
 	)
 
 	test(
-		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam, burning patches a flame ring",
+		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam, burning patches a flame ring, nets and claws Blender meshes",
 		function()
 			local roblox = require("@lune/roblox")
 			check(Config.Fx.shot.trail > 0 and Config.Fx.shot.life > 0, "the streak is tuned")
@@ -3555,6 +3555,45 @@ return function(T: any)
 			check(
 				sim.service("Workspace"):FindFirstChild("MendBeam", true) == nil,
 				"and it goes when the mend ends"
+			)
+			-- an Interceptor's net and a Grappler's claw in their Blender looks
+			sim:run("net", function()
+				CombatFx.enemyShot(V(0, 5, 40), V(0, 0, -50), 2)
+				CombatFx.hook(
+					function()
+						return V(0, 5, 80)
+					end,
+					V(0, 5, 80),
+					V(0, 0, -50),
+					function()
+						return true
+					end
+				)
+			end)
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(0.2)
+			end)
+			local cords, hubs, prongs = nil, 0, 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "NetCords" then
+					cords = d
+				elseif d:IsA("MeshPart") and d.Name == "ClawHub" then
+					hubs += 1
+				elseif d:IsA("MeshPart") and d.Name == "ClawProng" then
+					prongs += 1
+				end
+			end
+			check(cords ~= nil, "the net is the woven Blender net")
+			if cords then
+				local want = Config.PowerArt.Net.NetCords.size[1] * Config.Fx.robots.net.size / 2
+				check(
+					math.abs(cords.Size.X - want) < 0.05,
+					string.format("opened to its size (%.2f)", cords.Size.X)
+				)
+			end
+			check(
+				hubs == 1 and prongs == 3,
+				"the claw: a hub and three prongs (" .. hubs .. ", " .. prongs .. ")"
 			)
 			-- a Bomber's burning patch: Ember Ring's flame tongues round it
 			sim:run("zone", function()
