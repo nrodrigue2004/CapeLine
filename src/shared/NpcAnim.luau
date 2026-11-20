@@ -453,6 +453,109 @@ C.checkTime = { -- a look at the wrist
 	},
 }
 
+-- ------------------------------------------------------------------ the Ceremony's crowd and stage (first-30)
+-- (first-30, 2026-11-20: the prologue crowd's cheer and the stage's wave were two shoulder sines; these are whole
+-- body loops: a hop on the Root, bent knees on the dip, elbows pumping. PLACEHOLDER ANIMATION like the rest.)
+local function lift(t: number, py: number): Key
+	return { t, 0, 0, 0, py }
+end
+C.cheer = { -- both fists up, pumping, a little hop on every pump
+	dur = 0.8,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 150, 0, 18), K(0.4, 172, 0, 10), K(0.8, 150, 0, 18) },
+		LeftShoulder = { K(0, 172, 0, -10), K(0.4, 150, 0, -18), K(0.8, 172, 0, -10) },
+		RightElbow = { K(0, 40), K(0.4, 8), K(0.8, 40) },
+		LeftElbow = { K(0, 8), K(0.4, 40), K(0.8, 8) },
+		Neck = hold(14),
+		Waist = { K(0, 4, 0, 3), K(0.4, 4, 0, -3), K(0.8, 4, 0, 3) },
+		RightKnee = { K(0, -6), K(0.2, -22), K(0.4, -6), K(0.6, -22), K(0.8, -6) },
+		LeftKnee = { K(0, -6), K(0.2, -22), K(0.4, -6), K(0.6, -22), K(0.8, -6) },
+		RightHip = { K(0, 0), K(0.2, 12), K(0.4, 0), K(0.6, 12), K(0.8, 0) },
+		LeftHip = { K(0, 0), K(0.2, 12), K(0.4, 0), K(0.6, 12), K(0.8, 0) },
+		Root = { lift(0, 0.3), lift(0.2, -0.15), lift(0.4, 0.3), lift(0.6, -0.15), lift(0.8, 0.3) },
+	},
+}
+C.cheerPump = { -- one fist punching the air, the other hand on the hip
+	dur = 0.6,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 130, 0, 12), K(0.25, 176, 0, 6), K(0.6, 130, 0, 12) },
+		RightElbow = { K(0, 80), K(0.25, 6), K(0.6, 80) },
+		LeftShoulder = hold(-10, 0, -38),
+		LeftElbow = hold(96),
+		Neck = { K(0, 10), K(0.25, 18), K(0.6, 10) },
+		Waist = { K(0, 0, 6), K(0.25, 4, 10), K(0.6, 0, 6) },
+		RightKnee = { K(0, -14), K(0.3, -4), K(0.6, -14) },
+		LeftKnee = { K(0, -14), K(0.3, -4), K(0.6, -14) },
+		Root = { lift(0, -0.1), lift(0.25, 0.2), lift(0.6, -0.1) },
+	},
+}
+C.clap = { -- clapping up high, rocking on the feet
+	dur = 0.5,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 105, 0, 24), K(0.25, 112, 0, -4), K(0.5, 105, 0, 24) },
+		LeftShoulder = { K(0, 105, 0, -24), K(0.25, 112, 0, 4), K(0.5, 105, 0, -24) },
+		RightElbow = hold(55),
+		LeftElbow = hold(55),
+		Neck = hold(8),
+		Waist = { K(0, 2, -4), K(0.25, 2, 4), K(0.5, 2, -4) },
+		Root = { lift(0, 0), lift(0.25, 0.12), lift(0.5, 0) },
+	},
+}
+C.stageWave = { -- the fakes on the stage: a big overhead wave, the weight rolling side to side
+	dur = 1.2,
+	loop = true,
+	joints = {
+		RightShoulder = {
+			K(0, 20, 0, 135),
+			K(0.3, 20, 0, 165),
+			K(0.6, 20, 0, 135),
+			K(0.9, 20, 0, 165),
+			K(1.2, 20, 0, 135),
+		},
+		RightElbow = { K(0, 40), K(0.3, 15), K(0.6, 40), K(0.9, 15), K(1.2, 40) },
+		LeftShoulder = hold(8, 0, -14),
+		LeftElbow = hold(20),
+		Neck = { K(0, 6, -8), K(0.6, 6, 8), K(1.2, 6, -8) },
+		Waist = { K(0, 0, 0, -5), K(0.6, 0, 0, 5), K(1.2, 0, 0, -5) },
+	},
+}
+C.present = { -- Silas Crane presenting his heroes: an open hand swept toward the fakes and back
+	dur = 3.0,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 55, 0, 30), K(1.2, 80, 0, 60), K(2.0, 80, 0, 60), K(3.0, 55, 0, 30) },
+		RightElbow = { K(0, 30), K(1.2, 8), K(2.0, 8), K(3.0, 30) },
+		LeftShoulder = { K(0, 30, 0, -10), K(1.5, 40, 0, -14), K(3.0, 30, 0, -10) },
+		LeftElbow = hold(70),
+		Neck = { K(0, 4, -10), K(1.2, 6, 18), K(2.0, 6, 18), K(3.0, 4, -10) },
+		Waist = { K(0, 0, -4), K(1.2, 0, 8), K(2.0, 0, 8), K(3.0, 0, -4) },
+	},
+}
+C.gasp = { -- the scan stops on the hero: hands up to the chest, leaning back, a nervous tremble
+	dur = 0.4,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 72, 0, -18), K(0.2, 76, 0, -20), K(0.4, 72, 0, -18) },
+		LeftShoulder = { K(0, 72, 0, 18), K(0.2, 76, 0, 20), K(0.4, 72, 0, 18) },
+		RightElbow = hold(118),
+		LeftElbow = hold(118),
+		Waist = hold(9),
+		Neck = hold(-6),
+	},
+}
+-- who plays what in the Ceremony (PrologueFx): the crowd picks a cheer by weight (seeded per person), the fakes
+-- wave, Crane presents; on the scan everyone gasps toward the hero; the run is HeroAnim runFast
+NpcAnim.crowd = {
+	cheer = { { "cheer", 3 }, { "cheerPump", 2 }, { "clap", 2 } },
+	stage = "stageWave",
+	crane = "present",
+	scan = "gasp",
+	blend = 0.25, -- seconds a crowd member crossfades from one clip to the next
+}
+
 -- what each kind of person does when idle (picked by weight) and when a hero comes close
 local PEOPLE: any = {
 	giver = {

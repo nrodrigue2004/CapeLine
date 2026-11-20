@@ -164,6 +164,19 @@ return {
 		-- hold a skill button and drag to aim (the camera turns with the finger)
 		aimDrag = { yaw = 0.011, pitch = 0.008, maxPitch = 70 }, -- radians per pixel; degrees
 	},
+	-- first-30 (2026-11-20): the next story mission on the HUD (StoryHud), so nobody has to find the Journal in the
+	-- MENU drawer after the prologue: its name and blurb with START when it is open (StoryClient.enter, the
+	-- Journal's own START), or the level it needs. Shown out in the city with no side quest tracked, no card up
+	-- and nothing busy (Ui.Popups' rule); its X folds it until the next mission.
+	nextMission = {
+		y = 64, -- the mission tracker's slot (never both: it shows only out of a mission)
+		pill = { x = 330, y = 56, w = 240, h = 40 }, -- a phone's pill: right of the status panel, under the top row
+		title = "NEXT: MISSION %d: %s",
+		pillTitle = "MISSION %d: %s", -- the phone's pill (narrower)
+		pillLevel = "MISSION %d AT LEVEL %d", -- the phone's pill for a mission above the hero's level
+		start = "START",
+		level = "Reach level %d to start. Help out around the city!",
+	},
 	-- the Ceremony prologue's screen (onboarding check 2026-11-18; StoryClient and StoryHud read these)
 	prologue = {
 		-- the verb button(s) each beat shows and pulses (Hud.setFocus); the camera beats show none

@@ -113,32 +113,64 @@ function Progress.spend(currency: Currency, cost: number): boolean
 	return true
 end
 
--- What unlocks at each level (spec: Levels table), for the "next unlock" on the Renown bar
+-- What unlocks at each level, for the "next unlock" on the Renown bar and the level-up banner. first-30
+-- (2026-11-20): read from the config the game really runs on. The spec's Levels table text had gone stale with
+-- nate's later calls (every mobility pick from level 1, 2026-11-16; one main path, borrowing at borrowLevel), so
+-- a new hero's first level-up said "Unlocked: Flight" whatever they picked, and the HUD said "NEXT LV 6: Frost
+-- powers". Kept by hand: only what has no config row.
 Progress.UNLOCKS = {
 	[1] = "Leap, Glide, 2 skill slots",
-	[3] = "Flight",
-	[4] = "Contract Board",
-	[5] = "Skill slot 3",
-	[6] = "Frost powers",
-	[8] = "Super Speed",
-	[10] = "Skill slot 4, Titan powers, PvP flag",
-	[12] = "Super Leap",
-	[14] = "Pulse powers",
-	[15] = "Second loadout",
-	[16] = "Grapple Acrobat",
-	[18] = "Blade powers",
-	[20] = "Super slot, Epic gear",
-	[30] = "Legendary gear",
 	[40] = "Level 40 trophy",
 }
 Progress.CAP_UNLOCK = "Level cap, Legacy" -- at Config.Stats.levelCap (50 since 2026-11-17)
 
--- What a level unlocks (the cap's line comes from the config), or nil
+-- What a level unlocks (from the config: skill and super slots, move training ranks, the Contract Board,
+-- borrowing, the second loadout, the PvP flag, gear tiers, story missions; the cap's line), or nil
 function Progress.unlockAt(config: any, level: number): string?
 	if level == config.Stats.levelCap then
 		return Progress.CAP_UNLOCK
 	end
-	return Progress.UNLOCKS[level]
+	local out = {}
+	if Progress.UNLOCKS[level] then
+		table.insert(out, Progress.UNLOCKS[level])
+	end
+	local A = config.Abilities or {}
+	for i, L in A.slotLevels or {} do
+		if L == level and i > 1 and (A.slotLevels[i - 1] or 0) < level then
+			table.insert(out, "Skill slot " .. i)
+		end
+	end
+	if A.superLevel == level then
+		table.insert(out, "Super slot")
+	end
+	local ranks = config.Move and config.Move.ranks
+	local r = ranks and table.find(ranks.levels, level)
+	if r then
+		table.insert(out, if r == 1 then "Move training" else "Move training " .. r)
+	end
+	if config.Contracts and config.Contracts.board and config.Contracts.board.minLevel == level then
+		table.insert(out, "Contract Board")
+	end
+	if A.borrowLevel == level then
+		table.insert(out, "Borrow powers")
+	end
+	if A.secondLoadoutLevel == level then
+		table.insert(out, "Second loadout")
+	end
+	if config.Pvp and config.Pvp.minLevel == level then
+		table.insert(out, "PvP flag")
+	end
+	for _, tier in { "Epic", "Legendary" } do
+		if config.Gear and config.Gear.tierLevel and config.Gear.tierLevel[tier] == level then
+			table.insert(out, tier .. " gear")
+		end
+	end
+	for _, m in (config.Story and config.Story.missions) or {} do
+		if not m.opening and m.minLevel == level and (m.act or 1) == 1 then
+			table.insert(out, m.name)
+		end
+	end
+	return if #out > 0 then table.concat(out, ", ") else nil
 end
 
 function Progress.nextUnlock(config: any, level: number): (number?, string?)
