@@ -536,6 +536,47 @@ local function build(char: Model, folder: Folder, slot: string, row: any)
 	end
 end
 
+-- fix-respawn (nate's playtest 2026-11-19: "i died and respawn and my gear didnt really fit me. Oh i just realized
+-- my size reset"): a respawned character's look was built from HeroService.Spawned, which runs from
+-- CharacterAdded, before Roblox has put the character in Workspace and run its own spawn steps; the Humanoid's
+-- automatic scaling then put the parts back to their first size while the gear stayed welded where the shaped
+-- body had been. HeroBody turns that scaling off on the hero body, GearService builds the look again once the
+-- character is in Workspace, and this guard watches the shaped parts for the character's whole life: if anything
+-- resizes one away from what LookKit.shapeBody set, the whole look (shape first, then every piece, gear and
+-- weapon) is built again. LookService.onShapeLost (GearService) does the rebuild; at most `MAX_REBUILDS` a body.
+LookService.onShapeLost = nil :: ((Player, Model) -> ())?
+local MAX_REBUILDS = 6
+local guarded: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+function LookService.guardShape(player: Player, char: Model)
+	if guarded[char] then
+		return
+	end
+	guarded[char] = true
+	local rebuilds = 0
+	local queued = false
+	local function check()
+		queued = false
+		if not char.Parent or player.Character ~= char or rebuilds >= MAX_REBUILDS then
+			return
+		end
+		if LookKit.shapeLost(char) and LookService.onShapeLost then
+			rebuilds += 1
+			LookService.onShapeLost(player, char)
+		end
+	end
+	for _, name in BodyShape.PARTS do
+		local p = char:FindFirstChild(name)
+		if p and p:IsA("BasePart") then
+			p:GetPropertyChangedSignal("Size"):Connect(function()
+				if not queued then
+					queued = true
+					task.defer(check)
+				end
+			end)
+		end
+	end
+end
+
 -- Show the hero's creator look (M9) and these gear styles (one id per slot, 0 = nothing) on the player's
 -- character. The avatar's own accessories and clothes come off first (a standard rig).
 -- weapon: the carried weapon's look, shown in the hand only while held (key 2)
@@ -549,6 +590,7 @@ function LookService.apply(player: Player, styles: { number }, look: any?, weapo
 		LookKit.build(char, look, weapon)
 		LookKit.showWeapon(char, held == true)
 		LookService.collider(char, look)
+		LookService.guardShape(player, char)
 	end
 	local old = char:FindFirstChild("GearLook")
 	if old then

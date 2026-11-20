@@ -980,6 +980,7 @@ function LookKit.shapeBody(char: Model, look: any)
 			end
 			local k = Vector3.new(f[1], f[2], f[3])
 			p.Size = (base :: Vector3) * k
+			p:SetAttribute("ShapedSize", p.Size) -- what the shape set (LookKit.shapeLost: anything else undid it)
 			for _, a in p:GetChildren() do
 				if a:IsA("Attachment") then
 					local bp = a:GetAttribute("BasePos")
@@ -1016,6 +1017,23 @@ function LookKit.shapeBody(char: Model, look: any)
 		end
 		hum.HipHeight = (baseHip :: number) * tall
 	end
+end
+
+-- Has something else resized a shaped body since shapeBody ran (fix-respawn, nate 2026-11-19: "i died and respawn
+-- ... my size reset")? Roblox's own spawn steps (the Humanoid's automatic scaling from its OriginalSize values)
+-- can put a new character's parts back to their first size after the look was built; the server then shapes it
+-- again (LookService.guardShape). False for a body never shaped.
+function LookKit.shapeLost(char: Model): boolean
+	for _, name in BodyShape.PARTS do
+		local p = char:FindFirstChild(name)
+		if p and p:IsA("BasePart") then
+			local want = p:GetAttribute("ShapedSize")
+			if typeof(want) == "Vector3" and (p.Size - want).Magnitude > 0.01 then
+				return true
+			end
+		end
+	end
+	return false
 end
 
 -- The avatar's own accessories and clothes come off (the face stays); a hero wearing the player's own avatar
@@ -1907,10 +1925,13 @@ local NEW_SLOTS =
 function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	LookKit.clear(char)
 	-- a hero wearing the player's own avatar keeps the classic blocky body (no body set, build or height)
+	-- (an NpcRig is laid out for its body already: NpcRig.build marks it LaidOut, its set meshes picked there)
 	local avatar = char:GetAttribute("Avatar") == true
 	if not avatar and C.bodyStep then
-		LookKit.wearBodySet(char, look)
-		LookKit.shapeBody(char, look)
+		if char:GetAttribute("LaidOut") ~= true then
+			LookKit.wearBodySet(char, look)
+			LookKit.shapeBody(char, look)
+		end
 	end
 	for _, name in { "HeroShirt", "HeroPants" } do
 		local old = char:FindFirstChild(name)

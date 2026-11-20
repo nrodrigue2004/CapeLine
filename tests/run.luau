@@ -8456,6 +8456,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./hairfit_test")({ test = test, check = check, Config = Config }); -- the hair fit pass: explicit catalog picks
 (require :: any)("./fit_test")({ test = test, check = check, Config = Config }); -- pt-fit: pieces and weapons on Roblox's own body
 (require :: any)("./flow_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- fix-flow
+(require :: any)("./cine_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- prologue-cine
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- act1-choices: a choice in every Act 1 mission (own file, merges easily)
@@ -8469,7 +8470,8 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./pockets_test")({ test = test, check = check, Config = Config }); -- the pocket kit pass (2026-11-19)
 (require :: any)("./gap_review_test")({ test = test, check = check, Config = Config }); -- the gap review (2026-11-19)
 -- WP12: visit a friend's HQ on the same server (own file, merges easily)
-(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
+(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
+(require :: any)("./sounds_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }) -- the sounds pass (2026-11-19)
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
@@ -11717,13 +11719,8 @@ do
 				"both start"
 			)
 			check(
-				string.find(
-					readFile("src/config/Audio.luau"),
-					"PLACEHOLDER SOUND: built-in clips until real voice",
-					1,
-					true
-				) ~= nil,
-				"placeholder blips are labelled"
+				string.find(readFile("src/config/Audio.luau"), "Blips until real voice lines", 1, true) ~= nil,
+				"the blips say real voice lines come later (recorded blips since the sounds pass)"
 			)
 		end
 	)
@@ -23198,7 +23195,10 @@ do
 end
 -- move-2 (2026-11-19, own file): the smash rule, the Hulk climb, the Acrobat's crawl and flips, swing anywhere and
 -- everyone's sprint; ONLY="Climb"
-(require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath })
+(require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- fix-respawn (nate's playtest 2026-11-19, own file): the body shape on respawn, the 40 bodies' fit, creator NEXT
+-- through the real client, the side quest givers' answers; ONLY="Fix respawn"
+(require :: any)("./fix_respawn_test")({ test = test, check = check, Config = Config, placePath = placePath })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

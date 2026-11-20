@@ -107,8 +107,13 @@ return function(T: any)
 	test("Onboarding: every play beat with a place to reach names it under the marker", function()
 		for step in Sim.TARGETS do
 			local w = P.goals[step]
-			check(type(w) == "string" and #w > 0 and #w <= 12, step .. ": a short goal word")
-			check(w == string.upper(w), step .. ": in capitals like the verb buttons")
+			if Config.Story.opening.qte.beats[step] then
+				-- prologue-cine (2026-11-20): a directed beat shows its prompts, never a marker or its word
+				check(w == nil, step .. ": no marker word on a directed beat")
+			else
+				check(type(w) == "string" and #w > 0 and #w <= 12, step .. ": a short goal word")
+				check(w == string.upper(w), step .. ": in capitals like the verb buttons")
+			end
 		end
 		for step in P.goals do
 			check(Sim.TARGETS[step] == true, step .. ": a goal word only where the server sends a target")

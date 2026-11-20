@@ -152,20 +152,26 @@ return function(T: any)
 				QtePlan.on(Config, step) and QtePlan.camera(Config, step),
 				step .. " is a prompt beat on camera"
 			)
-			check(OpeningPlan.HOPS[step] == true, step .. " is a guided hop beat")
+		end
+		for step in OpeningPlan.HOPS do
+			check(QtePlan.on(Config, step), step .. ": the guided hops are prompt beats")
 		end
 		check(
 			not QtePlan.on(Config, "fight") and not QtePlan.camera(Config, "fight"),
 			"the fight is a normal fight"
 		)
-		check(not QtePlan.on(Config, "tunnel") and not QtePlan.on(Config, nil), "no prompts off the roofs")
+		-- (prologue-cine, 2026-11-20: the tunnel is a directed chase with prompts too, "until subway"; tests/cine_test)
+		check(QtePlan.on(Config, "tunnel") and not QtePlan.on(Config, nil), "the tunnel chase has prompts")
 		-- the prompts
 		check(#QtePlan.prompts(Config, "leap", 3) == 1, "the leap: one JUMP")
 		check(QtePlan.prompts(Config, "leap", 3)[1].action == "Leap", "JUMP is the Leap key")
 		local dodges = 0
 		for hop = 3, O.roofs.count do
 			local list = QtePlan.prompts(Config, "chase", hop)
-			check(list[#list].action == "Leap", "every chase hop ends in a JUMP")
+			check(
+				list[#list].action == (if Q.grab == hop then "Catch" else "Leap"),
+				"every chase hop ends in a JUMP (or the GRAB after it)"
+			)
 			if Q.dodge[hop] then
 				dodges += 1
 				check(#list == 2 and list[1].action == "Block", "a DODGE first on roof " .. hop)
@@ -234,8 +240,9 @@ return function(T: any)
 		end
 		local run = src("src/client/Fx/PrologueQte.luau")
 		check(string.find(run, "InputController.freeze(on)", 1, true) ~= nil, "the hero's controls rest")
-		check(string.find(run, "MoveController.arcTo", 1, true) ~= nil, "JUMP is the guided arc")
-		check(string.find(run, "MoveController.Leaped:Fire", 1, true) ~= nil, "the slow-mo leap still plays")
+		-- (prologue-cine: every move is an authored path now, MoveController.travel; the slow-mo leap is PrologueFx's)
+		check(string.find(run, "MoveController.travel(", 1, true) ~= nil, "JUMP is the authored arc")
+		check(string.find(run, "PrologueFx.slowLeap(", 1, true) ~= nil, "the slow-mo leap still plays")
 		check(
 			string.find(src("src/client/init.client.luau"), "PrologueQte.init()", 1, true) ~= nil,
 			"it runs"

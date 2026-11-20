@@ -512,9 +512,41 @@ end
 
 -- A side quest giver or step speaks (lore step 10): fixed lines from Config.SideQuests through the guide line
 -- box; a step's scene plays in the next quiet moment
+-- fix-respawn (nate's playtest 2026-11-19: "unresponsive buttons when trying to talk to npcs or start side
+-- quests"): a giver's Talk answers on this device at once (the click, and the giver's "..." in the line box), and
+-- the server's answer to your own press cuts in front of any radio line playing (it used to wait its turn behind
+-- it, seconds with nothing on screen). No answer in TALK_WAIT s says so.
+local TALK_WAIT = 2.5
+local talkAsked: { [string]: number } = {}
+local function talkPressed(giver: string)
+	if not Config.SideQuests.givers[giver] then
+		return
+	end
+	Kit.Clicked:Fire()
+	GuideHud.say(giver, "...", { cut = true, hold = TALK_WAIT, tag = "sqTalk" })
+	local at = os.clock()
+	talkAsked[giver] = at
+	task.delay(TALK_WAIT, function()
+		if talkAsked[giver] == at then
+			talkAsked[giver] = nil
+			GuideHud.cancel("sqTalk")
+			State.Toast:Fire({ id = "note", text = "No answer: try talking again" })
+		end
+	end)
+end
+StoryHud.talkPressed = talkPressed
+
 local function showTalk(t: { [string]: any })
 	local side = State.hero.side or "hero"
 	local chain = SideQuestPlan.byBit(Config, t.bit or 0)
+	local mine = type(t.giver) == "string" and talkAsked[t.giver] ~= nil
+	if type(t.giver) == "string" then
+		talkAsked[t.giver] = nil
+	end
+	GuideHud.cancel("sqTalk")
+	if t.kind == "refused" then
+		return -- the reason is on its toast (Toasts sqLocked)
+	end
 	if t.kind == "none" then
 		local who = t.giver
 		local gv = type(who) == "string" and Config.SideQuests.givers[who]
@@ -524,7 +556,11 @@ local function showTalk(t: { [string]: any })
 				then gv.none
 				elseif type(gv.none) == "table" then GuidePlan.lineText(gv.none, side)
 				else nil
-			GuideHud.say(who, own or Config.SideQuests.none, { tag = "sideQuest" })
+			GuideHud.say(who, own or Config.SideQuests.none, { tag = "sideQuest", cut = mine })
+			if t.why and t.why ~= "done" then
+				-- what the giver's next chain waits for (a level, a mission, another chain)
+				State.Toast:Fire({ id = "sqLocked", why = t.why, n = t.n })
+			end
 		end
 		return
 	end
@@ -550,7 +586,7 @@ local function showTalk(t: { [string]: any })
 	local line = chain.lines and chain.lines[t.kind]
 	local text = line and GuidePlan.lineText(line, side)
 	if text then
-		GuideHud.say(chain.giver, text, { tag = "sideQuest" })
+		GuideHud.say(chain.giver, text, { tag = "sideQuest", cut = mine })
 	end
 end
 
@@ -828,7 +864,9 @@ local function frame()
 	local q = StoryClient.quest
 	-- the marker: the prologue's beat, else the mission's, else the pinned quest's
 	if step then
-		setMarker(if OpeningPlan.CUT[step] then nil else o.target, false, U.prologue.goals[step])
+		-- (prologue-cine, nate 2026-11-20: "dont have the player run to the gold marker": the directed beats have none)
+		local directed = OpeningPlan.CUT[step] or Config.Story.opening.qte.beats[step]
+		setMarker(if directed then nil else o.target, false, U.prologue.goals[step])
 	elseif (m.num or 0) > 0 and not m.done then
 		setMarker(m.target, true)
 	elseif q and q.target then
@@ -1055,6 +1093,12 @@ function StoryHud.init()
 	end)
 	StoryClient.Broadcast:Connect(showBroadcast)
 	StoryClient.Talk:Connect(showTalk)
+	game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt, who)
+		local giver = prompt:GetAttribute("Giver")
+		if who == Players.LocalPlayer and type(giver) == "string" then
+			talkPressed(giver)
+		end
+	end)
 	StoryClient.Fade:Connect(function()
 		fade.BackgroundTransparency = 1
 		TweenService:Create(fade, TweenInfo.new(0.5), { BackgroundTransparency = 0 }):Play()

@@ -56,6 +56,8 @@ State.profile = {
 	lastSafehouse = 0,
 } :: { [string]: any }
 State.ProfileChanged = Signal.new()
+State.syncWalletOnly = false -- the last ProfileSync carried only the wallet (fix-respawn)
+State.syncLevelChanged = false -- and it changed the level
 State.Toast = Signal.new() -- (data) level up, reward, loot, save notices
 -- Buffs, crowd control and the Awakening meter (HeroStatus); times are local clock seconds
 State.status = {
@@ -119,6 +121,9 @@ function State.init()
 		State.Notice:Fire(data.ok, data.reason)
 	end)
 	Net.listen("ProfileSync", function(view)
+		-- a wallet-only sync (currency, level, xp): screens that draw no wallet may skip their redraw
+		State.syncWalletOnly = view.stash == nil and view.pieces == nil
+		State.syncLevelChanged = view.level ~= nil and view.level ~= State.profile.level
 		for k, v in view do
 			State.profile[k] = v -- a wallet-only sync carries just the wallet
 		end

@@ -190,7 +190,7 @@ local Remotes: { [string]: RemoteDef } = {
 	OpeningState = { dir = "S2C" }, -- { step, t, target, side, left, the scene's points }: the Ceremony prologue
 	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu),
 	-- 5 the exposition is over (watched or skipped; fix-flow 2026-11-19), 6 replay the prologue (the Journal)
-	OpeningAct = { dir = "C2S", schema = { n(1, 6) }, rate = 2, burst = 3 },
+	OpeningAct = { dir = "C2S", schema = { n(1, 7) }, rate = 2, burst = 3 }, -- 7: the suit snapped (prologue-cine)
 	OpeningIntro = { dir = "S2C" }, -- { replay }: play the exposition comic page, then send OpeningAct 5
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
@@ -207,7 +207,9 @@ local Remotes: { [string]: RemoteDef } = {
 	SideQuestAct = { dir = "C2S", schema = { n(1, 2), n(1, 127) }, rate = 1, burst = 3 },
 	-- the tracked chain's step, 2 Hz: { bit, step, steps, have, need, wait, left, target, area, scene, card }
 	SideQuestState = { dir = "S2C" },
-	SideQuestTalk = { dir = "S2C" }, -- { bit, kind, step }: fixed giver and step lines through GuideHud
+	SideQuestTalk = { dir = "S2C" }, -- { bit, kind, step, why?, n? }: fixed giver and step lines through GuideHud
+	-- (kind "heard": a talk step counted; "refused": the press was turned down, why names the reason; "none": no
+	-- chain to offer, why and n say what it waits on)
 
 	-- PvP, death and safety (M8; spec: Flag.Set {on} 1/5s, Flag.State, Revive.Start {targetUserId} 2/s,
 	-- Down.GiveUp 1/s, Respawn.Choose {safehouseId}, Ping.Place {kind, position} 2/s, Report.Player
