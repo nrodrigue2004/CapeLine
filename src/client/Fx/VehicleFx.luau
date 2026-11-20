@@ -8,7 +8,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local FrameProf =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -17,7 +16,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Vehicles = require(Shared:WaitForChild("Vehicles"))
 local VehiclePose = require(Shared:WaitForChild("VehiclePose"))
 
-local DebrisBudget = require(script.Parent.DebrisBudget)
+local FxLib = require(script.Parent.FxLib)
 local Juice = require(script.Parent.Juice)
 local VehicleRig = require(script.Parent.VehicleRig)
 
@@ -34,51 +33,17 @@ local function model(id: number): Model?
 	return if m and m:IsA("Model") then m else nil
 end
 
-local function puff(pos: Vector3, color: Color3, size: number, life: number)
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.CastShadow = false
-	p.Shape = Enum.PartType.Ball
-	p.Material = Enum.Material.SmoothPlastic
-	p.Color = color
-	p.Transparency = 0.35
-	p.Size = Vector3.one * size
-	p.CFrame = CFrame.new(pos)
-	p.Parent = Workspace
-	TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = Vector3.one * size * 3,
-		Transparency = 1,
-	}):Play()
-	task.delay(life, function()
-		p:Destroy()
-	end)
+-- item 296: the landing's dust and sparks and the reset's glass are effects-library particles (FxLib: the
+-- uploaded textures, the preset's particle budget), no longer plain balls and neon sticks
+local function landed(pos: Vector3)
+	FxLib.dust(pos, 5, Color3.fromRGB(190, 180, 168))
+	FxLib.emit("spark", Color3.fromRGB(255, 200, 90), pos + Vector3.new(0, 1, 0), 10, Vector3.yAxis)
+	FxLib.emit("chip", Color3.fromRGB(70, 70, 78), pos + Vector3.new(0, 0.5, 0), 6, Vector3.yAxis)
 end
 
-local function sparks(pos: Vector3)
-	local n = DebrisBudget.lease(5, 1.2)
-	for _ = 1, n do
-		local p = Instance.new("Part")
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.Neon
-		p.Color = Color3.fromRGB(255, 200, 90)
-		p.Size = Vector3.new(0.2, 0.2, 0.8)
-		p.CFrame = CFrame.new(pos)
-		p.AssemblyLinearVelocity = Vector3.new(
-			math.random() - 0.5,
-			math.random() * 0.8 + 0.3,
-			math.random() - 0.5
-		) * 40
-		p.Parent = Workspace
-		task.delay(1.2, function()
-			p:Destroy()
-		end)
-	end
+local function popGlass(pos: Vector3)
+	FxLib.emit("shard", Color3.fromRGB(200, 240, 255), pos, 8, Vector3.yAxis)
+	FxLib.dust(pos - Vector3.new(0, 1.5, 0), 3)
 end
 
 local function step()
@@ -92,9 +57,7 @@ local function step()
 		end
 		if t >= 1 then
 			arcs[id] = nil
-			local landed = VehiclePose.flip(Config.Destruction, v, 1, a.dx, a.dz).Position
-			puff(landed, Color3.fromRGB(190, 180, 168), 5, 0.6)
-			sparks(landed + Vector3.new(0, 1, 0))
+			landed(VehiclePose.flip(Config.Destruction, v, 1, a.dx, a.dz).Position)
 		end
 	end
 end
@@ -117,7 +80,7 @@ function VehicleFx.init()
 		local v = list[id]
 		if v then
 			arcs[id] = nil
-			puff(VehiclePose.home(v).Position + Vector3.new(0, 2, 0), Color3.fromRGB(200, 240, 255), 4, 0.4)
+			popGlass(VehiclePose.home(v).Position + Vector3.new(0, 2, 0))
 			local m = model(id)
 			if m then
 				VehicleRig.kick(m) -- gap-vehicles: it drops back onto its springs and settles

@@ -641,4 +641,13 @@ return function(T: any)
 			check(#sim.errors == 0, device.name .. ": no errors: " .. table.concat(sim.errors, "; "))
 		end
 	end)
+
+	test("List combat: the car flip's effects are library particles", function()
+		local src = fs.readFile("src/client/Fx/VehicleFx.luau")
+		check(not string.find(src, 'Instance.new("Part")', 1, true), "no plain parts left")
+		for _, kind in { "spark", "chip", "shard" } do
+			check(string.find(src, 'FxLib.emit("' .. kind .. '"', 1, true) ~= nil, "emits " .. kind)
+			check(Config.Fx.lib.kinds[kind] ~= nil, kind .. " is a library kind")
+		end
+	end)
 end
