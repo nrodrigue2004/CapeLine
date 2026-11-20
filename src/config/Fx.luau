@@ -64,6 +64,16 @@ return {
 	},
 	bolt = { width = 0.35, life = 0.12 },
 	chain = { width = 0.5, life = 0.25, segments = 6, jitter = 1.6 },
+	-- the Storm path's drawn lightning (list-combat 2026-11-20, Everything Left 167; art/fx/lightning.py): a camera-
+	-- facing Beam per bolt with one of these frames (white, tinted by the path colour), switched every `flick` s
+	-- while it fades over its life; `tile` studs a repeat of the strip, drawn `width` studs wide. Zap Bolt, Chain
+	-- Lightning and Bolt Ride use it; an empty list keeps the part-built zigzags
+	lightning = {
+		frames = { 121443883514116, 81424120668608, 127621354126477, 135751948381156 },
+		tile = 9,
+		width = 2.2,
+		flick = 0.05,
+	},
 	dash = { trailLife = 0.3 },
 	hitFlash = 0.1, -- the robot turns white this long on a hit (was 0.08; weighty hits)
 	numbers = { rise = 3, life = 0.8, critScale = 1.5 },

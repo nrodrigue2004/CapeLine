@@ -1102,7 +1102,7 @@ return function(T: any)
 			local function fxCount()
 				local n = 0
 				for _, d in fxFolder:GetDescendants() do
-					if d:IsA("BasePart") then
+					if d:IsA("BasePart") or (d:IsA("Beam") and d.Name == "Lightning") then
 						n += 1
 					end
 				end
@@ -1119,8 +1119,8 @@ return function(T: any)
 			end)
 			local other = fxCount() - n0
 			check(
-				volt >= other + 20,
-				"Bolt Ride draws its bolt, forks and scorch: " .. volt .. " vs " .. other
+				volt >= other + 5,
+				"Bolt Ride draws its drawn bolt, forks and scorch: " .. volt .. " vs " .. other
 			)
 			-- Flame Jets and Light Rail: particles, not a new part every other frame
 			for _, set in { "Fire", "Light" } do
@@ -2836,6 +2836,81 @@ return function(T: any)
 			check(n >= 2, "jumping as it crackles (" .. n .. " spots)")
 		end
 	)
+
+	test("List combat: Storm's bolts are drawn lightning (Everything Left 167)", function()
+		local roblox = require("@lune/roblox")
+		local L = Config.Fx.lightning
+		check(L ~= nil and #L.frames >= 2 and L.tile > 0 and L.flick > 0, "lightning frames are set")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		local blue = roblox.Color3.fromRGB(120, 210, 255)
+		sim:run("bolts", function()
+			CombatFx.bolt(V(0, 5, 0), V(0, 5, -40), "Comic", blue, "Volt")
+			CombatFx.chain({ V(0, 5, 0), V(10, 5, -10), V(20, 5, -5) }, "Comic", blue, "Volt")
+			CombatFx.dash(V(0, 5, 0), V(0, 5, -30), "Comic", blue, "Volt")
+		end)
+		local ws = sim.service("Workspace")
+		local function beams(): { any }
+			local out = {}
+			for _, d in ws:GetDescendants() do
+				if d:IsA("Beam") and d.Name == "Lightning" then
+					table.insert(out, d)
+				end
+			end
+			return out
+		end
+		local list = beams()
+		check(#list == 4, "a bolt, two chain links and the ride (" .. #list .. ")")
+		local ok = true
+		for _, b in list do
+			local id = tonumber(string.match(b.Texture, "%d+$"))
+			local known = false
+			for _, f in L.frames do
+				known = known or f == id
+			end
+			ok = ok and known and b.FaceCamera and b.Attachment0 ~= nil and b.Attachment1 ~= nil
+		end
+		check(ok, "each a camera-facing beam on a drawn frame between two points")
+		local task = require("@lune/task")
+		local rs = sim.service("RunService")
+		local seen = {}
+		for _ = 1, 4 do
+			task.wait(L.flick + 0.01)
+			sim:run("frame", function()
+				rs.RenderStepped:Fire(1 / 60)
+			end)
+			for _, b in beams() do
+				seen[b.Texture] = true
+			end
+		end
+		local n = 0
+		for _ in seen do
+			n += 1
+		end
+		check(n >= 2, "the frames flick (" .. n .. ")")
+		task.wait(0.5)
+		sim:run("frame", function()
+			rs.RenderStepped:Fire(1 / 60)
+		end)
+		check(#beams() == 0, "and they are gone once faded")
+		local left = 0
+		for _, d in ws:GetDescendants() do
+			if d:IsA("Attachment") and (d.Name == "Bolt0" or d.Name == "Bolt1") then
+				left += 1
+			end
+		end
+		check(left == 0, "no attachments left behind (" .. left .. ")")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
 
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")

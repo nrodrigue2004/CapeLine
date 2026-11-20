@@ -144,6 +144,65 @@ local function beam(from: Vector3, to: Vector3, width: number, color: Color3, li
 	return p
 end
 
+-- Drawn lightning (list-combat 2026-11-20, Everything Left 167): a camera-facing textured Beam from `from` to `to`
+-- on two Terrain attachments, one of Config.Fx.lightning's bolt frames flicked every `flick` s, thinning and fading
+-- over `life`. False when no frames are set (the callers keep their part-built zigzags).
+local function lightning(from: Vector3, to: Vector3, width: number, color: Color3, life: number): boolean
+	local L = F.lightning
+	local frames = L and L.frames
+	if not frames or #frames == 0 or (to - from).Magnitude < 0.5 then
+		return false
+	end
+	-- attachments live on the Terrain (always there in game; the headless tests' place has none: the Fx folder)
+	local terrain: Instance = Workspace:FindFirstChildOfClass("Terrain") or folder
+	local a0 = Instance.new("Attachment")
+	a0.Name = "Bolt0"
+	a0.Position = from
+	a0.Parent = terrain
+	local a1 = Instance.new("Attachment")
+	a1.Name = "Bolt1"
+	a1.Position = to
+	a1.Parent = terrain
+	local b = Instance.new("Beam")
+	b.Name = "Lightning"
+	b.Attachment0 = a0
+	b.Attachment1 = a1
+	b.FaceCamera = true
+	b.Width0, b.Width1 = width, width
+	b.TextureMode = Enum.TextureMode.Wrap
+	b.TextureLength = L.tile
+	b.LightEmission = 1
+	b.Brightness = 2
+	b.Segments = 1
+	b.Color = ColorSequence.new(color)
+	b.Transparency = NumberSequence.new(0)
+	local pick = math.random(#frames)
+	b.Texture = "rbxassetid://" .. frames[pick]
+	b.Parent = terrain
+	local start, nextFlick = os.clock(), os.clock() + L.flick
+	local conn
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
+		local now = os.clock()
+		local t = (now - start) / life
+		if t >= 1 then
+			conn:Disconnect()
+			b:Destroy()
+			a0:Destroy()
+			a1:Destroy()
+			return
+		end
+		if now >= nextFlick then
+			nextFlick = now + L.flick
+			pick = (pick + math.random(math.max(1, #frames - 1)) - 1) % #frames + 1 -- another frame
+			b.Texture = "rbxassetid://" .. frames[pick]
+		end
+		b.Transparency = NumberSequence.new(t * t)
+		local w = width * (1 - 0.5 * t)
+		b.Width0, b.Width1 = w, w
+	end))
+	return true
+end
+
 local function flatLook(dir: Vector3): Vector3
 	local f = Vector3.new(dir.X, 0, dir.Z)
 	return if f.Magnitude > 1e-3 then f.Unit else Vector3.new(0, 0, -1)
@@ -326,7 +385,13 @@ function CombatFx.bolt(from: Vector3, to: Vector3, style: string, color: Color3?
 	local c = color or SET_COLOR.Volt
 	FxLib.trail(from, to, set, c)
 	FxLib.emit("glow", c, from, 1)
-	if style == "Anime" then
+	if
+		set == "Volt"
+		and lightning(from, to, F.lightning.width, if style == "Anime" then WHITE else c, F.bolt.life * 2.5)
+	then
+		-- Zap Bolt: the drawn bolt over a thin white-hot core
+		beam(from, to, F.bolt.width * 0.5, WHITE, F.bolt.life)
+	elseif style == "Anime" then
 		beam(from, to, F.bolt.width * 0.6, WHITE, F.bolt.life)
 		beam(from, to, F.bolt.width * 1.4, c, F.bolt.life * 1.6) -- afterimage glow
 	else
@@ -345,6 +410,9 @@ function CombatFx.chain(points: { Vector3 }, style: string, color: Color3?, set:
 		FxLib.trail(a, b, set, col)
 		FxLib.impact(b, set, col, 0.6, nil, style)
 		sig.head(set, a, b, style, col, 0.7)
+		if lightning(a, b, F.lightning.width, if style == "Anime" then WHITE else col, c.life * 1.4) then
+			continue
+		end
 		local prev = a
 		for s = 1, c.segments do
 			local t = s / c.segments
@@ -385,9 +453,12 @@ local function boltRide(from: Vector3, to: Vector3, style: string, c: Color3)
 		table.insert(pts, from + d * (k / segs) + side * j + up * h)
 	end
 	table.insert(pts, to)
-	for k = 1, #pts - 1 do
-		beam(pts[k], pts[k + 1], 0.9, c, 0.22)
-		beam(pts[k], pts[k + 1], 0.3, if style == "Anime" then c else WHITE, 0.16)
+	-- the drawn bolt along the ride, or the part-built zigzag before the frames are set
+	if not lightning(from, to, F.lightning.width * 1.3, core, 0.3) then
+		for k = 1, #pts - 1 do
+			beam(pts[k], pts[k + 1], 0.9, c, 0.22)
+			beam(pts[k], pts[k + 1], 0.3, if style == "Anime" then c else WHITE, 0.16)
+		end
 	end
 	-- forks off the bolt's first and second thirds
 	for _, at in { math.max(2, math.floor(segs / 3)), math.max(3, math.floor(segs * 2 / 3)) } do
