@@ -76,7 +76,10 @@ return function(T: any)
 		for look, k in counts do
 			-- (Picket is a picture on its box: LifeKit.picket)
 			check(
-				look == "Picket" or SA[look] ~= nil or Config.LifeArt.cover[look] ~= nil,
+				look == "Picket"
+					or SA[look] ~= nil
+					or Config.LifeArt.cover[look] ~= nil
+					or Config.AliveArt[look] ~= nil,
 				look .. " (" .. k .. " boxes) is a known look"
 			)
 		end

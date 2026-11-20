@@ -15,6 +15,12 @@
 -- * Street props knocked loose react (CityProps.onSmash): hydrants spray a geyser, vending machines spill cans,
 --   bins and news boxes throw paper.
 -- * lastBang(): where and when the last big hit was (CitizenRenderer: citizens cheer it).
+-- alive-world (2026-11-20, nate: "the world must feel alive"):
+-- * Traffic reacts to fights: a robot (EnemyRenderer) or a big hit near a car or the road ahead of it scares it
+--   (Shared.LifePlan.feared): it stops, flashes its hazards (medium and high) and honks, then U-turns across the road
+--   (LifePlan.uturn) and races away.
+-- * Gulls circle over the Docks' cranes (tag LifeGulls) and wheel out and up from a hero or a bang.
+-- * The Foundry's chimneys smoke (tag LifeSmoke), with a black burst after a big hit nearby.
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -38,6 +44,7 @@ local QualityController = require(script.Parent.Parent.Controllers.QualityContro
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 local CitizenRenderer = require(script.Parent.Parent.Controllers.CitizenRenderer)
+local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local BuildingFx = require(script.Parent.BuildingFx)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 
@@ -135,6 +142,11 @@ type Car = {
 	spin: number,
 	hold: number, -- braking for a bang until this time
 	honked: number,
+	-- alive-world: scared by a fight (stopped since `scared`), mid U-turn (`turn` 0..1 from `turnDir`), fleeing until
+	scared: number?,
+	turn: number?,
+	fleeing: number,
+	hazards: { BasePart }?,
 }
 local cars: { Car } = {}
 local carLooks: { string } = {}
@@ -239,6 +251,7 @@ local function buildCar(): Car?
 					spin = 0,
 					hold = 0,
 					honked = 0,
+					fleeing = 0,
 				}
 			end
 		end
@@ -315,6 +328,12 @@ local function knockCars(center: Vector3, radius: number)
 		local flat = Vector3.new(d.X, 0, d.Z)
 		if flat.Magnitude <= radius * K.radius + 6 and math.abs(d.Y) < radius + 10 then
 			table.remove(cars, i)
+			local hz = car.hazards
+			if hz then
+				for _, h in hz do
+					h:Destroy() -- (anchored blinkers would stay hanging where it was)
+				end
+			end
 			for k = 2, #car.parts do
 				local w = Instance.new("WeldConstraint")
 				w.Part0 = root
@@ -357,9 +376,115 @@ end
 local bulkParts: { BasePart } = {}
 local bulkCFrames: { CFrame } = {}
 
+-- Fights near the camera (alive-world): the drawn robots and the last big hit, as { x, z } points, every few tenths
+local FEAR = T.fear
+local FLEE_T = table.clone(T)
+FLEE_T.cruise = T.cruise * FEAR.flee
+local dangers: { { number } } = {}
+local dangersAt = 0
+local function scanDangers(now: number)
+	if now < dangersAt then
+		return
+	end
+	dangersAt = now + FEAR.every
+	table.clear(dangers)
+	local f = focus()
+	local reach = budget().carRadius + FEAR.radius + FEAR.ahead
+	for _, pos in EnemyRenderer.each() do
+		if #dangers >= 24 then
+			break
+		end
+		if
+			math.abs(pos.X - f.X) < reach
+			and math.abs(pos.Z - f.Z) < reach
+			and math.abs(pos.Y - GROUND) < 60
+		then
+			table.insert(dangers, { pos.X, pos.Z })
+		end
+	end
+	if now - bang.t < FEAR.bangFor then
+		table.insert(dangers, { bang.at.X, bang.at.Z })
+	end
+end
+
+-- Hazard lights: four amber blinkers at the car's corners (made the first time it is scared, medium and high)
+local HAZARD_AT = {
+	CFrame.new(-2.05, 1.3, -4.3),
+	CFrame.new(2.05, 1.3, -4.3),
+	CFrame.new(-2.05, 1.4, 4.3),
+	CFrame.new(2.05, 1.4, 4.3),
+}
+local HAZARD = Color3.fromRGB(FEAR.hazard[1], FEAR.hazard[2], FEAR.hazard[3])
+local function hazardsOf(car: Car): { BasePart }
+	local list = car.hazards
+	if list then
+		return list
+	end
+	local made: { BasePart } = {}
+	for _ = 1, #HAZARD_AT do
+		local p = Instance.new("Part")
+		p.Name = "Hazard"
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Material = Enum.Material.Neon
+		p.Color = HAZARD
+		p.Size = Vector3.new(0.5, 0.35, 0.3)
+		p.Transparency = 1
+		p.Parent = car.model
+		table.insert(made, p)
+	end
+	car.hazards = made
+	return made
+end
+
+-- A car's fear this frame: scared cars stop (stopIn 0), then U-turn; returns the pose override (pos, yaw) while turning
+local function fearStep(car: Car, dt: number, now: number): (Vector3?, number?)
+	local l = lanes[car.lane]
+	if car.turn then
+		local t = (car.turn :: number) + dt / FEAR.turn
+		local a = laneDims(l, car.dir, car.s)
+		local b = laneDims(l, -car.dir, car.s)
+		local fx, fz = if l.ax == "x" then car.dir else 0, if l.ax == "x" then 0 else car.dir
+		if t >= 1 then
+			car.turn = nil
+			car.dir = -car.dir
+			car.v = 4
+			car.fleeing = now + FEAR.fleeFor
+			car.scared = nil
+			return nil, nil
+		end
+		car.turn = t
+		local x, z, tx, tz = LifePlan.uturn(a.X, a.Z, b.X, b.Z, fx, fz, FEAR.stretch, t)
+		return Vector3.new(x, a.Y, z), DriveMath.yaw(tx, tz)
+	end
+	if car.fleeing > now then
+		return nil, nil
+	end
+	if not car.scared and #dangers > 0 then
+		local pos = laneDims(l, car.dir, car.s)
+		local fx, fz = if l.ax == "x" then car.dir else 0, if l.ax == "x" then 0 else car.dir
+		if LifePlan.feared(FEAR, pos.X, pos.Z, fx, fz, dangers) then
+			car.scared = now
+			if car.honked < now - 2 and math.random() < FEAR.honk then
+				car.honked = now
+				AudioController.playSpec(L.sounds.honk, pos)
+			end
+		end
+	end
+	local since = car.scared
+	if since and car.v < 1.5 and now - since >= FEAR.wait then
+		car.turn = 0
+	end
+	return nil, nil
+end
+
 local function stepCars(dt: number, now: number, list: { any })
 	local B = budget()
 	local f = focus()
+	scanDangers(now)
 	while #cars < B.cars and #lanes > 0 do
 		local c = buildCar()
 		if not c then
@@ -370,9 +495,17 @@ local function stepCars(dt: number, now: number, list: { any })
 	for i = #cars, 1, -1 do
 		local car = cars[i]
 		local l = lanes[car.lane]
-		car.v = LifePlan.carSpeed(T, car.v, dt, stopIn(car, now, list))
-		car.s += car.dir * car.v * dt
-		local pos, yaw = laneDims(l, car.dir, car.s)
+		local turnPos, turnYaw = fearStep(car, dt, now)
+		local pos: Vector3, yaw: number
+		if turnPos and turnYaw then
+			pos, yaw = turnPos, turnYaw -- mid U-turn: it creeps round the loop
+			car.v = 6
+		else
+			local room = if car.scared then 0 else stopIn(car, now, list)
+			car.v = LifePlan.carSpeed(if car.fleeing > now then FLEE_T else T, car.v, dt, room)
+			car.s += car.dir * car.v * dt
+			pos, yaw = laneDims(l, car.dir, car.s)
+		end
 		if car.s < l.a0 - 6 or car.s > l.a1 + 6 or (pos - f).Magnitude > B.carRadius * 1.2 or i > B.cars then
 			dropCar(i)
 			continue
@@ -382,6 +515,20 @@ local function stepCars(dt: number, now: number, list: { any })
 		for k, p in car.parts do
 			table.insert(bulkParts, p)
 			table.insert(bulkCFrames, root * car.offs[k] * car.fixes[k])
+		end
+		-- hazards blink while it is scared, turning or fleeing (medium and high)
+		local alarmed = car.scared ~= nil or car.turn ~= nil or car.fleeing > now
+		if alarmed and B.hazards then
+			local on = (now % (FEAR.blink * 2)) < FEAR.blink
+			for k, h in hazardsOf(car) do
+				h.Transparency = if on then 0 else 1
+				table.insert(bulkParts, h)
+				table.insert(bulkCFrames, root * HAZARD_AT[k])
+			end
+		elseif car.hazards then
+			for _, h in car.hazards :: { BasePart } do
+				h.Transparency = 1
+			end
 		end
 		if B.wheels then
 			for _, w in car.wheels do
@@ -582,6 +729,257 @@ local function stepPigeons(dt: number, now: number, list: { any })
 		end
 	end
 	CityLife.flocks = n
+end
+
+---------------------------------------------------------------------------- harbour gulls (alive-world)
+-- A colony circles over each Docks crane near the camera (the server tags the crane's beam LifeGulls): pigeon meshes
+-- scaled up in gull white, gliding with a slow flap now and then, banking into the circle; a hero flying through or a
+-- big hit sends them wheeling out and up, flapping hard, and they drift back after a while.
+type Gull = { bird: Bird, phase: number, radius: number, height: number, speed: number }
+type Colony = { gulls: { Gull }, scared: number, flee: number }
+local colonies: { [BasePart]: Colony } = {}
+local G = L.gulls
+local GULL_BODY = Color3.fromRGB(G.body[1], G.body[2], G.body[3])
+local GULL_WING = Color3.fromRGB(G.wing[1], G.wing[2], G.wing[3])
+
+local function gullPiece(name: string, color: Color3): BasePart?
+	local p = lifePiece("Pigeon", name, color, Enum.Material.SmoothPlastic, folder :: Folder)
+	if p then
+		p.Size *= G.scale
+	end
+	return p
+end
+
+local function makeColony(n: number): Colony?
+	if not (folder and lifeSource("PigeonBody")) then
+		return nil
+	end
+	local gulls: { Gull } = {}
+	for k = 1, n do
+		local body = gullPiece("PigeonBody", GULL_BODY)
+		local wl = gullPiece("PigeonWingL", GULL_WING)
+		local wr = gullPiece("PigeonWingR", GULL_WING)
+		if not (body and wl and wr) then
+			for _, q in { body, wl, wr } do
+				if q then
+					q:Destroy()
+				end
+			end
+			break
+		end
+		table.insert(gulls, {
+			bird = {
+				body = body,
+				wl = wl,
+				wr = wr,
+				pos = Vector3.zero,
+				yaw = 0,
+				vel = Vector3.zero,
+				key = k * 1.7,
+			},
+			phase = math.random() * math.pi * 2,
+			radius = G.radius[1] + math.random() * (G.radius[2] - G.radius[1]),
+			height = G.height[1] + math.random() * (G.height[2] - G.height[1]),
+			speed = (G.speed[1] + math.random() * (G.speed[2] - G.speed[1])) * (if k % 3 == 0 then -1 else 1),
+		})
+	end
+	return if #gulls > 0 then { gulls = gulls, scared = -math.huge, flee = 0 } else nil
+end
+
+local function dropColony(c: Colony)
+	for _, g in c.gulls do
+		g.bird.body:Destroy()
+		g.bird.wl:Destroy()
+		g.bird.wr:Destroy()
+	end
+end
+
+-- A gull's pose: its body banked into the turn, wings by `fold` (Config.LifeArt.Pigeon's fit, scaled)
+local function poseGull(b: Bird, at: CFrame, fold: number)
+	local k = G.scale
+	local function off(name: string): CFrame
+		local o = Config.LifeArt.Pigeon[name].offset
+		return CFrame.new(o[1] * k, o[2] * k, o[3] * k)
+	end
+	table.insert(bulkParts, b.body)
+	table.insert(bulkCFrames, at * off("PigeonBody") * LIFE_TURN)
+	local oL = Config.LifeArt.Pigeon.PigeonWingL.offset
+	local oR = Config.LifeArt.Pigeon.PigeonWingR.offset
+	table.insert(bulkParts, b.wl)
+	table.insert(
+		bulkCFrames,
+		at
+			* CFrame.new(-0.22 * k, 0.72 * k, -0.02 * k)
+			* CFrame.Angles(0, 0, fold)
+			* CFrame.new((oL[1] + 0.22) * k, (oL[2] - 0.72) * k, (oL[3] + 0.02) * k)
+			* LIFE_TURN
+	)
+	table.insert(bulkParts, b.wr)
+	table.insert(
+		bulkCFrames,
+		at
+			* CFrame.new(0.22 * k, 0.72 * k, -0.02 * k)
+			* CFrame.Angles(0, 0, -fold)
+			* CFrame.new((oR[1] - 0.22) * k, (oR[2] - 0.72) * k, (oR[3] + 0.02) * k)
+			* LIFE_TURN
+	)
+end
+
+local function stepGulls(dt: number, now: number, list: { any })
+	local B = budget()
+	local f = focus()
+	local want: { { p: BasePart, d: number } } = {}
+	for _, p in CollectionService:GetTagged("LifeGulls") do
+		if p:IsA("BasePart") then
+			local d = (p.Position - f).Magnitude
+			if d < G.range then
+				table.insert(want, { p = p, d = d })
+			end
+		end
+	end
+	table.sort(want, function(a, b)
+		return a.d < b.d
+	end)
+	local keep: { [BasePart]: boolean } = {}
+	for k = 1, math.min(#want, B.gullColonies) do
+		keep[want[k].p] = true
+	end
+	for p, c in colonies do
+		if not keep[p] or not p.Parent or #c.gulls ~= B.gulls then
+			dropColony(c)
+			colonies[p] = nil
+		end
+	end
+	for p in keep do
+		local c = colonies[p]
+		if not c then
+			c = makeColony(B.gulls)
+			if not c then
+				continue
+			end
+			colonies[p] = c
+		end
+		local colony = c :: Colony
+		local centre = p.Position + Vector3.new(0, p.Size.Y / 2 + G.above, G.out)
+		-- a hero flying through, or a big hit near: they wheel out and up
+		local scare = now - bang.t < 0.5 and (bang.at - centre).Magnitude < G.bang
+		if not scare then
+			for _, h in list do
+				if (h.pos - centre).Magnitude < G.scare + 20 then
+					scare = true
+					break
+				end
+			end
+		end
+		if scare then
+			if now - colony.scared > 1.5 then
+				AudioController.playSpec(L.sounds.flutter, centre)
+			end
+			colony.scared = now
+		end
+		local target = if now - colony.scared < G.calm then 1 else 0
+		colony.flee += (target - colony.flee) * math.min(1, dt * (if target > colony.flee then 2.2 else 0.35))
+		for _, g in colony.gulls do
+			local x, y, z, tx, tz = LifePlan.gull(now, g.phase, g.radius, g.height, g.speed, colony.flee)
+			local b = g.bird
+			b.pos = centre + Vector3.new(x, y, z)
+			local dir = if g.speed < 0 then -1 else 1
+			b.yaw = DriveMath.yaw(tx * dir, tz * dir)
+			-- glide with a few slow beats now and then; hard flapping while they flee
+			local beat = math.sin(now * 1.3 + g.phase * 5) > 0.75 or colony.flee > 0.25
+			local fold = if beat
+				then math.sin(now * (if colony.flee > 0.25 then 16 else 9) + b.key) * 0.9
+				else -0.12 + math.sin(now * 2 + b.key) * 0.05
+			local bank = math.rad(22) * dir
+			poseGull(b, CFrame.new(b.pos) * CFrame.Angles(0, b.yaw, 0) * CFrame.Angles(0, 0, bank), fold)
+		end
+	end
+end
+
+---------------------------------------------------------------------------- Foundry chimney smoke (alive-world)
+local SM = L.smoke
+local chimneySmoke: { [BasePart]: ParticleEmitter } = {}
+
+local function smokeEmitter(at: BasePart, rate: number): ParticleEmitter
+	local a = Instance.new("Attachment")
+	a.Name = "LifeSmoke"
+	a.Parent = at
+	-- (a cylinder part lies on its side: its longest side is the stack's height; the plume goes straight up)
+	local h = math.max(at.Size.X, at.Size.Y, at.Size.Z)
+	a.WorldCFrame = CFrame.new(at.Position + Vector3.new(0, h / 2 + 1.5, 0))
+	local e = Instance.new("ParticleEmitter")
+	e.Name = "LifeSmoke"
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Color = ColorSequence.new(
+		Color3.fromRGB(SM.color[1] + 40, SM.color[2] + 30, SM.color[3] + 26),
+		Color3.fromRGB(SM.color[1], SM.color[2], SM.color[3])
+	)
+	e.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(0.5, 0.55),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	e.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, SM.size[1]),
+		NumberSequenceKeypoint.new(1, SM.size[2]),
+	})
+	e.Lifetime = NumberRange.new(SM.life[1], SM.life[2])
+	e.Rate = rate
+	e.Speed = NumberRange.new(SM.speed[1], SM.speed[2])
+	e.SpreadAngle = Vector2.new(10, 10)
+	e.Acceleration = Vector3.new(3.5, 1.2, 1.4) -- the sea wind leans the plume
+	e.RotSpeed = NumberRange.new(-15, 15)
+	e.Rotation = NumberRange.new(0, 360)
+	e.LightInfluence = 0.7
+	e.EmissionDirection = Enum.NormalId.Top
+	e.Parent = a
+	return e
+end
+
+local function stepSmoke()
+	local B = budget()
+	local f = focus()
+	local want: { { p: BasePart, d: number } } = {}
+	for _, p in CollectionService:GetTagged("LifeSmoke") do
+		if p:IsA("BasePart") then
+			local d = (p.Position - f).Magnitude
+			if d < SM.range then
+				table.insert(want, { p = p, d = d })
+			end
+		end
+	end
+	table.sort(want, function(a, b)
+		return a.d < b.d
+	end)
+	local keep: { [BasePart]: boolean } = {}
+	for k = 1, math.min(#want, B.smoke) do
+		keep[want[k].p] = true
+	end
+	for p, e in chimneySmoke do
+		if not keep[p] or not p.Parent or e.Rate ~= B.smokeRate then
+			local a = e.Parent
+			if a then
+				a:Destroy()
+			end
+			chimneySmoke[p] = nil
+		end
+	end
+	for p in keep do
+		if not chimneySmoke[p] then
+			chimneySmoke[p] = smokeEmitter(p, B.smokeRate)
+		end
+	end
+end
+
+-- A big hit near a chimney: a black burst out of its top
+local function puffSmoke(center: Vector3, radius: number)
+	for _, e in chimneySmoke do
+		local top = (e.Parent :: Attachment).WorldPosition
+		local flat = Vector3.new(top.X - center.X, 0, top.Z - center.Z)
+		if flat.Magnitude < 120 + radius * 3 then
+			e:Emit(SM.puff)
+		end
+	end
 end
 
 ---------------------------------------------------------------------------- steam, manholes and roof vents
@@ -1154,6 +1552,9 @@ local function onImpact(center: Vector3, radius: number, kind: number)
 	end
 	knockCars(center, radius)
 	popVents(center, radius)
+	if big then
+		puffSmoke(center, radius)
+	end
 	if big and (center - focus()).Magnitude <= L.drone.range then
 		sendDrone(center)
 	end
@@ -1172,11 +1573,13 @@ local function step(dt: number)
 	local list = heroes()
 	stepCars(dt, now, list)
 	stepPigeons(dt, now, list)
+	stepGulls(dt, now, list)
 	stepFlags(now)
 	stepDrones(dt, now)
 	if now >= slowAt then
 		slowAt = now + 1
 		stepSteam()
+		stepSmoke()
 		stepShops()
 	end
 	if #bulkParts > 0 then

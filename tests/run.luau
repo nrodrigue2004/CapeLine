@@ -23285,6 +23285,15 @@ end
 	Config = Config,
 	world = world,
 	placePath = placePath,
+});
+-- the living world's round 3 (alive-world, 2026-11-20, own file): Art.Alive over the safehouses, cranes, chimneys and
+-- roof gardens; traffic scared off by fights, harbour gulls, chimney smoke; ONLY="Alive"
+(require :: any)("./alive_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
 })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

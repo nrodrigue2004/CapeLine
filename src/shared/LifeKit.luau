@@ -13,6 +13,10 @@
 -- * picket(Config, b): the faces a fence box wears the picket picture on ({ "Front", "Back" } along x, else
 --   { "Left", "Right" }), or nil when it is not a picket fence.
 -- * ready(Config, look, has): is every piece of a cover look imported (all or nothing, like the other sets)?
+-- * Round 3 (alive-world, 2026-11-20): Config.AliveArt's looks (art/blender/alive.py, Art.Alive: the safehouses'
+--   terminals, canopy and pad paint, the Docks' cranes, the Foundry's chimneys, Uptown's roof gardens) dress a box
+--   that stays as it was (collisions, queries, prompts); their meshes are visual only. hides(Config, b): is the box
+--   hidden under them (Config.Life.alive.hide)? setOf(Config, look): the art set a look's meshes come from.
 
 local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
 
@@ -63,8 +67,30 @@ function LifeKit.lookOf(Config: any, b: any): string?
 	return look
 end
 
-function LifeKit.ready(Config: any, look: string, has: (string) -> boolean): boolean
+-- A round 2 or round 3 look's def (frame and meshes) and whether it is round 3's
+local function sdefOf(Config: any, look: string?): (any, boolean)
+	if not look then
+		return nil, false
+	end
 	local sdef = Config.ShapeArt and Config.ShapeArt[look]
+	if sdef then
+		return sdef, false
+	end
+	local adef = Config.AliveArt and Config.Life.alive and Config.AliveArt[look]
+	return adef, adef ~= nil
+end
+
+-- The art set a look's meshes are in (nil: the living world's Art.Life)
+function LifeKit.setOf(Config: any, look: string): string?
+	local sdef, alive = sdefOf(Config, look)
+	if alive then
+		return Config.Life.alive.set
+	end
+	return if sdef then Config.Life.shapes.set else nil
+end
+
+function LifeKit.ready(Config: any, look: string, has: (string) -> boolean): boolean
+	local sdef = sdefOf(Config, look)
 	if sdef then
 		for name in sdef.meshes do
 			if not has(name) then
@@ -110,8 +136,9 @@ export type Piece = {
 }
 
 -- Round 2 (shapes-2): an Art.Shapes look over its box (Config.ShapeArt: frame and meshes), or along its edges
-local function shapeCover(Config: any, b: any, _look: string, sdef: any): { Piece }
+local function shapeCover(Config: any, b: any, _look: string, sdef: any, alive: boolean): { Piece }
 	local SH = Config.Life.shapes
+	local set = if alive then Config.Life.alive.set else SH.set
 	local out: { Piece } = {}
 	local fx, fy, fz = sdef.frame[1], sdef.frame[2], sdef.frame[3]
 	local function color(m: any): { number }
@@ -120,7 +147,13 @@ local function shapeCover(Config: any, b: any, _look: string, sdef: any): { Piec
 		end
 		return m.color
 	end
-	local solid = not b.ghost and b.kind ~= "band" and b.kind ~= "glow" and b.kind ~= "crop" and not sdef.ring
+	-- (round 3's looks are visual only: their box stays and collides)
+	local solid = not alive
+		and not b.ghost
+		and b.kind ~= "band"
+		and b.kind ~= "glow"
+		and b.kind ~= "crop"
+		and not sdef.ring
 	local function piece(
 		name: string,
 		m: any,
@@ -145,7 +178,7 @@ local function shapeCover(Config: any, b: any, _look: string, sdef: any): { Piec
 			color = color(m),
 			mat = m.mat,
 			collide = solid and not SH.soft[name],
-			set = SH.set,
+			set = set,
 			alpha = m.alpha,
 			maps = m.maps,
 		})
@@ -189,15 +222,22 @@ end
 -- Does the box itself stay under its look (a roof's cap under its moulding)?
 function LifeKit.keeps(Config: any, b: any): boolean
 	local look = b.look
-	local sdef = look and Config.ShapeArt and Config.ShapeArt[look]
-	return sdef ~= nil and (sdef.ring == true or Config.Life.shapes.keep[look] == true)
+	local sdef, alive = sdefOf(Config, look)
+	return sdef ~= nil and (alive or sdef.ring == true or Config.Life.shapes.keep[look] == true)
+end
+
+-- Round 3: is the box hidden under its look (a terminal, the canopy, a crane piece, a chimney)? It still collides
+-- and carries its tags (the terminals' prompts)
+function LifeKit.hides(Config: any, b: any): boolean
+	local _, alive = sdefOf(Config, b.look)
+	return alive and Config.Life.alive.hide[b.look] == true
 end
 
 function LifeKit.cover(Config: any, b: any): { Piece }?
 	local look = LifeKit.lookOf(Config, b)
-	local sdef = look and Config.ShapeArt and Config.ShapeArt[look]
+	local sdef, alive = sdefOf(Config, look)
 	if look and sdef then
-		return shapeCover(Config, b, look, sdef)
+		return shapeCover(Config, b, look, sdef, alive)
 	end
 	local def = look and Config.LifeArt.cover[look]
 	local spec = look and Config.Life.looks[look]

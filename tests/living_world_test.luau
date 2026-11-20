@@ -144,9 +144,13 @@ return function(T: any)
 			end
 			-- (a ring look runs along its box's edges, not over it; a pond's rim and reeds stand round and above its
 			-- water box, and the lighthouse lantern's deck overhangs its box: tests/shapes_test.luau checks those)
+			-- (round 3's looks dress a box that stays, with posts, hooks and plumes past it: tests/alive_test.luau)
 			local ring = b.look
-				and Config.ShapeArt[b.look]
-				and (Config.ShapeArt[b.look].ring or Config.Life.shapes.keep[b.look] or b.look == "Lantern")
+				and (
+					Config.ShapeArt[b.look]
+						and (Config.ShapeArt[b.look].ring or Config.Life.shapes.keep[b.look] or b.look == "Lantern")
+					or Config.AliveArt[b.look] ~= nil
+				)
 			for _, p in if ring then {} else pieces or {} do
 				n += 1
 				local big = math.max(b.sx, b.sy, b.sz)

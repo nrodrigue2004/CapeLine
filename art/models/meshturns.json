@@ -6,6 +6,13 @@
   "turned": 63,
   "verdict": "rotY180"
  },
+ "Alive": {
+  "asDrawn": 15,
+  "either": 15,
+  "meshes": 42,
+  "turned": 42,
+  "verdict": "rotY180"
+ },
  "Arms": {
   "asDrawn": 34,
   "either": 34,

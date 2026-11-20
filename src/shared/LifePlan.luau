@@ -13,6 +13,12 @@
 -- * roofFlags(Config, buildings): flag poles on some flat Downtown, Uptown, Docks and Old Town roofs.
 -- * districtAt(Config, x, z): the district a spot is in ("Outskirts" outside them all).
 -- * wave(i, n, t, wind): a flag segment's turn (radians, chained from the pole) for a cloth of n segments.
+-- * feared(cfg, x, z, fx, fz, dangers): does a fight scare a car at (x, z) heading (fx, fz) (alive-world: a robot,
+--   or a big hit, within cfg.radius of the car or of the road cfg.ahead in front of it)?
+-- * uturn(ax, az, bx, bz, fx, fz, stretch, t): a car's U-turn from its lane spot a to the other lane's spot b, bulging
+--   ahead along (fx, fz): its x, z and heading (tx, tz) at t (0..1).
+-- * gull(t, phase, radius, height, speed, flee): a harbour gull's offset from its colony's middle (x, y, z) and its
+--   heading (tx, tz): a lazy circle that bobs, pushed out and up as `flee` (0..1) rises.
 -- * react(cfg, dist, speed, airborne, sinceBang, key): a citizen's reaction to the nearest hero: "point" (one
 --   flying or racing by), "photo" (one standing near), "cheer" (just after a big hit), or nil.
 
@@ -216,6 +222,68 @@ end
 function LifePlan.wave(i: number, n: number, t: number, wind: number): number
 	local f = i / n
 	return math.sin(t * 4.2 * wind - i * 1.1) * (0.12 + 0.3 * f) + math.sin(t * 7.3 - i * 1.9) * 0.05 * f
+end
+
+-- Is a car at (x, z) heading (fx, fz) (a unit vector) scared by a danger point { x, z } (a robot, a big hit)?
+function LifePlan.feared(
+	cfg: any,
+	x: number,
+	z: number,
+	fx: number,
+	fz: number,
+	dangers: { { number } }
+): boolean
+	local r2 = cfg.radius * cfg.radius
+	local ax, az = x + fx * cfg.ahead, z + fz * cfg.ahead
+	for _, d in dangers do
+		local dx, dz = d[1] - x, d[2] - z
+		if dx * dx + dz * dz <= r2 then
+			return true
+		end
+		dx, dz = d[1] - ax, d[2] - az
+		if dx * dx + dz * dz <= r2 then
+			return true
+		end
+	end
+	return false
+end
+
+-- A U-turn across the road: from a (this lane) to b (the other way's lane) round a half loop that bulges `stretch`
+-- times the half gap ahead along (fx, fz); returns x, z and the heading (tx, tz, not unit) at t in 0..1
+function LifePlan.uturn(
+	ax: number,
+	az: number,
+	bx: number,
+	bz: number,
+	fx: number,
+	fz: number,
+	stretch: number,
+	t: number
+): (number, number, number, number)
+	local cx, cz = (ax + bx) / 2, (az + bz) / 2
+	local ux, uz = ax - cx, az - cz
+	local r = math.sqrt(ux * ux + uz * uz)
+	local th = math.clamp(t, 0, 1) * math.pi
+	local c, s = math.cos(th), math.sin(th)
+	local x = cx + ux * c + fx * r * stretch * s
+	local z = cz + uz * c + fz * r * stretch * s
+	return x, z, -ux * s + fx * r * stretch * c, -uz * s + fz * r * stretch * c
+end
+
+-- A harbour gull's offset from its colony's middle and heading at time t
+function LifePlan.gull(
+	t: number,
+	phase: number,
+	radius: number,
+	height: number,
+	speed: number,
+	flee: number
+): (number, number, number, number, number)
+	local a = phase + t * speed / radius
+	local r = radius + flee * 70
+	local x, z = math.cos(a) * r, math.sin(a) * r
+	local y = height + math.sin(t * 0.7 + phase * 3) * 3 + flee * 40
+	return x, y, z, -math.sin(a), math.cos(a)
 end
 
 -- How a citizen reacts to the nearest hero (dist studs away, moving at speed, in the air or not), sinceBang
