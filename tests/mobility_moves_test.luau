@@ -150,6 +150,11 @@ return function(T: any)
 			check(a:FindFirstChild("MoveIcon") ~= nil, "with the move's icon")
 			check(string.find(a:FindFirstChild("MoveName").Text, "SONIC BOOM DIVE", 1, true) ~= nil, "named")
 			check(a:FindFirstChild("MoveText").Text == M.moves.sonicDive.text, "and what it does")
+			check(
+				a:FindFirstChild("MoveHow") ~= nil
+					and string.find(a:FindFirstChild("MoveHow").Text, "Ctrl", 1, true) ~= nil,
+				"and its input on this PC"
+			)
 			-- Slipstream is picked; tapping Sonic Boom Dive asks the server for option 1
 			local buttons = {}
 			for _, d in a:GetChildren() do
@@ -322,7 +327,9 @@ return function(T: any)
 		end
 		check(not MoveActs.circled(m, line, 3.5), "a straight run does not")
 		local slow = table.clone(samples)
-		slow[50] = { x = slow[50].x, z = slow[50].z, t = slow[50].t, s = 20 }
+		for i = 40, 70 do
+			slow[i] = { x = slow[i].x, z = slow[i].z, t = slow[i].t, s = 20 }
+		end
 		check(not MoveActs.circled(m, slow, 3.5), "nor a circle that slowed down")
 		local a = MV.afterimage
 		check(MoveActs.stopped(a, 90, 0.3, 5), "a hard stop from top speed leaves the decoy")
@@ -595,5 +602,130 @@ return function(T: any)
 			end
 		end)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+	test(
+		"Mobility moves: a Phase that runs out inside a building carries the hero out, never into the walls",
+		function()
+			local ph = MV.phase
+			-- a block from x 0..40, z -20..20, y 0..60 (and the hero's reach round each point: phase.clear)
+			local function box(x0: number, x1: number, z0: number, z1: number, y1: number)
+				return function(x: number, y: number, z: number): boolean
+					local r = ph.clear
+					return x > x0 - r and x < x1 + r and z > z0 - r and z < z1 + r and y < y1 + r
+				end
+			end
+			local inBlock = box(0, 40, -20, 20, 60)
+			-- flying +X through its middle: out the far side, on the travel line
+			local x, y, z = MoveActs.phaseExit(ph, 20, 30, 0, 1, 0, 0, inBlock)
+			check(x ~= nil and not inBlock(x, y :: number, z :: number), "an open spot")
+			check(
+				x and x > 40 and math.abs((z :: number) - 0) < 1e-6 and y == 30,
+				"on along the travel, past the far wall"
+			)
+			-- a long block along the travel (x 0..400): the nearest open side instead
+			local long = box(0, 400, -10, 10, 60)
+			x, y, z = MoveActs.phaseExit(ph, 20, 30, 0, 1, 0, 0, long)
+			check(x ~= nil and not long(x, y :: number, z :: number), "a long block: still an open spot")
+			check(
+				x and math.abs(z :: number) > 10 and math.abs((x :: number) - 20) < 1e-6,
+				"out the nearest side"
+			)
+			-- a dive into it never exits downward (the street)
+			x, y, z = MoveActs.phaseExit(ph, 20, 30, 0, 0, -1, 0, inBlock)
+			check(y ~= nil and (y :: number) >= 30, "never down through the street")
+			-- nothing open in reach: nil (the device keeps the flicker on until it is out)
+			x = MoveActs.phaseExit(ph, 20, 30, 0, 1, 0, 0, function()
+				return true
+			end)
+			check(x == nil, "nothing open: no exit, the flicker holds")
+			-- flown out at the exit's speed, inside the flight cap (no pull-back)
+			local cap = MoveMath.guardCap(M, { flight = true }, false, {})
+			check(
+				ph.exit.speed <= cap and run(cap, ph.exit.speed, ph.exit.far / ph.exit.speed) == 0,
+				"inside the cap"
+			)
+			local mc = fs.readFile("src/client/Controllers/MoveController.luau")
+			check(string.find(mc, "MoveActs.phaseExit(", 1, true) ~= nil, "the device uses it")
+			check(
+				string.find(mc, "or phasing -- a ghost never lands", 1, true) ~= nil,
+				"a ghost never lands in a wall"
+			)
+		end
+	)
+
+	test(
+		"Mobility moves: Tornado Run forgives phones and pads; Blink and the others name their button",
+		function()
+			local m = MV.tornadoRun
+			-- a looser circle on a phone: radius 28, 1.25 turns at 45, a few stumbles
+			local samples = {}
+			local w = 45 / 28
+			local T = 1.25 * 2 * math.pi / w
+			local n = 90
+			for i = 0, n do
+				local t = T * i / n
+				table.insert(samples, {
+					x = math.cos(w * t) * 28,
+					z = math.sin(w * t) * 28,
+					t = t,
+					s = if i % 9 == 0 then 30 else 45,
+				})
+			end
+			local now = samples[#samples].t
+			check(
+				not MoveActs.circled(MoveActs.tornadoFor(m, "mouse"), samples, now),
+				"too loose for the PC numbers"
+			)
+			check(
+				MoveActs.circled(MoveActs.tornadoFor(m, "touch"), samples, now),
+				"a phone's loose circle raises it"
+			)
+			check(MoveActs.circled(MoveActs.tornadoFor(m, "gamepad"), samples, now), "and a pad's")
+			local e = m.easy
+			check(
+				e.radius <= m.radius * 1.6 and e.speed >= m.speed * 0.8,
+				"the server's check takes the easy circle too"
+			)
+			check(MoveActs.tornadoFor(m, "mouse") == m, "PC keeps its numbers")
+			local mc = fs.readFile("src/client/Controllers/MoveController.luau")
+			for _, l in
+				{ 'out.boost = "BLINK"', 'out.down = "METEOR"', 'out.leap = "MOON"', 'out.leap = "2 LINES"' }
+			do
+				check(string.find(mc, l, 1, true) ~= nil, l .. " on the button")
+			end
+			local ts = fs.readFile("src/server/Services/ThrowService.luau")
+			check(
+				string.find(ts, 'Net.fireAll("ThrowFly", it.id, at, to, time, 4', 1, true) ~= nil
+					and string.find(ts, "grab(hero, id, true, true)", 1, true) ~= nil,
+				"Yank flies a car in to the hands"
+			)
+		end
+	)
+
+	test("Mobility moves: every move says its input in plain words for PC, gamepad and touch", function()
+		for _, id in MoveActs.ids(M) do
+			local seen = {}
+			for _, device in { "mouse", "gamepad", "touch" } do
+				local t = MoveActs.howTo(M, id, device)
+				check(#t >= 10 and not string.find(t, "{", 1, true), id .. " on " .. device .. ": " .. t)
+				seen[t] = true
+			end
+			local n = 0
+			for _ in seen do
+				n += 1
+			end
+			local named = string.find(MV[id].how, "{", 1, true) ~= nil
+			check(not named or n == 3, id .. " names each device's own button")
+		end
+		check(
+			MoveActs.howTo(M, "blink", "mouse") == "While running fast, let go of Shift and tap it again",
+			"Blink on PC"
+		)
+		check(string.find(MoveActs.howTo(M, "blink", "gamepad"), "LT", 1, true) ~= nil, "on a pad")
+		check(string.find(MoveActs.howTo(M, "blink", "touch"), "BOOST", 1, true) ~= nil, "on a phone")
+		check(
+			has("src/client/Ui/LoadoutScreen.luau", "MoveActs.howTo(M, id, InputController.device)"),
+			"on the cards"
+		)
 	end)
 end

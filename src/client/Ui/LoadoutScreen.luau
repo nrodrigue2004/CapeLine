@@ -16,6 +16,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
+local MoveActs = require(Shared:WaitForChild("MoveActs"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -443,15 +444,29 @@ local function moveCard(pick: string, rank: number, k: number, order: number): F
 	local text = Kit.label({
 		Name = "MoveText",
 		Text = mv.text,
-		Size = UDim2.new(1, -12, 0, 52),
-		Position = UDim2.fromOffset(6, 48),
+		Size = UDim2.new(1, -12, 0, 30),
+		Position = UDim2.fromOffset(6, 46),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextWrapped = true,
 		Font = Kit.bodyFont,
-		maxText = 12,
+		maxText = 11,
 	})
 	text.Parent = f
+	-- how to set it off, in words for this device's buttons (PC keys, the pad's buttons or the touch buttons)
+	local how = Kit.label({
+		Name = "MoveHow",
+		Text = MoveActs.howTo(M, id, InputController.device),
+		Size = UDim2.new(1, -12, 0, 28),
+		Position = UDim2.fromOffset(6, 76),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextWrapped = true,
+		TextColor3 = Color3.fromRGB(40, 90, 170),
+		Font = Kit.font,
+		maxText = 10,
+	})
+	how.Parent = f
 	local label = if not trained
 		then string.format("RANK %d FIRST", rank)
 		elseif picked == k then "PICKED"
