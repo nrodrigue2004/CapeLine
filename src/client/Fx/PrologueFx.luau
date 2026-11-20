@@ -61,6 +61,7 @@ local FxLib = require(script.Parent.FxLib)
 local PrologueMeshes = require(script.Parent.PrologueMeshes)
 local PowerMeshes = require(script.Parent.PowerMeshes)
 local PrologueArtKit = require(Shared:WaitForChild("PrologueArtKit"))
+local QteHud = require(script.Parent.Parent.Ui.QteHud)
 
 local PrologueFx = {}
 
@@ -1118,6 +1119,12 @@ local function spears(o: { [string]: any }, now: number)
 	local from = id and EnemyRenderer.position(id)
 	local r = root()
 	if not from or not r or now < spearAt then
+		return
+	end
+	if QteHud.isOpen() then
+		-- (first-30 polish) a prompt waiting for its press (untimed) is a held breath: no stray spears pile up
+		-- while it waits; its own DODGE spear is the prompt's moment (PrologueFx.moment)
+		spearAt = now + O.chase.throwEvery * 0.5
 		return
 	end
 	spearAt = now + O.chase.throwEvery

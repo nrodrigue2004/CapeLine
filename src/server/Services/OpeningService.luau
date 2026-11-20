@@ -684,7 +684,14 @@ local function moveFake(r: Run, pos: Vector3, dt: number)
 	local cur = Vector3.new(e.x, goal.Y, e.z)
 	local d = goal - cur
 	local stepLen = math.min(d.Magnitude, 46 * dt)
-	EnemyService.place(id, if d.Magnitude > 0.1 then cur + d.Unit * stepLen else goal)
+	local nxt = if d.Magnitude > 0.1 then cur + d.Unit * stepLen else goal
+	-- (first-30 polish) a step out over a gap between roofs would drop him to the street and pop him back up
+	-- (EnemyService.place stands a walker on the ground below): he dashes across to the goal roof instead,
+	-- which the renderer's 10 Hz smoothing draws as one quick streak
+	if (r.step == "leap" or r.step == "chase") and CityBuilder.heightAt(nxt.X, nxt.Z) < goal.Y - 6 then
+		nxt = goal
+	end
+	EnemyService.place(id, nxt)
 end
 
 local function tunnelTick(r: Run, pos: Vector3)
