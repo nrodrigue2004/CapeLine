@@ -24,7 +24,8 @@
 --   back after Config.Destruction.street.respawn seconds. The outskirts buildings' boxes come in the snapshot (o).
 -- * Craters and cracks wear comic ink decals (Config.Destruction.decals, art/fx/textures.py --destruction) once their
 --   ids are in; with id 0 a crater is today's dark disc and a crack today's thin dark bars.
--- PLACEHOLDER ART: chunks, rubble and drones are plain boxes. Dust wears the effects library's smoke sheet.
+-- Knocked-out pillars and slabs fly as broken blocks and wall panels spit broken bits (Art.Rubble chunks, 2026-11-20);
+-- rubble heaps are Art.Rubble heaps and drones the Fix-It Drone's look. Dust wears the effects library's smoke sheet.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -226,6 +227,9 @@ local function shade(color: Color3, i: number): Color3
 end
 
 -- The building as Structure pieces, without the ones in skip. Returns the model and its parts by piece.
+-- each drawn piece's kind (pillar, wall, slab), for what it breaks into when knocked out
+local pieceKind: { [BasePart]: string } = setmetatable({}, { __mode = "k" }) :: any
+
 local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [number]: BasePart })
 	local color, material, variant = bodyLook(models[rec.id])
 	-- pillars and slabs of a kit building wear the kit's plain concrete (pt-ui 2026-11-19: they showed the front's
@@ -265,6 +269,7 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 			end
 			p.Parent = m
 			parts[i] = p
+			pieceKind[p] = c.kind
 		end
 	end
 	return m, parts
@@ -360,12 +365,9 @@ end
 
 local ramPush: Vector3? = nil -- set while a predicted ram's pieces are knocked out (BuildingFx.predict)
 
--- A piece knocked out: it flies off as loose physics debris (within the debris budget, else it just goes)
-local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
-	if DebrisBudget.lease(1, D.structure.debrisLife) == 0 then
-		part:Destroy()
-		return
-	end
+-- Throw one loose piece off the building (out from the hit, or ahead of a ramming hero), fading out after
+-- debrisLife; a bit (a torn-off chunk off a wall) flies a little faster and spins harder
+local function throwPiece(rec: Rec, part: BasePart, from: Vector3?, bit: boolean)
 	part.Anchored = false
 	part.CanQuery = false
 	local out = part.Position - (from or Vector3.new(rec.x, part.Position.Y, rec.z))
@@ -381,9 +383,11 @@ local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
 			end
 		end)
 	end
-	part.AssemblyLinearVelocity = out * (18 + math.random() * 16) + Vector3.new(0, 10 + math.random() * 8, 0)
+	local fast = if bit then 1.4 else 1
+	part.AssemblyLinearVelocity = out * (18 + math.random() * 16) * fast
+		+ Vector3.new(0, 10 + math.random() * 8, 0)
 	part.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
-		* 6
+		* (if bit then 14 else 6)
 	part.Parent = folder
 	task.delay(D.structure.debrisLife - 1, function()
 		if part.Parent then
@@ -395,6 +399,95 @@ local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
 	end)
 end
 
+-- A broken block (Art.Rubble Chunk1-3, list-combat 2026-11-20) in a box's place: the same size, colour, material
+-- and kit texture, its corners and one face knocked off. Nil until the meshes are imported (the box stays).
+local function chunkMesh(name: string, size: Vector3, cf: CFrame, like: BasePart): MeshPart?
+	if not rubbleReady() then
+		return nil
+	end
+	local src = rubbleSource(name)
+	if not src then
+		return nil
+	end
+	local p = MeshFix.clone(src)
+	p:ClearAllChildren()
+	p.Anchored = true
+	p.Size = size -- one mesh filling its own box: stretched to the piece's box
+	p.CFrame = cf * MeshFix.of(p)
+	p.Color = like.Color
+	p.Material = like.Material
+	p.MaterialVariant = like.MaterialVariant
+	p.CanCollide = true
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = like.CastShadow
+	return p
+end
+
+-- What a knocked-out piece throws (Tasks "Destruction (M5)": chunks were plain boxes): a pillar or slab becomes a
+-- broken block of the same size; a wall panel keeps its front (windows and all) and spits a few broken concrete
+-- bits off its torn edge (Config.Destruction.structure.bits, inside the debris budget)
+local function breakUp(rec: Rec, part: BasePart): { BasePart }
+	local out: { BasePart } = { part }
+	if part:IsA("Part") and part.Shape ~= Enum.PartType.Block then
+		return out -- a round body's disc slab stays a disc
+	end
+	local seed = rec.id * 7 + math.floor(math.abs(part.Position.X + part.Position.Z))
+	if pieceKind[part] ~= "wall" then
+		local mesh = chunkMesh("Chunk" .. (seed % 3 + 1), part.Size, part.CFrame, part)
+		if mesh then
+			mesh.CanQuery = part.CanQuery
+			mesh.Parent = part.Parent
+			pieceKind[part] = nil
+			part:Destroy()
+			out[1] = mesh
+		end
+		return out
+	end
+	local B = D.structure.bits
+	if not B or B.count <= 0 then
+		return out
+	end
+	local n = DebrisBudget.lease(B.count, D.structure.debrisLife)
+	local size = part.Size
+	local small = math.min(size.X, size.Y, size.Z)
+	for k = 1, n do
+		local s =
+			math.clamp(small * (B.size[1] + (B.size[2] - B.size[1]) * ((seed + k * 5) % 7) / 6), 0.4, B.most)
+		local edge = part.CFrame
+			* CFrame.new(
+				(math.random() - 0.5) * size.X * 0.8,
+				(if k % 2 == 0 then 0.5 else -0.5) * size.Y * 0.9,
+				(math.random() - 0.5) * size.Z * 0.8
+			)
+		local bit = chunkMesh(
+			"Chunk" .. ((seed + k) % 3 + 1),
+			Vector3.new(s, s * 0.8, s * 1.1),
+			edge * CFrame.Angles(math.random() * 6, math.random() * 6, 0),
+			part
+		)
+		if not bit then
+			break
+		end
+		bit.MaterialVariant = if WRECK_KIT then "Kit" .. WRECK_KIT else ""
+		bit.Material = WRECK_MAT
+		bit.Color = part.Color:Lerp(Color3.fromRGB(90, 86, 82), 0.4)
+		bit.Parent = part.Parent
+		table.insert(out, bit)
+	end
+	return out
+end
+
+-- A piece knocked out: it flies off as loose physics debris (within the debris budget, else it just goes)
+local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
+	if DebrisBudget.lease(1, D.structure.debrisLife) == 0 then
+		part:Destroy()
+		return
+	end
+	for i, piece in breakUp(rec, part) do
+		throwPiece(rec, piece, from, i > 1)
+	end
+end
 local function dustCloud(rec: Rec, seconds: number): BasePart?
 	if liveDust >= QualityController.preset.emitters then
 		return nil

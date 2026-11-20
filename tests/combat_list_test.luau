@@ -1181,6 +1181,41 @@ return function(T: any)
 		end
 	end)
 
+	test("List combat: knocked-out pieces fly as broken blocks and bits (Art.Rubble chunks)", function()
+		local roblox = require("@lune/roblox")
+		local art = Config.RubbleArt
+		local model = roblox.deserializeModel(fs.readFile("art/models/Rubble.rbxm"))[1]
+		for k = 1, 3 do
+			local name = "Chunk" .. k
+			local row = art[name]
+			check(row ~= nil and row[name] ~= nil, name .. " in the fit table")
+			local mp = model:FindFirstChild(name, true)
+			check(
+				mp ~= nil and mp:IsA("MeshPart") and string.match(mp.MeshId, "%d+$") ~= nil,
+				name .. " imported"
+			)
+			-- one mesh filling its own box, so stretched to a piece's box it fills the piece exactly
+			for i = 1, 3 do
+				check(math.abs(row[name].size[i] - row.box[i]) < 1e-3, name .. " fills its box")
+			end
+			check(row[name].tris < 400, name .. " stays light")
+		end
+		local B = Config.Destruction.structure.bits
+		check(B ~= nil and B.count >= 1 and B.most > 0, "wall bits are tuned")
+		local fx = fs.readFile("src/client/Fx/BuildingFx.luau")
+		for _, needle in
+			{
+				"for i, piece in breakUp(rec, part) do",
+				'if pieceKind[part] ~= "wall" then',
+				"DebrisBudget.lease(B.count, D.structure.debrisLife)",
+				"p.CFrame = cf * MeshFix.of(p)",
+				"pieceKind[p] = c.kind",
+			}
+		do
+			check(string.find(fx, needle, 1, true) ~= nil, "BuildingFx: " .. needle)
+		end
+	end)
+
 	test("List combat: rubble heaps in Blender meshes (Art.Rubble)", function()
 		local roblox = require("@lune/roblox")
 		local art = Config.RubbleArt

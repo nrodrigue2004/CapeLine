@@ -87,6 +87,23 @@ for k in range(4):
     mesh("Rubble%d" % (k + 1), "Rubble%dRebar" % (k + 1), bars, REBAR, "Metal")
 
 
+# loose chunks (list-combat 2026-11-20, Tasks "Destruction (M5)": "building chunks are plain boxes"): three broken
+# blocks, a 2 x 2 x 2 box with its corners and edges knocked off and one face torn, that BuildingFx stretches to a
+# knocked-out pillar's or slab's box (and throws small ones off a wall panel), in the building's colour and material
+for k in range(3):
+    rnd = random.Random(300 + k)
+    ob = B(2.0, 2.0, 2.0, 0, 0, 0)
+    chip(ob, rnd, 5 + k)
+    # a torn face: a few shallow cuts across one side
+    for _ in range(3):
+        n = Vector((rnd.uniform(0.7, 1.0), rnd.uniform(-0.5, 0.5), rnd.uniform(-0.5, 0.5))).normalized()
+        d = rnd.uniform(0.62, 0.85)
+        shift(ob, tuple(-n * d))
+        kit.cut(ob, n, keep_positive=False)
+        shift(ob, tuple(n * d))
+    mesh("Chunk%d" % (k + 1), "Chunk%d" % (k + 1), [ob], CONCRETE, "Concrete", shade=False)
+
+
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
     lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs)))
@@ -148,9 +165,12 @@ if "--preview" in sys.argv:
         for name, ob in LOOKS[look].items():
             rgb, mat, _ = INFO[name]
             ob.data.materials.append(kit.material("m_" + name, rgb, metal=0.5 if mat == "Metal" else 0, rough=0.8))
-            ob.location = (k * 5 - 7.5, 0, 0)
+            if look.startswith("Chunk"):  # the loose chunks in a row in front
+                ob.location = (int(look[5:]) * 4 - 8, -5, 1.2)
+            else:
+                ob.location = (int(look[6:]) * 5 - 12.5, 0, 0)
             ob.scale = (1, 1, 1)
     ground = kit.box("ground", 60, 30, 0.2, at=(0, 0, -0.1))
     ground.data.materials.append(kit.material("g", (90, 94, 100)))
-    kit.camera((0, -16, 7), (0, 0, 0.6), lens=40)
+    kit.camera((0, -20, 8), (0, -2, 0.6), lens=36)
     kit.render(os.path.join(kit.ROOT, "preview", "rubble.png"))

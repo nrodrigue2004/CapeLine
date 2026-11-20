@@ -77,6 +77,9 @@ return {
 		clashPanels = 2, -- a robot thrown through a wall breaks this many panels
 		warnLost = 0.3, -- citizens nearby run once 30% of the weight is gone or a storey falls
 		debrisLife = 5, -- seconds a loose piece tumbles on the device before it fades
+		-- a knocked-out wall panel spits `count` broken concrete bits off its torn edges (Art.Rubble chunks; inside the
+		-- debris budget), each size[1] to size[2] times the panel's thickness, at most `most` studs (list-combat 2026-11-20)
+		bits = { count = 2, size = { 1.2, 2.4 }, most = 2.5 },
 	},
 	-- clash moments
 	clash = { wallRange = 20, perPlayer = 3, window = 10, knock = 26 },

@@ -304,8 +304,8 @@
  "Rubble": {
   "asDrawn": 0,
   "either": 0,
-  "meshes": 8,
-  "turned": 8,
+  "meshes": 11,
+  "turned": 11,
   "verdict": "rotY180"
  },
  "SetPieces": {
