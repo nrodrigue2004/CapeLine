@@ -415,6 +415,271 @@ local LIVE_BATTLE = {
 	},
 }
 
+-- missions lane (2026-11-20, nate: "Too many missions just drop you straight into combat. No dialogue, no actual
+-- mission or story"; "each mission needs to make sense for both sides"). DRAFT lines for nate to edit. New
+-- non-combat goals: `talk` (walk up to someone, press the prompt: their lines play; `npc = "lodestar"` is
+-- Lodestar in person, else a person from their speaker card), `find` (spots to search, film, hack or plant: a
+-- prompt each, held for `seconds`, each with its own `clues` line) and `carry` (people to carry to a drop pad).
+local SAFEHOUSE_LESSON = {
+	kind = "talk",
+	at = "gauntletEnd",
+	who = "lodestar",
+	npc = "lodestar",
+	text = "Talk to Lodestar",
+	lines = {
+		{
+			who = "lodestar",
+			text = "Your Spark is a light only you carry. Crane's machines can copy it, but they can't make one.",
+		},
+		{
+			who = "lodestar",
+			hero = "That's why he hunts us. Every Spark he catches makes his fakes stronger.",
+			villain = "That's why he hunts you too, crook or not. A Spark is a Spark to Crane.",
+		},
+		{
+			who = "patch",
+			hero = "And that's why we hide, and why we fight. Door's this way!",
+			villain = "So even crooks need a roof. Door's this way. Don't steal the doorknob.",
+		},
+	},
+}
+-- After the choice, a look round the safehouse before you go: the torn photo (Act 1's hint at Lodestar's secret),
+-- Patch's radio desk and the bunks
+local SAFEHOUSE_TOUR = {
+	kind = "find",
+	list = "tour",
+	points = 3,
+	verb = "Look",
+	text = "Look around your new safehouse",
+	villainText = "Case the safehouse while nobody's looking",
+	clues = {
+		{
+			who = "patch",
+			hero = "That photo's torn right down the middle. Old Star won't say who was in the other half.",
+			villain = "A torn photo. Half of it's missing. Old Star guards it like treasure. Interesting.",
+		},
+		{
+			who = "patch",
+			hero = "My radio desk! I hear every robot in the city from here. Also three cooking shows.",
+			villain = "My radio desk. Touch a dial and I tell Old Star you snore. I'll make it convincing.",
+		},
+		{
+			who = "lodestar",
+			hero = "Pick any bunk. You're one of us now. Rest. Crane won't.",
+			villain = "That bunk is yours while you behave. The lock on my door is new, by the way.",
+		},
+	},
+}
+
+-- Framed: before the bridge's camera beat, each side gets the job from someone on the deck
+local FRAMED_WITNESS = {
+	kind = "talk",
+	at = "witness",
+	who = "driver",
+	text = "Talk to the bus driver",
+	lines = {
+		{
+			who = "driver",
+			text = "A gold hero blasted the cables! Then pointed at us and yelled about a rogue Spark!",
+		},
+		{ who = "patch", text = "Gold hero, light bolts... that's Radiant. A famous hero. Something's off." },
+		{ who = "driver", text = "There are still people stuck out there. Please, help them!" },
+	},
+}
+local FRAMED_LOOKOUT = {
+	kind = "talk",
+	at = "lookout",
+	who = "lookout",
+	text = "Talk to the Syndicate lookout",
+	lines = {
+		{
+			who = "lookout",
+			text = "Armored trucks, stuck on the deck. The drivers ran when the cables went.",
+		},
+		{
+			who = "lookout",
+			text = "Chairman says the trucks are yours. Be quick, before the real cops come.",
+		},
+		{
+			who = "patch",
+			text = "Also, a famous hero is wrecking a bridge. Which is weird. Keep an eye on that.",
+		},
+	},
+}
+-- Framed: with Radiant's face cracked and the fake held still, the Vigil films it and the Syndicate pulls its core
+local FRAMED_FILM = {
+	kind = "find",
+	at = "boss",
+	points = 1,
+	seconds = 3,
+	verb = "Film",
+	object = "Radiant",
+	keepFake = true, -- the cracked fake stays still through this step and the camera beat after it
+	text = "Film Radiant's metal face for proof",
+	clues = {
+		{ who = "patch", text = "Recording! Hold steady. The whole city is going to see this face." },
+	},
+}
+local FRAMED_CORE = {
+	kind = "find",
+	at = "boss",
+	points = 1,
+	seconds = 3,
+	verb = "Rip out",
+	object = "Data core",
+	keepFake = true,
+	text = "Rip out Radiant's data core",
+	clues = {
+		{
+			who = "patch",
+			text = "Got it! That core is full of Crane secrets. Somebody will pay a LOT for it.",
+		},
+	},
+}
+
+-- The Copy: someone has already used your face today
+local COPY_GROCER = {
+	kind = "talk",
+	at = "contact",
+	who = "grocer",
+	text = "Answer the rooftop alarm",
+	lines = {
+		{
+			who = "grocer",
+			text = "YOU! You smashed my shop an hour ago and flew off laughing! Same cape and all!",
+		},
+		{
+			who = "patch",
+			text = "That wasn't you. You were with me all morning. Someone is wearing your face.",
+		},
+		{ who = "grocer", text = "...Then who did I see? It went over those roofs. Go get it!" },
+	},
+}
+local COPY_FENCE = {
+	kind = "talk",
+	at = "contact",
+	who = "fence",
+	text = "Meet the fence on the rooftop",
+	lines = {
+		{ who = "fence", text = "You again? You sold me this same haul an hour ago. Same face, same cape." },
+		{ who = "patch", text = "You didn't. Someone is selling as you. Bad for business. Bad for you." },
+		{ who = "fence", text = "Your double went over those roofs. Bring me the real goods next time." },
+	},
+}
+local COPY_TRAIL = {
+	kind = "find",
+	list = "trail",
+	points = 3,
+	verb = "Search",
+	text = "Follow the trail across the roofs",
+	villainText = "Follow the stolen goods across the roofs",
+	waves = { { "SparkDrone", 2 } },
+	waveGap = 18,
+	clues = {
+		{
+			who = "patch",
+			hero = "Scorch marks. Your Spark's colour, only colder. Like a copy of a copy.",
+			villain = "Dropped jewels. It doesn't even keep the loot. That's just rude.",
+		},
+		{
+			who = "patch",
+			hero = "A smashed cash box, left behind. It isn't stealing. It's making you LOOK bad.",
+			villain = "It's not robbing anyone. It's wrecking your name. Who does that?",
+		},
+		{
+			who = "patch",
+			text = "Fresh footprints. Your size. It's close. Really close.",
+		},
+	},
+}
+
+-- The Signal: Crane's tower scanners go dark before the climb
+local SIGNAL_SCANNERS = {
+	kind = "find",
+	list = "beacons",
+	points = 3,
+	seconds = 1.5,
+	verb = "Disable",
+	villainText = "Plant jammers on the tower's scanners",
+	text = "Knock out the tower's scanner beacons",
+	waves = { { "SparkDrone", 2 }, { "BurglarBot", 2 } },
+	waveGap = 16,
+	clues = {
+		{
+			who = "patch",
+			hero = "One down! The tower can't see your Spark on that side now.",
+			villain = "One jammer in. That scanner sees nothing but static.",
+		},
+		{ who = "patch", text = "Two down. The guards are getting jumpy." },
+		{
+			who = "patch",
+			hero = "All dark! Crane's tower is blind. Climb!",
+			villain = "All jammed! Crane's tower is blind. Climb, boss.",
+		},
+	},
+}
+-- The Signal, after the Warden: the Vigil sends the bridge footage out, the Syndicate starts its ransom broadcast
+local SIGNAL_UPLOAD = {
+	kind = "find",
+	at = "mast",
+	points = 1,
+	seconds = 4,
+	verb = "Upload",
+	object = "Mast console",
+	text = "Upload the bridge footage at the mast",
+	clues = {
+		{ who = "patch", text = "Uploading... uploading... it's going out on every screen in Brightharbor!" },
+	},
+}
+local SIGNAL_RANSOM = {
+	kind = "find",
+	at = "relay",
+	points = 1,
+	seconds = 4,
+	verb = "Broadcast",
+	object = "Relay console",
+	text = "Start the ransom broadcast at the relay",
+	clues = {
+		{ who = "patch", text = "You're live. Crane pays, or the whole city sees what he's hiding. Smile!" },
+	},
+}
+
+-- Live: someone backstage lets each side in
+local LIVE_PRODUCER = {
+	kind = "talk",
+	at = "backstage",
+	who = "producer",
+	text = "Meet the producer backstage",
+	lines = {
+		{
+			who = "producer",
+			text = "You're Patch's friend? Good. I run tonight's show, and I've seen Bulwark's bolts.",
+		},
+		{
+			who = "producer",
+			text = "Get my cameras on their marks. When Bulwark slips, I go live to every screen.",
+		},
+		{ who = "patch", text = "See? Not everyone at Crane's parties loves Crane." },
+	},
+}
+local LIVE_STAGEHAND = {
+	kind = "talk",
+	at = "stagehand",
+	who = "stagehand",
+	text = "Meet the stagehand the Chairman paid",
+	lines = {
+		{ who = "stagehand", text = "The stage screens are yours. The Chairman paid. Never say my name." },
+		{
+			who = "stagehand",
+			text = "Hijack them before Bulwark talks, and the whole city watches YOUR show.",
+		},
+		{
+			who = "chairman",
+			text = "Crack Crane's golden boy on live TV, and Brightharbor learns to fear us.",
+		},
+	},
+}
+
 return {
 	-- The Ceremony prologue (nate's lore, build plan step 3; mission 1): about 4 minutes, right after the creator.
 	-- Silas Crane hands out medals at Crane's Hero Hall in the Downtown plaza; his scanner finds the new hero's
@@ -828,7 +1093,7 @@ return {
 			name = "Safehouse",
 			minLevel = 3,
 			layout = "dungeon",
-			minutes = 8,
+			minutes = 8.5, -- missions lane: +0.5 for Lodestar's talk and the look round
 			loot = "story",
 			blurb = "Lodestar takes you underground. Patch is on the radio.",
 			hero = {
@@ -846,10 +1111,12 @@ return {
 					},
 				},
 				SAFEHOUSE_GAUNTLET,
+				SAFEHOUSE_LESSON,
 				SAFEHOUSE_DOOR,
 				SAFEHOUSE_OFFER,
 				{ kind = "choice", choice = 5, text = "Tell Lodestar your real name?" },
 				SAFEHOUSE_AFTER,
+				SAFEHOUSE_TOUR,
 			},
 			villain = {
 				SAFEHOUSE_TUNNELS,
@@ -867,10 +1134,12 @@ return {
 					},
 				},
 				SAFEHOUSE_GAUNTLET,
+				SAFEHOUSE_LESSON,
 				SAFEHOUSE_DOOR,
 				SAFEHOUSE_OFFER,
 				{ kind = "choice", choice = 5, text = "The Chairman's offer" },
 				SAFEHOUSE_AFTER,
+				SAFEHOUSE_TOUR,
 			},
 		},
 		{
@@ -880,11 +1149,12 @@ return {
 			name = "Framed",
 			minLevel = 4,
 			layout = "bridge",
-			minutes = 8,
+			minutes = 8.5, -- missions lane: +0.5 for the talk and filming the fake
 			loot = "story",
 			renown = 600,
 			blurb = "Radiant wrecks a bridge and blames a real hero.",
 			hero = {
+				FRAMED_WITNESS,
 				FRAMED_BRIDGE,
 				{
 					kind = "hold",
@@ -903,12 +1173,14 @@ return {
 					},
 				},
 				FRAMED_FAKE,
+				FRAMED_FILM,
 				FRAMED_PROOF,
 				{ kind = "choice", choice = 1, text = "The bridge or the fake?" },
 				{ kind = "branch", choice = 1 },
 				FRAMED_NEWS,
 			},
 			villain = {
+				FRAMED_LOOKOUT,
 				FRAMED_BRIDGE,
 				{
 					kind = "break",
@@ -925,6 +1197,7 @@ return {
 					},
 				},
 				FRAMED_FAKE,
+				FRAMED_CORE,
 				FRAMED_PROOF,
 				{ kind = "choice", choice = 1, text = "The data core or the cash?" },
 				{ kind = "branch", choice = 1 },
@@ -999,38 +1272,20 @@ return {
 			name = "The Copy",
 			minLevel = 5,
 			layout = "rooftops",
-			minutes = 7,
+			minutes = 8, -- missions lane: +1 for the talk and the searches
 			rep = 120, -- own-side reputation on the first clear
 			blurb = "A fake copies your look and powers. Fight your evil twin.",
 			hero = {
-				{
-					kind = "reach",
-					at = "contact",
-					text = "Answer the rooftop alarm",
-					radio = {
-						{
-							who = "patch",
-							text = "A rooftop alarm with your name on it. Weird. Go check it out.",
-						},
-					},
-				},
+				COPY_GROCER,
+				COPY_TRAIL,
 				COPY_SCAN,
 				COPY_TWIN,
 				{ kind = "choice", choice = 3, text = "Your twin's core" },
 				COPY_AFTER,
 			},
 			villain = {
-				{
-					kind = "reach",
-					at = "contact",
-					text = "Meet the fence on the rooftop",
-					radio = {
-						{
-							who = "patch",
-							text = "Your fence wants a rooftop meet. Sounds legit. Totally. Go.",
-						},
-					},
-				},
+				COPY_FENCE,
+				COPY_TRAIL,
 				COPY_SCAN,
 				COPY_TWIN,
 				{ kind = "choice", choice = 3, text = "Your twin's core" },
@@ -1044,10 +1299,11 @@ return {
 			name = "The Signal",
 			minLevel = 6,
 			layout = "tower",
-			minutes = 10,
+			minutes = 11, -- missions lane: +1 for the talk and the searches
 			loot = "story",
 			blurb = "Take Crane's broadcast tower so the city sees the truth.",
 			hero = {
+				SIGNAL_SCANNERS,
 				SIGNAL_CLIMB,
 				SIGNAL_INSIDER,
 				{ kind = "choice", choice = 2, text = "Trust the insider?" },
@@ -1069,9 +1325,11 @@ return {
 					},
 				},
 				SIGNAL_WARDEN,
+				SIGNAL_UPLOAD,
 				SIGNAL_ON_AIR,
 			},
 			villain = {
+				SIGNAL_SCANNERS,
 				SIGNAL_CLIMB,
 				SIGNAL_INSIDER,
 				{ kind = "choice", choice = 2, text = "The truth feed" },
@@ -1093,6 +1351,7 @@ return {
 					},
 				},
 				SIGNAL_WARDEN,
+				SIGNAL_RANSOM,
 				SIGNAL_ON_AIR,
 			},
 			branches = {
@@ -1121,13 +1380,14 @@ return {
 			name = "Live",
 			minLevel = 8,
 			layout = "arena",
-			minutes = 12,
+			minutes = 13, -- missions lane: +1 for the talk and the searches
 			loot = "storyFinale",
 			skillPoints = 1,
 			finale = true,
 			ending = "act1", -- the ending broadcast plays after it (Config.Story.ending)
 			blurb = "Unmask a famous fake live on every screen in the city.",
 			hero = {
+				LIVE_PRODUCER,
 				{
 					kind = "hold",
 					points = 3,
@@ -1152,6 +1412,7 @@ return {
 				LIVE_AFTER,
 			},
 			villain = {
+				LIVE_STAGEHAND,
 				{
 					kind = "break",
 					points = 3,
@@ -1527,6 +1788,85 @@ return {
 					hair = { 40, 40, 44 },
 					shape = "messy",
 					extras = { "visor" },
+				},
+			},
+			-- missions lane (2026-11-20, DRAFT names for nate): the people each side talks to in Act 1's missions
+			driver = {
+				name = "BUS DRIVER",
+				color = { 255, 190, 120 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 70, 50, 30 },
+					skin = { 160, 110, 80 },
+					hair = { 60, 40, 30 },
+					shape = "messy",
+					extras = { "cap" },
+				},
+			},
+			lookout = {
+				name = "SYNDICATE LOOKOUT",
+				color = { 220, 90, 100 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 40, 16, 24 },
+					skin = { 214, 170, 140 },
+					hair = { 24, 24, 28 },
+					shape = "slick",
+					extras = {},
+				},
+			},
+			grocer = {
+				name = "SHOP OWNER",
+				color = { 255, 220, 120 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 60, 60, 30 },
+					skin = { 236, 196, 160 },
+					hair = { 150, 80, 40 },
+					shape = "messy",
+					extras = {},
+				},
+			},
+			fence = {
+				name = "THE FENCE",
+				color = { 200, 120, 255 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 40, 24, 56 },
+					skin = { 120, 84, 60 },
+					hair = { 20, 20, 24 },
+					shape = "slick",
+					extras = {},
+				},
+			},
+			producer = {
+				name = "SHOW PRODUCER",
+				color = { 140, 220, 255 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 20, 44, 70 },
+					skin = { 200, 150, 116 },
+					hair = { 20, 20, 24 },
+					shape = "messy",
+					extras = { "headset" },
+				},
+			},
+			stagehand = {
+				name = "STAGEHAND",
+				color = { 230, 140, 90 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 50, 30, 20 },
+					skin = { 226, 180, 146 },
+					hair = { 90, 60, 40 },
+					shape = "hood",
+					extras = {},
 				},
 			},
 			-- the side quest chains' own cast (lore step 11; the givers speak from Config.SideQuests.givers)

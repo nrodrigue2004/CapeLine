@@ -227,6 +227,18 @@ return function(T: any)
 				return out
 			end,
 		}
+		stubs.SiteKit.citizen = function(pos, opts)
+			return { state = "stuck", home = pos, onSafe = opts.onSafe, who = opts.who, prompt = true }
+		end
+		stubs.SiteKit.pad = function(pos)
+			return { pos = pos, model = true }
+		end
+		stubs.SiteKit.carrying = function()
+			return false
+		end
+		stubs.SiteKit.bystander = function()
+			return roblox.Instance.new("Model")
+		end
 		stubs.CityBuilder = {
 			part = function(b)
 				local p = roblox.Instance.new("Part")
@@ -359,6 +371,19 @@ return function(T: any)
 			for _, g in GLOBALS do
 				env[g] = (roblox :: any)[g]
 			end
+			-- Lune's Instances have no events: a prompt is a stand-in whose Triggered the walker never needs (it
+			-- calls the step's prompt handlers itself, as Triggered would)
+			env.Instance = {
+				new = function(cls: string)
+					if cls == "ProximityPrompt" then
+						return {
+							Triggered = { Connect = function() end },
+							Enabled = true,
+						}
+					end
+					return roblox.Instance.new(cls)
+				end,
+			}
 			env.game = gameProxy
 			env.workspace = game:GetService("Workspace")
 			env.script = mod
@@ -531,6 +556,28 @@ return function(T: any)
 						local e = t.fakeId and W.Enemy.get(t.fakeId)
 						if e then
 							e.health = math.max(1, e.health - 10)
+						end
+					elseif k == "talk" or k == "find" then
+						-- walk up and press the prompt (one a tick, like a player going spot to spot)
+						for i, e in t.prompts or {} do
+							if k == "talk" and t.talkAt then
+								break
+							end
+							if k == "talk" or (t.found and not t.found[i]) then
+								hero.pos = v3(e.at, 2)
+								e.fn(player)
+								break
+							end
+						end
+					elseif k == "carry" then
+						for _, c in t.people or {} do
+							if c.state == "stuck" then
+								if c.who(hero) then
+									c.state = "safe"
+									c.onSafe(hero, nil)
+								end
+								break
+							end
 						end
 					elseif k == "choice" then
 						if t.asked and leaveAtChoice then

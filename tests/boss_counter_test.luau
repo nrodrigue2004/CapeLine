@@ -328,8 +328,12 @@ return function(T: any)
 
 	local function fight(id: string, style: string, bare: boolean?): { [string]: any }
 		local def = B.bosses[id]
+		-- (a mission boss's party of 4 gets the mission's own party scaling, as MissionService gives it)
 		local maxHp = if def.mission
-			then BossMath.warframeHp(Config, LEVEL)
+			then BossMath.warframeHp(Config, LEVEL) * require("../src/shared/SidekickRules").partyHp(
+				Config.Sidekick,
+				4
+			)
 			else BossMath.maxHp(Config, 4, LEVEL, 0)
 		local rng = Rng.new(Rng.hash(#id, #style))
 		local sim = BossSim.new(Config, id, 0, 0, 0, maxHp, LEVEL, 0, Rng.new(19))

@@ -251,6 +251,13 @@ return {
 		OldBeacon = { face = "Friendly Grin", hair = "Hair Base In Brown", beard = "Styled Beard Brown" }, -- the old street hero, the drill coach
 		TheMargrave = { face = "Take Over the World", hair = "Purple and Blue Male Hair Slick" }, -- the money man
 		TheVelvetPaw = { face = "Slickfang", hair = "Black Trendy Messy Buns" }, -- the cat burglar (buns for ears)
+		-- missions lane (2026-11-20): Act 1's mission talks
+		driver = { face = "Aghast", hair = "Hair Base In Brown" }, -- Framed: the bus driver on the bridge
+		lookout = { face = "Slickfang", hair = "Black Short Parted Hair" }, -- Framed: the Syndicate's lookout
+		grocer = { face = "Mildly Irritated Face", hair = "Cinnamon Hair" }, -- The Copy: the robbed shop owner
+		fence = { face = "Meanie", hair = "Black Messy Hairstyle" }, -- The Copy: the Syndicate's fence
+		producer = { face = "Good Intentioned", hair = "Black Ponytail" }, -- Live: the show's producer
+		stagehand = { face = "Blinky", hair = false }, -- Live: the stagehand under a hood
 	},
 	-- The named helpers a side quest step draws (who stands in for a `find` step's witness, or the one carried in
 	-- a `carry` step): chain id, step number and side; `speaker` is their Config.Story.guides.speakers card (its

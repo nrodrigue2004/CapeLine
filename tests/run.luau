@@ -4456,14 +4456,14 @@ end)
 test("M7: choices pick once, pay once, and change one step of a mission", function()
 	local StoryPlan = require("../src/shared/StoryPlan")
 	local story = ProfileSchema.newCharacter().story
-	-- Framed (mission 3): stage 6 is choice 1's branch
+	-- Framed (mission 3): stage 8 is choice 1's branch (missions lane: after the witness talk and the filming)
 	local before = StoryPlan.steps(Config, 3, "hero", story.choices)
 	check(#before == StoryPlan.stages(Config, 3) - 1, "the branch waits for its choice")
-	check(StoryPlan.pendingBranch(Config, 3, "hero", 6) == 1, "stage 6 is choice 1's branch")
+	check(StoryPlan.pendingBranch(Config, 3, "hero", 8) == 1, "stage 8 is choice 1's branch")
 	local ok, fx = StoryPlan.pick(Config, story, 1, 1, "hero")
 	check(ok and fx.skillPoints == 2 and fx.rep[1] == "city" and fx.flag == "bridgeSaved", "Save the Bridge")
 	check(not StoryPlan.pick(Config, story, 1, 2, "hero"), "a choice is picked only once")
-	local after = StoryPlan.stage(Config, 3, 6, "hero", story.choices)
+	local after = StoryPlan.stage(Config, 3, 8, "hero", story.choices)
 	check(after ~= nil and after.train, "the train branch goes in")
 	local villain = ProfileSchema.newCharacter("villain").story
 	local _, vfx = StoryPlan.pick(Config, villain, 1, 2, "villain")
@@ -4472,14 +4472,14 @@ test("M7: choices pick once, pay once, and change one step of a mission", functi
 		"a villain's own-side rep is the Syndicate"
 	)
 	check(StoryPlan.labels(Config, 1, "villain")[2] == "Grab the Cash", "villain button labels")
-	check(StoryPlan.stage(Config, 3, 6, "villain", villain.choices).at == "van", "the cash van branch")
+	check(StoryPlan.stage(Config, 3, 8, "villain", villain.choices).at == "van", "the cash van branch")
 	-- The Signal: Test Her puts in an ambush; Trust Her goes straight on
 	local trust = ProfileSchema.newCharacter().story
 	StoryPlan.pick(Config, trust, 2, 1, "hero")
-	check(StoryPlan.stage(Config, 5, 4, "hero", trust.choices) == nil, "trust: no ambush")
+	check(StoryPlan.stage(Config, 5, 5, "hero", trust.choices) == nil, "trust: no ambush")
 	local test2 = ProfileSchema.newCharacter().story
 	StoryPlan.pick(Config, test2, 2, 2, "hero")
-	check(StoryPlan.stage(Config, 5, 4, "hero", test2.choices).kind == "defeat", "test: an ambush")
+	check(StoryPlan.stage(Config, 5, 5, "hero", test2.choices).kind == "defeat", "test: an ambush")
 	-- The Copy: a villain who reprograms the twin's core gets the Echo Drone (cosmetic)
 	local minion = ProfileSchema.newCharacter("villain").story
 	StoryPlan.pick(Config, minion, 3, 1, "villain")
@@ -10849,6 +10849,9 @@ do
 		scene = true,
 		choice = true,
 		warframe = true,
+		talk = true, -- missions lane (2026-11-20): the non-combat goals
+		find = true,
+		carry = true,
 	}
 
 	-- Every step a side can meet in a mission, with both picks of every choice (each branch at least once)
@@ -10934,6 +10937,19 @@ do
 				where .. ": its choice"
 			)
 		end
+		-- missions lane (2026-11-20): a talk has a known person and lines; a find a line per spot; a carry a pad
+		if st.kind == "talk" then
+			check(st.npc == "lodestar" or S.guides.speakers[st.who] ~= nil, where .. ": who they talk to")
+			check(#(st.lines or {}) >= 2, where .. ": what they say")
+		end
+		if st.kind == "find" then
+			check(#(st.clues or {}) >= (st.points or 1), where .. ": a line for every spot")
+			check(st.at ~= nil or st.list ~= nil, where .. ": where the spots are")
+		end
+		if st.kind == "carry" then
+			check(l.points[st.to or "spawn"] ~= nil, where .. ": the drop pad")
+			check(#(l.lists[st.list or "people"] or {}) >= (st.points or 1), where .. ": the people")
+		end
 	end
 
 	test(
@@ -10950,11 +10966,12 @@ do
 			-- pacing and rewards by index, exactly the old Act 1's (so totals do not move)
 			local OLD = {
 				{ minLevel = 1, skillPoints = 1 },
-				{ minLevel = 3, minutes = 8, loot = "story" },
-				{ minLevel = 4, minutes = 8, loot = "story", renown = 600 },
-				{ minLevel = 5, minutes = 7, rep = 120 },
-				{ minLevel = 6, minutes = 10, loot = "story" },
-				{ minLevel = 8, minutes = 12, loot = "storyFinale", skillPoints = 1 },
+				-- (missions lane 2026-11-20: each mission's minutes grew by its new talk and searches)
+				{ minLevel = 3, minutes = 8.5, loot = "story" },
+				{ minLevel = 4, minutes = 8.5, loot = "story", renown = 600 },
+				{ minLevel = 5, minutes = 8, rep = 120 },
+				{ minLevel = 6, minutes = 11, loot = "story" },
+				{ minLevel = 8, minutes = 13, loot = "storyFinale", skillPoints = 1 },
 			}
 			for n, old in OLD do
 				local m = S.missions[n]
@@ -11061,7 +11078,7 @@ do
 				"Safehouse"
 			)
 			check(has(2, "scene", "lodestar", "door"), "Lodestar stands in the safehouse")
-			local offer = S.missions[2].hero[5]
+			local offer = S.missions[2].hero[6]
 			check(
 				offer.kind == "scene" and offer.lines[2].hero ~= offer.lines[2].villain,
 				"recruited, or a deal"
@@ -11609,7 +11626,7 @@ do
 				table.find(Gd.appears.lodestar, 1) and table.find(Gd.appears.lodestar, 2),
 				"the prologue and Safehouse"
 			)
-			local offer = S.missions[2].villain[5]
+			local offer = S.missions[2].villain[6]
 			check(offer.kind == "scene" and offer.lodestar ~= nil, "he stands where the deal is offered")
 		end
 	)
@@ -11630,7 +11647,9 @@ do
 				check(S.missions[num] ~= nil, "Patch's missions exist")
 			end
 			-- key beats: every playable stage (and branch) has a guide line for each side as it starts
-			local PLAY = { scene = false, choice = false, branch = false, none = false }
+			-- (missions lane: a talk's lines and a find's clue lines play as they are used; playable() checks them)
+			local PLAY =
+				{ scene = false, choice = false, branch = false, none = false, talk = false, find = false }
 			for _, m in S.missions do
 				for _, side in SIDES do
 					local key = StoryPlan.sideKey(side)
@@ -11651,7 +11670,7 @@ do
 			-- the client finds a stage from its MissionState, branches too
 			local st = GuidePlan.stageFor(
 				Config,
-				{ num = 3, step = 6, side = "hero", kind = "chase", text = "Chase Radiant down" }
+				{ num = 3, step = 8, side = "hero", kind = "chase", text = "Chase Radiant down" }
 			)
 			check(st ~= nil and st.radio ~= nil, "a branch stage")
 			check(
@@ -12024,8 +12043,9 @@ test(
 		local kit = HqRules.wallKit(Config, 376)
 		local decor, wallC = 0, 0
 		for _, b in dungeon.boxes do
-			if b.tag == "decor" and b.ref == "tornPhoto" then
-				check(b.ghost == true, "the torn photo is walk-through") -- act1-choices: not the wall kit
+			if b.tag == "decor" and (b.ref == "tornPhoto" or b.ref == "tour") then
+				-- act1-choices: not the wall kit (nor the missions lane's radio desk and bunks)
+				check(b.ghost == true, "the torn photo, the desk and the bunks are walk-through")
 			elseif b.tag == "decor" then
 				decor += 1
 				check(b.ghost == true, "decor is walk-through")
@@ -12221,7 +12241,7 @@ do
 			for _, list in { m.hero or {}, m.villain or {} } do
 				for stage, st in list do
 					if st.kind == "scene" then
-						local bit = CinemaPlan.missionBit(Config, num, stage)
+						local bit = CinemaPlan.sceneBit(Config, num, stage)
 						check(
 							bit ~= nil and bit >= Ci.missionBits.base and bit < 128,
 							"mission " .. num .. " stage " .. stage

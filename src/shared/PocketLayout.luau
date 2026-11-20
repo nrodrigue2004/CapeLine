@@ -172,6 +172,12 @@ function BUILD.tower(l: Layout)
 	box(l, "prop", 30, h + 4, 0, 4, 6, 4, "steel")
 	box(l, "glow", 30, h + 7.5, 0, 3, 1, 3, "foundryGlow")
 	point(l, "relay", 26, h + 2.5, 0)
+	-- missions lane: the scanner beacons round the tower's foot (knocked out or jammed before the climb)
+	for _, b in { { 34, -34 }, { -34, -34 }, { 0, 44 } } do
+		add(l, "beacons", b[1], 0.5, b[2])
+		box(l, "prop", b[1], 3, b[2], 2, 6, 2, "steel")
+		box(l, "glow", b[1], 6.5, b[2], 2.4, 1, 2.4, "beaconGlow")
+	end
 end
 
 -- The Copy (mission 4): rooftops of Old Town with the contact on one, the copy waiting on the next, and a
@@ -191,6 +197,10 @@ function BUILD.rooftops(l: Layout)
 	point(l, "contact", c[1], c[2], c[3])
 	local k = roofs[8] -- the roof beside it: where the copy stands
 	point(l, "copy", k[1], k[2], k[3])
+	-- missions lane: the copy's trail from the contact's roof round to the roof it waits on
+	for _, i in { 14, 9, 3 } do
+		add(l, "trail", roofs[i][1], roofs[i][2], roofs[i][3])
+	end
 	-- the chase: a lap of the outer roofs
 	for _, i in { 12, 7, 2, 3, 4, 9, 14, 19, 24, 23, 22 } do
 		add(l, "path", roofs[i][1], roofs[i][2], roofs[i][3])
@@ -320,6 +330,19 @@ function BUILD.dungeon(l: Layout, Config: any)
 	for _, r in { { -150, -40 }, { -110, 40 }, { -20, -42 } } do
 		add(l, "relays", r[1], 0.5, r[2])
 	end
+	-- missions lane (2026-11-20): the look round the safehouse after the choice: the torn photo, Patch's radio
+	-- desk (a desk, two sets and a mic arm) and the bunks (two cots). Ghost decor, PLACEHOLDER ART (box kit).
+	add(l, "tour", 166, 0.5, -12)
+	box(l, "prop", 172, 1.5, 22, 8, 3, 4, "wood", { tag = "decor", ghost = true, ref = "tour" })
+	box(l, "prop", 170.5, 3.9, 22, 2.4, 1.8, 2, "steel", { tag = "decor", ghost = true, ref = "tour" })
+	box(l, "prop", 173.5, 3.9, 22, 2.4, 1.8, 2, "steel", { tag = "decor", ghost = true, ref = "tour" })
+	box(l, "glow", 172, 5, 21, 0.4, 1.4, 0.4, "beaconGlow", { tag = "decor", ghost = true, ref = "tour" })
+	add(l, "tour", 166, 0.5, 22)
+	for _, z in { -40, -30 } do
+		box(l, "prop", 140, 1, z, 12, 2, 5, "steel", { tag = "decor", ghost = true, ref = "tour" })
+		box(l, "prop", 140, 2.2, z, 11, 0.5, 4.4, "white", { tag = "decor", ghost = true, ref = "tour" })
+	end
+	add(l, "tour", 140, 0.5, -24)
 	point(l, "spawn", -170, 3, 0)
 end
 
@@ -353,6 +376,9 @@ function BUILD.arena(l: Layout, Config: any)
 	for _, c in { { -150, -120 }, { 150, -120 }, { 70, 160 } } do
 		add(l, "screens", c[1], 0.5, c[2])
 	end
+	-- missions lane: backstage, where the producer (the Vigil) and the paid stagehand (the Syndicate) wait
+	point(l, "backstage", -50, 3.5, -150)
+	point(l, "stagehand", 50, 3.5, -150)
 	point(l, "spawn", 0, 3, 170)
 end
 
@@ -379,6 +405,9 @@ function BUILD.bridge(l: Layout)
 	point(l, "trainStart", -20, deck + 0.2, 180)
 	l.points.trainDir = { 0, -1, 330 } -- a direction (x, z) and a length, not a place
 	point(l, "van", 18, deck + 0.5, 120)
+	-- missions lane: who gives each side its job, near the spawn (the bus driver, the Syndicate's lookout)
+	point(l, "witness", -14, deck + 0.5, 150)
+	point(l, "lookout", 16, deck + 0.5, 152)
 	point(l, "boss", 0, deck + 0.5, -40)
 	-- the chase: tower tops, crossbeams and the deck
 	for _, c in

@@ -211,7 +211,7 @@ return function(T: any)
 			end
 			check(offer ~= nil and after ~= nil, "Safehouse: the offer and the after scenes")
 			check(
-				rawequal(after, S.missions[2].villain[7]),
+				rawequal(after, S.missions[2].villain[8]),
 				"the after scene is shared (both sides watch it)"
 			)
 			local ho, vo = lineTexts(offer, "hero"), lineTexts(offer, "villain")
@@ -281,7 +281,7 @@ return function(T: any)
 			if b.ref == "tornPhoto" then
 				photo = b
 			end
-			if b.color == "white" and b.tag == "decor" then
+			if b.color == "white" and b.tag == "decor" and b.ref == "tornPhoto" then
 				card += 1
 			end
 		end
@@ -292,7 +292,7 @@ return function(T: any)
 		check(card == 2, "its print in two halves (plain cards, nothing drawn)")
 		local door = l.points.door
 		check(photo ~= nil and math.abs(photo.cx - door[1]) < 16, "near the door the camera looks at")
-		local after = S.missions[2].hero[7]
+		local after = S.missions[2].hero[8]
 		local h = lineTexts(after, "hero", {})
 		check(
 			has(h, "torn photo") and has(h, "old students"),

@@ -195,6 +195,31 @@ local function onMission()
 	end
 end
 
+-- missions lane (2026-11-20): a talk's lines (the person you walked up to) or a find spot's line, as the
+-- server says each happened (MissionTalk); the words are Config.Story's, by the hero's side
+local function onMissionTalk(t: any)
+	local m = StoryClient.mission
+	if type(t) ~= "table" or t.num ~= m.num or t.stage ~= m.step then
+		return
+	end
+	local st = GuidePlan.stageFor(Config, m)
+	if not st then
+		return
+	end
+	local s = m.side or "hero"
+	local key = if s == "villain" then "villain" else "hero"
+	local list = if t.kind == "talk" then st.lines else { st.clues and st.clues[t.i] }
+	local first = t.kind == "talk" -- a talk cuts in over the radio once, then its lines queue in order
+	for _, line in list or {} do
+		local text = (line.side == nil or line.side == key) and GuidePlan.lineText(line, s)
+		if text then
+			local l = { who = line.who, text = text } -- fixed lines only (Config.Story)
+			GuideHud.say(l.who, l.text, { tag = "stage", cut = first })
+			first = false
+		end
+	end
+end
+
 ---------------------------------------------------------------------------
 -- Lodestar in person
 ---------------------------------------------------------------------------
@@ -318,6 +343,7 @@ local function sqStep(now: number)
 end
 
 function GuideClient.init()
+	Net.listen("MissionTalk", onMissionTalk)
 	StoryClient.Changed:Connect(function(what)
 		if what == "mission" then
 			onMission()

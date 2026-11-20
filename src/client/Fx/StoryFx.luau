@@ -573,7 +573,7 @@ local function playScene(st: any, r: BasePart)
 	CinemaClient.play({
 		owner = "mission",
 		key = st,
-		bit = CinemaPlan.missionBit(Config, m.num or 0, m.step or 0),
+		bit = CinemaPlan.sceneBit(Config, m.num or 0, m.step or 0),
 		shots = {
 			{
 				kind = "dolly",

@@ -471,10 +471,12 @@ function StoryPlan.need(step: any): number
 		return step.checkpoints
 	elseif k == "escort" then
 		return step.goal
+	elseif k == "find" or k == "carry" then
+		return step.points or 1 -- missions lane: spots to search, people to carry
 	elseif k == "beacon" or k == "scene" then
 		return step.seconds
 	end
-	return 1 -- reach, choice, chase, boss, fake, twin (one per hero, set when they spawn), warframe, carry, deliver, find
+	return 1 -- reach, choice, chase, boss, fake, twin (one per hero, set when they spawn), warframe, talk, deliver
 end
 
 -- A choice's option as a side sees it (its label, flag, reputation and cosmetic), or nil

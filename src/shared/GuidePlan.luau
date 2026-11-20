@@ -96,6 +96,9 @@ function GuidePlan.lines(Config: any): { { where: string, line: any, mission: nu
 			for i, l in st.radio or {} do
 				add(string.format("%s.radio[%d]", where, i), l, num)
 			end
+			for i, l in st.clues or {} do -- missions lane: a find spot's line
+				add(string.format("%s.clues[%d]", where, i), l, num)
+			end
 		end
 		for _, key in GuidePlan.SIDES do
 			for i, st in m[key] or {} do

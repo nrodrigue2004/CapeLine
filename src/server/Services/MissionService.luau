@@ -43,6 +43,10 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
+local GuidePlan = require(Shared:WaitForChild("GuidePlan"))
+local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local RigMath = require(Shared:WaitForChild("RigMath"))
+local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
 local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
 local StoryArtKit = require(Shared:WaitForChild("StoryArtKit"))
@@ -106,6 +110,13 @@ type Track = {
 	done: boolean,
 	endAt: number,
 	retry: boolean, -- the server was full when its robots came: startStep tries again each tick
+	-- missions lane (2026-11-20): the non-combat kinds. talk: when a member talked (the lines then play for
+	-- their length); find: which spots are done; prompts: each prompt's handler (Triggered calls it, so the
+	-- headless walk can too); people: a carry's citizens
+	talkAt: number?,
+	found: { boolean }?,
+	prompts: { { at: { number }, fn: (Player) -> () } }?,
+	people: { any }?,
 }
 
 type Run = {
@@ -337,6 +348,10 @@ local function newTrack(key: string, lead: Player, st: any?): Track
 		train = nil,
 		wf = nil,
 		asked = false,
+		talkAt = nil,
+		found = nil,
+		prompts = nil,
+		people = nil,
 		done = st == nil,
 		endAt = 0,
 		retry = false,
@@ -440,6 +455,202 @@ local function robots(run: Run, track: Track)
 	track.retry = next_ == "wait"
 	if next_ == "skip" then
 		track.have = track.need
+	end
+end
+
+---------------------------------------------------------------------------
+-- Talk, find and carry (missions lane, 2026-11-20; nate: "Too many missions just drop you straight into combat.
+-- No dialogue, no actual mission or story"). A talk is a person to walk up to (Talk prompt) whose fixed lines
+-- then play for the side; a find is spots to search, film, hack or plant (a prompt each, held for `seconds`),
+-- each with its own line; a carry is people to carry to a drop pad. Only the track's own members may use them.
+---------------------------------------------------------------------------
+
+local npcLayout = RigMath.layout(Config.HeroRig, nil, 1)
+local stepTarget: (Run, Track, Player) -> { number }? -- below (the goal marker); the waves aim at it too
+local keptPos: (Run) -> { number }? -- below (where the cracked fake stands)
+
+local function isMember(run: Run, track: Track, player: Player): boolean
+	return runs[player] == run and table.find(membersOf(run, track.key), player) ~= nil
+end
+
+-- Each line's length on screen (the guide queue's own timing) plus a beat between lines
+local function linesSeconds(lines: { any }?, side: string): number
+	local t = 0
+	for _, l in lines or {} do
+		local text = GuidePlan.lineText(l, side)
+		if text then
+			t += GuidePlan.duration(Config, text) + 0.4
+		end
+	end
+	return t
+end
+
+local function tellMembers(run: Run, track: Track, data: { [string]: any })
+	for _, p in membersOf(run, track.key) do
+		if p.Parent then
+			Net.fire("MissionTalk", p, data)
+		end
+	end
+end
+
+-- A prompt on a small marker at p (PLACEHOLDER ART: a glowing box until a story prop pass); fn(player) runs for
+-- a member in range
+local function promptAt(
+	run: Run,
+	track: Track,
+	p: { number },
+	action: string,
+	object: string,
+	hold: number,
+	fn
+)
+	local m = Instance.new("Model")
+	m.Name = "StoryPrompt"
+	local marker = SiteKit.part(
+		m,
+		Vector3.new(1.6, 1.6, 1.6),
+		CFrame.new(v3(p, 1.4)) * CFrame.Angles(0, math.rad(45), math.rad(45)),
+		Color3.fromRGB(255, 214, 90),
+		Enum.Material.Neon
+	)
+	marker.CanCollide = false
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = action
+	prompt.ObjectText = object
+	prompt.HoldDuration = hold
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.KeyboardKeyCode = Enum.KeyCode.B -- E is Skill 2 (as at the terminals and rescues)
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	prompt.Parent = marker
+	m.Parent = run.model
+	table.insert(track.things, m)
+	local entry = {
+		at = p,
+		fn = function(player: Player)
+			if track.done or not isMember(run, track, player) then
+				return
+			end
+			if fn(player) then
+				prompt.Enabled = false
+				marker.Transparency = 1
+			end
+		end,
+	}
+	track.prompts = track.prompts or {}
+	table.insert(track.prompts :: any, entry)
+	prompt.Triggered:Connect(entry.fn)
+	return m
+end
+
+local function startTalk(run: Run, track: Track, st: any)
+	local p = run.layout.points[st.at or "spawn"]
+	if not p then
+		track.have = 1 -- no place for them in this layout: the story moves on
+		return
+	end
+	local sp = GuidePlan.speaker(Config, st.who)
+	if st.npc ~= "lodestar" and sp then
+		-- the person, from their speaker card: its skin and hair colours, their Roblox catalog face and hair
+		-- (Config.NpcLooks.cast), a shirt in their card colour (PLACEHOLDER ART: plain clothes until an outfit);
+		-- Lodestar is drawn by each device, like in the camera beats
+		local pt = sp.portrait
+		local skin = Color3.fromRGB(pt.skin[1], pt.skin[2], pt.skin[3])
+		local hair = Color3.fromRGB(pt.hair[1], pt.hair[2], pt.hair[3])
+		local shirt = Color3.fromRGB(sp.color[1], sp.color[2], sp.color[3])
+			:Lerp(Color3.new(0.2, 0.2, 0.25), 0.35)
+		-- (cosmetic: a failure here never blocks the story; the prompt below still goes up)
+		pcall(function()
+			local rig =
+				NpcRig.person(npcLayout, "Talk" .. st.who, shirt, Color3.fromRGB(50, 52, 64), skin, hair)
+			table.insert(track.things, rig.model)
+			NpcRig.wearCast(rig, PeopleLooks.castPick(Config, st.who))
+			-- face the way the party comes from (the pocket's spawn)
+			local from = run.layout.points.spawn or { p[1], p[2], p[3] + 10 }
+			local d = Vector3.new(from[1] - p[1], 0, from[3] - p[3])
+			local yaw = if d.Magnitude > 0.1 then math.atan2(-d.X, -d.Z) else 0
+			NpcRig.place(rig, CFrame.new(v3(p, -1.5)) * CFrame.Angles(0, yaw, 0))
+			rig.model.Parent = run.model
+		end)
+	end
+	promptAt(run, track, p, "Talk", if sp then sp.name else "", 0, function(): boolean
+		if track.talkAt then
+			return true
+		end
+		track.talkAt = os.clock()
+		tellMembers(run, track, { num = run.num, stage = run.stage, kind = "talk" })
+		return true
+	end)
+end
+
+local function startFind(run: Run, track: Track, st: any)
+	local l = run.layout
+	local list = if st.at then { l.points[st.at] } else l.lists[st.list or "clues"]
+	if st.keepFake then
+		list = { keptPos(run) or l.points[st.at or "boss"] } -- at the cracked fake, where it fell
+	end
+	track.found = {}
+	track.waveAt = os.clock() + 4
+	local n = 0
+	for i = 1, st.points or 1 do
+		local p = list and list[i]
+		if p then
+			n += 1
+			local idx = n;
+			(track.found :: any)[idx] = false
+			promptAt(run, track, p, st.verb or "Search", st.object or "", st.seconds or 0, function(): boolean
+				local f = track.found :: { boolean }
+				if f[idx] then
+					return true
+				end
+				f[idx] = true
+				track.have += 1
+				tellMembers(run, track, { num = run.num, stage = run.stage, kind = "clue", i = idx })
+				return true
+			end)
+		end
+	end
+	track.need = math.max(1, n)
+	if n == 0 then
+		track.have = 1
+	end
+end
+
+local function startCarry(run: Run, track: Track, st: any)
+	local l = run.layout
+	local list = l.lists[st.list or "people"]
+	local to = l.points[st.to or "spawn"]
+	if not to then
+		track.have = 1
+		return
+	end
+	local pad = SiteKit.pad(v3(to))
+	table.insert(track.things, pad)
+	track.waveAt = os.clock() + 4
+	track.people = {}
+	local n = 0
+	for i = 1, st.points or 1 do
+		local p = list and list[i]
+		if p then
+			n += 1
+			local c = SiteKit.citizen(v3(p), {
+				pads = { pad },
+				who = function(hero): boolean
+					return hero.player ~= nil and isMember(run, track, hero.player)
+				end,
+				onSafe = function()
+					if not track.done then
+						track.have += 1
+					end
+				end,
+			})
+			table.insert(track.people :: any, c)
+			table.insert(track.things, c)
+		end
+	end
+	track.need = math.max(1, n)
+	if n == 0 then
+		track.have = 1
 	end
 end
 
@@ -563,6 +774,12 @@ local function startStep(run: Run, track: Track)
 		end
 	elseif k == "warframe" then
 		warframeArena(run, track)
+	elseif k == "talk" then
+		startTalk(run, track, st)
+	elseif k == "find" then
+		startFind(run, track, st)
+	elseif k == "carry" then
+		startCarry(run, track, st)
 	end
 	-- "choice" waits in tickTrack(): the prompt goes up once the step starts; "scene" runs on the clock
 end
@@ -600,7 +817,17 @@ startStage = function(run: Run)
 		end
 	end
 	local plan = StoryPlan.tracks(Config, run.num, run.stage, present)
-	if not (plan.both and plan.both.kind == "scene") then
+	local keep = plan.both ~= nil and plan.both.kind == "scene"
+	if not plan.both then
+		-- missions lane: or through a step that works on it (filming it, pulling its core) on every side here
+		keep = next(plan) ~= nil
+		for _, st in plan do
+			if not (st and st.keepFake) then
+				keep = false
+			end
+		end
+	end
+	if not keep then
 		dropKept(run) -- a cracked fake stays only through the camera beat right after it
 	end
 	for key, st in plan do
@@ -778,7 +1005,7 @@ local function tickTrack(run: Run, track: Track, dt: number, now: number)
 		track.have = now - track.stepAt
 		if track.have >= track.need then
 			-- lore step 7: each hero on this stage has now seen its camera beat (SKIP from the next time)
-			local bit = if run.m.custom then nil else CinemaPlan.missionBit(Config, run.num, run.stage)
+			local bit = if run.m.custom then nil else CinemaPlan.sceneBit(Config, run.num, run.stage)
 			for _, h in heroesOf(run, track.key) do
 				if h.player then
 					CinemaService.mark(h.player, bit)
@@ -802,6 +1029,20 @@ local function tickTrack(run: Run, track: Track, dt: number, now: number)
 		tickChoice(run, track, st)
 	elseif k == "warframe" then
 		tickWarframe(run, track, now)
+	elseif (k == "find" or k == "carry") and st.waves and now >= track.waveAt then
+		-- robots keep coming while the party searches or carries (at a spot still to do, else the spawn)
+		track.wave += 1
+		local w = st.waves[(track.wave - 1) % #st.waves + 1]
+		local at = stepTarget(run, track, run.player) or run.layout.points.spawn
+		if at then
+			squad(run, track, w[1], w[2], v3(at), 30)
+		end
+		track.waveAt = now + (st.waveGap or 16)
+	elseif k == "talk" and track.talkAt then
+		local side = if track.key == "villain" then "villain" else "hero"
+		if now - track.talkAt >= linesSeconds(st.lines, side) then
+			track.have = 1
+		end
 	end
 	if track.have >= track.need then
 		if k == "warframe" then
@@ -846,7 +1087,7 @@ local function trackFor(run: Run, player: Player): Track?
 	return run.tracks.both or run.tracks[run.sides[player] or "hero"]
 end
 
-local function keptPos(run: Run): { number }?
+keptPos = function(run: Run): { number }?
 	for id in run.kept do
 		local e = EnemyService.get(id)
 		if e and e.alive then
@@ -861,7 +1102,7 @@ local function enemyPos(id: number?): { number }?
 	return if e and e.alive then { e.x, e.y, e.z } else nil
 end
 
-local function stepTarget(run: Run, track: Track, player: Player): { number }?
+stepTarget = function(run: Run, track: Track, player: Player): { number }?
 	local st = track.st
 	if not st or track.done then
 		return nil
@@ -885,6 +1126,24 @@ local function stepTarget(run: Run, track: Track, player: Player): { number }?
 		return { p.X, p.Y, p.Z }
 	elseif k == "break" and st.at then
 		return l.points[st.at]
+	elseif k == "talk" then
+		return l.points[st.at or "spawn"]
+	elseif k == "find" and track.prompts then
+		for i, e in track.prompts :: any do
+			if track.found and not (track.found :: any)[i] then
+				return e.at
+			end
+		end
+	elseif k == "carry" then
+		local hero = run.heroes[player]
+		if hero and SiteKit.carrying(hero) then
+			return l.points[st.to or "spawn"]
+		end
+		for _, c in track.people or {} do
+			if c.state == "stuck" then
+				return { c.home.X, c.home.Y, c.home.Z }
+			end
+		end
 	end
 	return nil
 end
@@ -902,7 +1161,7 @@ end
 
 -- Lore step 7: has every hero on this stage seen its camera beat before (on their own saves)?
 local function sceneSeen(run: Run, track: Track): boolean
-	local bit = if run.m.custom then nil else CinemaPlan.missionBit(Config, run.num, run.stage)
+	local bit = if run.m.custom then nil else CinemaPlan.sceneBit(Config, run.num, run.stage)
 	if bit == nil then
 		return false
 	end
@@ -949,6 +1208,9 @@ local function statePacket(run: Run, player: Player): { [string]: any }
 		out.people = st.people or nil -- people pinned at the rings (StoryFx draws them; gap-story)
 	end
 	out.t = now - track.stepAt
+	if st.kind == "talk" and st.npc == "lodestar" then
+		out.lodestar = run.layout.points[st.at or "spawn"]
+	end
 	if st.kind == "scene" then
 		out.focus = if st.focus == "fake" then keptPos(run) else run.layout.points[st.focus or "spawn"]
 		out.lodestar = if st.lodestar then run.layout.points[st.lodestar] else nil

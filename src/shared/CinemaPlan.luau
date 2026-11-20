@@ -203,6 +203,24 @@ function CinemaPlan.missionBit(Config: any, num: number, stage: number): number?
 	return M.base + (num - 1) * M.perMission + (stage - 1)
 end
 
+-- A mission camera beat's bit by its place among the mission's camera beats (missions lane 2026-11-20: new
+-- non-combat stages moved the beats' stage numbers and Framed passed 8 stages; counting beats keeps every
+-- beat's bit under perMission). Camera beats are shared stages, so either side's list counts the same.
+function CinemaPlan.sceneBit(Config: any, num: number, stage: number): number?
+	local m = Config.Story.missions[num]
+	local list = m and m.hero
+	if not list or not list[stage] or list[stage].kind ~= "scene" then
+		return nil
+	end
+	local n = 0
+	for i = 1, stage do
+		if list[i].kind == "scene" then
+			n += 1
+		end
+	end
+	return CinemaPlan.missionBit(Config, num, n)
+end
+
 -- May a device send SceneSeen for this bit? Only a device-started scene's
 function CinemaPlan.clientBit(Config: any, bit: number): boolean
 	for _, s in Config.Cinema.scenes do

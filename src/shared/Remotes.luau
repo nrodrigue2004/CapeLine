@@ -211,6 +211,9 @@ local Remotes: { [string]: RemoteDef } = {
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
 	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz
+	-- missions lane (2026-11-20): a talk began (its fixed lines play) or a find spot was done (its line plays):
+	-- { num, stage, kind = "talk" | "clue", i? }; GuideClient reads the lines from Config.Story
+	MissionTalk = { dir = "S2C" },
 	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending, sq }
 	StoryBroadcast = { dir = "S2C" }, -- { id }: an act's ending broadcast (lore step 5: after Live, back in the city)
 	-- lore step 7 (the cinematic layer): a device-started scene was seen (its Config.Cinema bit); skip a
