@@ -1049,3 +1049,4 @@ Drafts for nate only (WP11, 2026-11-18). None of these is in code or config; the
 - 2026-11-20 (nate on the card 22:03Z): the new-hero boss hit cap stays (Config.Boss.newHero: 8+ levels below the boss, at most 30% max health per boss hit).
 - 2026-11-20 (nate on the card 22:03Z): build the first two Act 2 missions (Most Wanted, The Line) from the lore doc, then nate plays them before the other four.
 - 2026-11-20 (nate on the card 22:03Z): story missions move onto the real map in a private copy for you and your friends (with story set pieces added there); the few that need a special place (a lab, the subway) keep their own area.
+- 2026-11-20 (nate on the card 22:04Z): the central plaza building by the leaderboard becomes an enterable Hero Hall: a lobby (leaderboards, Hall of Fame statues, shop counter, squad and contract boards), a training floor upstairs (dummies to test every power and weapon, mini challenges), and a rooftop launch pad.
