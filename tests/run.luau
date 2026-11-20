@@ -23160,6 +23160,13 @@ end
 (require :: any)("./boss_counter_test")({ test = test, check = check, Config = Config, world = world });
 -- boss fights pass (2026-11-20): a new hero's first boss, every telegraph and card, hits on the boss; ONLY="Boss fights"
 (require :: any)("./boss_fights_test")({ test = test, check = check, Config = Config });
+-- missions lane (2026-11-20): every Act 1 mission walked on the real services; ONLY="Missions walk"
+(require :: any)("./missions_walk_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	place = process.args[1],
+});
 -- list-combat (2026-11-20: quieter defaults, powers and weapons break walls); ONLY="List combat" runs these
 (require :: any)("./intro_film_test")({ test = test, check = check, Config = Config, world = world });
 (require :: any)("./retention_test")({ test = test, check = check, Config = Config }); -- list-combat retention

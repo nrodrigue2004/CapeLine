@@ -199,7 +199,10 @@ local Remotes: { [string]: RemoteDef } = {
 	StoryState = { dir = "S2C" }, -- the Journal: { side, act, missions, choices, pinned, perks, rep, states, sq }
 	StoryPin = { dir = "C2S", schema = { n(0, 127) }, rate = 2, burst = 3 }, -- 0 the story, else a chain in progress
 	ChoicePrompt = { dir = "S2C" }, -- { id, labels }: the two (or three) big verb buttons
-	ChoicePick = { dir = "C2S", schema = { n(0, 4), n(1, 3) }, rate = 1, burst = 2 }, -- choice id, option
+	-- choice id, option. missions-fix (2026-11-20): the id ran 0 to 4 from M7, so Act 1's choices 5 (Safehouse: the
+	-- name or the Chairman's offer) and 6 (Live) were dropped by the schema and the mission waited forever; ids
+	-- now run to 63 (StoryService only takes the id it asked)
+	ChoicePick = { dir = "C2S", schema = { n(0, 63), n(1, 3) }, rate = 1, burst = 2 },
 	OpeningState = { dir = "S2C" }, -- { step, t, target, side, left, the scene's points }: the Ceremony prologue
 	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu),
 	-- 5 the exposition is over (watched or skipped; fix-flow 2026-11-19), 6 replay the prologue (the Journal)
