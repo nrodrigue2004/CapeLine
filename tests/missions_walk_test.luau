@@ -15,8 +15,13 @@ return function(T: any)
 	local placePath = T.place
 
 	-- one fresh copy of the services for each run (their state is module-local)
+	-- the place is read once (a fresh copy per walk ran out of memory); each walk gets fresh modules
+	local placeGame: any = nil
 	local function boot(): any
-		local game = roblox.deserializePlace(fs.readFile(placePath))
+		if not placeGame then
+			placeGame = roblox.deserializePlace(fs.readFile(placePath))
+		end
+		local game = placeGame
 		local RS = game:GetService("ReplicatedStorage")
 		local services =
 			game:GetService("ServerScriptService"):FindFirstChild("Server"):FindFirstChild("Services")
@@ -339,13 +344,15 @@ return function(T: any)
 			time = os.time,
 			date = os.date,
 		}
+		-- keyed by full name: Lune hands out a new userdata for the same Instance on every lookup
 		local function load(mod: any): any
-			if cache[mod] ~= nil then
-				return cache[mod]
+			local key = mod:GetFullName()
+			if cache[key] ~= nil then
+				return cache[key]
 			end
 			local stub = stubs[mod.Name]
 			if stub and (mod.Parent == services or mod.Name == "Net" or mod.Name == "FrameProf") then
-				cache[mod] = stub
+				cache[key] = stub
 				return stub
 			end
 			local env: { [string]: any } = {}
@@ -363,7 +370,7 @@ return function(T: any)
 			env.require = load
 			local src = string.gsub(mod.Source, ":WaitForChild%(", ":FindFirstChild(")
 			local out = luau.load(src, { debugName = mod:GetFullName(), environment = env })()
-			cache[mod] = out
+			cache[key] = out
 			return out
 		end
 		W.Config = load(RS:FindFirstChild("Config"))
@@ -439,7 +446,7 @@ return function(T: any)
 	end
 
 	-- one mission start to finish; returns what happened
-	local function walk(num: number, side: string, own: number, earlier: number): any
+	local function walk(num: number, side: string, own: number, earlier: number, leaveAtChoice: boolean?): any
 		local W = boot()
 		local Config, StoryPlan = W.Config, W.StoryPlan
 		local S = Config.Story
@@ -526,7 +533,14 @@ return function(T: any)
 							e.health = math.max(1, e.health - 10)
 						end
 					elseif k == "choice" then
-						if t.asked then
+						if t.asked and leaveAtChoice then
+							-- LEAVE with the choice card up (nate was stuck in the Safehouse): the trip home
+							W.handlers.MissionLeave(player)
+							for _ = 1, 120 do
+								W.run(0.1)
+							end
+							out.left = true
+						elseif t.asked then
 							local good, err = answer(W, player, own)
 							if not good and err ~= "no prompt" then
 								out.stuck = err
@@ -550,7 +564,7 @@ return function(T: any)
 					end
 				end
 			end
-			if out.stuck then
+			if out.stuck or out.left then
 				break
 			end
 			if W.clock - stageAt > 240 then
@@ -608,8 +622,9 @@ return function(T: any)
 								)
 							end
 							for _, tx in r.texts do
+								-- a scene is a camera beat with its own subtitle lines, not a goal
 								check(
-									tx.text ~= "",
+									tx.kind == "scene" or tx.text ~= "",
 									string.format(
 										"%s: stage %d (%s) has a goal line",
 										name,
@@ -625,5 +640,17 @@ return function(T: any)
 			end
 		end
 		check(n >= 20, "every mission walked (" .. n .. ")")
+	end)
+
+	test("Missions walk: LEAVE with the choice card up sends the hero home", function()
+		if not placePath then
+			return
+		end
+		for _, side in { "hero", "villain" } do
+			local r = walk(2, side, 1, 1, true)
+			check(r.left == true, side .. ": the Safehouse reached its choice")
+			check(r.home, side .. ": LEAVE sends the hero home from the choice")
+			check(#r.errors == 0, side .. ": no script errors: " .. (r.errors[1] or ""))
+		end
 	end)
 end

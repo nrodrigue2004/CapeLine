@@ -2572,3 +2572,8 @@ Audit and decisions: Decisions.md 2026-11-20 (boss fights pass). Headless proof:
 405. A fresh hero with no flight (Leap or Super-speed) and one found beacon, far from a boss: the red boss marker shows from anywhere with its distance; open the MAP and tap the red diamond: it fast travels to the found beacon nearest the boss ("Fast travel to X, Nm from the world boss"). With no beacon found it says how far and to follow the red marker. A flier still flies there.
 406. The boss alerts: the RISES IN N MINUTES toast and the boss BREAKING NEWS flash are each followed by "Open the MAP and tap the red diamond to get there"; the friend invite says "Tap the red diamond on the MAP". Nothing overlaps on a phone.
 
+
+## Studio list: missions (missions lane, 2026-11-20)
+Headless proof: ONLY="Missions walk" plays Act 1 missions 2-6 on the real MissionService and StoryService for both sides, every option of each mission's own choice and two sets of earlier picks (465 checks; at 604aef4's Remotes the Safehouse and Live walks stall at their choice).
+407. Safehouse as a hero and as a villain: at the end, pick each option in turn (the fake name too, on a second run with Replay in the Journal): the card goes, the result card comes and you are sent home every time. Do the same for Live after Bulwark falls.
+408. In any mission press the tracker's X (or Backspace): the tracker folds to a small MISSION / LEAVE bar under the top edge. LEAVE takes you home from there, also while a choice card is up; MISSION opens the tracker again.

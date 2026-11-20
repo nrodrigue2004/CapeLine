@@ -65,6 +65,7 @@ local trackTitle: TextLabel
 local trackText: TextLabel
 local trackFill: Frame
 local leaveButton: TextButton
+local foldChip: Frame -- missions lane: the folded tracker keeps LEAVE (and a tap to unfold) on screen
 local resultCard: Frame
 local questPanel: Frame
 local questTitle: TextLabel
@@ -939,8 +940,11 @@ local function frame()
 		trackText.Text = string.format("%s  (%d/%d)", m.text or "", m.step or 1, m.steps or 1)
 		trackFill.Size = UDim2.fromScale(math.clamp((m.have or 0) / math.max(1, m.need or 1), 0, 1), 1)
 		leaveButton.Visible = not m.done
+		foldChip.Visible = false
 	else
 		tracker.Visible = false
+		-- (missions lane 2026-11-20, nate stuck in the Safehouse: folding the tracker used to hide LEAVE too)
+		foldChip.Visible = (m.num or 0) > 0 and not scene and not m.done and hiddenMission == mKey
 	end
 	-- the side quest tracker (not in a mission)
 	if q and not StoryClient.inMission() and not StoryClient.inOpening() then
@@ -1108,6 +1112,36 @@ function StoryHud.init()
 		maxText = 16,
 	}, StoryClient.leave)
 	leaveButton.Parent = tracker
+	-- the folded tracker: MISSION (unfold) and LEAVE, always reachable
+	foldChip = Kit.frame({
+		Name = "MissionFolded",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 64),
+		Size = UDim2.fromOffset(196, 44),
+		BackgroundColor3 = Kit.color.night,
+		BackgroundTransparency = 0.15,
+		Visible = false,
+	})
+	foldChip.Parent = gui
+	local unfold = Kit.button({
+		Text = "MISSION",
+		Position = UDim2.fromOffset(2, 2),
+		Size = UDim2.fromOffset(100, 40),
+		BackgroundColor3 = Kit.color.gold,
+		maxText = 16,
+	}, function()
+		hiddenMission = nil
+	end)
+	unfold.Parent = foldChip
+	local leave2 = Kit.button({
+		Text = "LEAVE",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -2, 0, 2),
+		Size = UDim2.fromOffset(84, 40),
+		BackgroundColor3 = Kit.color.paper,
+		maxText = 16,
+	}, StoryClient.leave)
+	leave2.Parent = foldChip
 	-- (fix-hud: and clear of the X's 40 px next to LEAVE)
 	trackTitle.Size = UDim2.new(1, -150, 0, 22)
 	trackText.Size = UDim2.new(1, -150, 0, 18)
