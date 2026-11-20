@@ -54,6 +54,10 @@ return {
 	-- leaving at that plus `leave`) or once you are on its contribution list; elsewhere the radar's corner timer
 	-- and the world marker only (Shared.BossRange.hudNear)
 	hud = { near = 400, leave = 60 },
+	-- boss fights pass (2026-11-20; NEEDS NATE to OK, not a spec number): a hero `gap`+ levels below the boss takes at
+	-- most `maxHit` of its max health from one boss hit (BossMath.newHeroHit). Measured: a level 6 hero by four level
+	-- 35s spent up to 38% of Rustjaw's fight Downed (one hit took 61% of its health); with the cap 13% (a hit at most 30%).
+	newHero = { gap = 8, maxHit = 0.3 },
 	weakMult = 2,
 	contribution = {
 		damage = 0.5,

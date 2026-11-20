@@ -52,6 +52,9 @@ local FxLib = require(script.Parent.FxLib)
 local State = require(script.Parent.Parent.State)
 local Juice = require(script.Parent.Juice)
 local SwarmFx = require(script.Parent.SwarmFx)
+local DebrisBudget = require(script.Parent.DebrisBudget)
+local AudioController = require(script.Parent.Parent.Controllers.AudioController)
+local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 
 local WorldFx = {}
 
@@ -87,6 +90,11 @@ type Shown = {
 	swarm: SwarmFx.Swarm?, -- the Swarm Queen's drones
 	lifts: boolean, -- its rods and pads are drawn
 	nextLiftFx: number,
+	-- (boss fights pass, 2026-11-20) the hp its last Boss.State had, the hp at which the next chunks break off,
+	-- and when it last flashed from a hit
+	lastHp: number?,
+	chunkAt: number?,
+	flashAt: number,
 }
 local shown: Shown? = nil
 -- bosses-3: lingering zones (storm clouds, lava pools) and the Titan's rocks in the air
@@ -464,6 +472,7 @@ local function build(id: string, s: { [string]: any }): Shown
 			else nil,
 		lifts = false,
 		nextLiftFx = 0,
+		flashAt = 0,
 	}
 end
 
@@ -571,6 +580,100 @@ local function remove()
 	end
 end
 
+-- Hits read on the boss (boss fights pass, 2026-11-20): every Boss.State that shows hp lost flashes it pale for a
+-- moment (not with Reduce flashing), and every Config.Fx.boss.chunkEvery of its max hp lost knocks chunks off it: its
+-- own debris colour, flung off a random piece of its body with a burst and a clank, bouncing to the ground and
+-- fading (the preset's chunks, inside the debris budget). Draw only: its hit boxes never change.
+local FB = Config.Fx.boss
+local CHUNK_PHYS = PhysicalProperties.new(2.4, 0.8, 0.3, 1, 1)
+local function hitFeedback(sh: Shown, hp: number?, max: number?)
+	if not FB or not hp or not max or max <= 0 then
+		return
+	end
+	local last = sh.lastHp
+	sh.lastHp = hp
+	sh.chunkAt = sh.chunkAt or (hp - max * FB.chunkEvery)
+	if not last or hp >= last then
+		if last and hp > last then
+			sh.chunkAt = hp - max * FB.chunkEvery -- healed back (a generator): count from here
+		end
+		return
+	end
+	local now = os.clock()
+	if now - sh.flashAt >= FB.flashGap and not (CombatFx.reduceFlashing or FxLib.reduceFlashing) then
+		sh.flashAt = now
+		local hl = sh.model:FindFirstChild("HitFlash") :: Highlight?
+		if not hl then
+			local h = Instance.new("Highlight")
+			h.Name = "HitFlash"
+			h.FillColor = Color3.new(1, 1, 1)
+			h.OutlineTransparency = 1
+			h.DepthMode = Enum.HighlightDepthMode.Occluded
+			h.Parent = sh.model
+			hl = h
+		end
+		local h = hl :: Highlight
+		h.FillTransparency = FB.flash
+		TweenService:Create(h, TweenInfo.new(FB.flashTime), { FillTransparency = 1 }):Play()
+	end
+	if hp > (sh.chunkAt :: number) then
+		return
+	end
+	sh.chunkAt = hp - max * FB.chunkEvery
+	local body = {}
+	for _, p in sh.model:GetChildren() do
+		if p:IsA("BasePart") and p.Transparency < 0.9 and p:GetAttribute("Role") ~= "glow" then
+			table.insert(body, p)
+		end
+	end
+	if #body == 0 then
+		return
+	end
+	local cam = Workspace.CurrentCamera
+	local src = body[math.random(1, #body)]
+	local at = src.Position
+	if cam and (cam.CFrame.Position - at).Magnitude > FB.range then
+		return
+	end
+	local fit = ART[sh.id]
+	local color = if fit and fit.debris then rgb(fit.debris) else SCRAP
+	shatter(sh, at)
+	AudioController.play("clash", at, { volume = 0.8, pitch = 0.6 })
+	local want = FB.chunks[QualityController.name] or FB.chunks.medium
+	local n = DebrisBudget.lease(want, FB.life)
+	local out = at - sh.model:GetPivot().Position
+	out = Vector3.new(out.X, 0, out.Z)
+	out = if out.Magnitude > 0.1 then out.Unit else Vector3.xAxis
+	for i = 1, n do
+		local size = Vector3.new(math.random(20, 45), math.random(14, 30), math.random(20, 45)) / 10
+		local c = part(
+			folder,
+			size,
+			CFrame.new(at + out * 2 + Vector3.new(0, i, 0))
+				* CFrame.Angles(math.random() * 6, math.random() * 6, 0),
+			color:Lerp(STEEL, math.random() * 0.4),
+			Enum.Material.CorrodedMetal
+		)
+		c.Anchored = false
+		c.CanCollide = true
+		c.CanQuery = false
+		c.CanTouch = false
+		c.CastShadow = true
+		c.CustomPhysicalProperties = CHUNK_PHYS
+		local spread = out:Cross(Vector3.yAxis) * (math.random() - 0.5) * 2
+		c.AssemblyLinearVelocity = (out + spread * 0.6) * FB.out * (0.7 + math.random() * 0.6)
+			+ Vector3.new(0, FB.up * (0.6 + math.random() * 0.6), 0)
+		c.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
+			* 12
+		task.delay(FB.life - 1, function()
+			if c.Parent then
+				TweenService:Create(c, TweenInfo.new(1), { Transparency = 1 }):Play()
+			end
+		end)
+		Debris:AddItem(c, FB.life)
+	end
+end
+
 local function onState()
 	local s = WorldClient.boss
 	if not (s.state == 2 or s.state == 3) or not s.id then
@@ -592,6 +695,9 @@ local function onState()
 	sh.state = s.state
 	if sh.anim then
 		BossAnim.state(sh.anim, s.hp, s.max, s.phase)
+	end
+	if s.state == 3 then
+		hitFeedback(sh, s.hp, s.max)
 	end
 	if sh.art and (s.phase or 1) ~= sh.phase then
 		showPhase(sh, s.phase or 1)
@@ -1119,6 +1225,19 @@ local function bigMoment(ev: { [string]: any })
 		CombatFx.nova(top, 40, style, glow, true)
 		CombatFx.banner(string.format("PHASE %d!", ev.phase), WARN, style)
 		Juice.fire("bossPhase", top, { mine = near(top, 500) })
+		-- (boss fights pass, 2026-11-20) a phase hits the whole arena: a shockwave runs out over the ground from its feet
+		-- in the phase's colour, with a roar-sized shake for everyone near (the slow-mo is FinisherFx's)
+		local feet = s.model:GetPivot().Position
+		local gy = WorldClient.boss.y or feet.Y
+		FxLib.shock(
+			Vector3.new(feet.X, gy + 0.6, feet.Z),
+			math.min(B.bosses[s.id].arenaRadius * 0.6, 120),
+			glow
+		)
+		FxLib.dust(Vector3.new(feet.X, gy + 0.4, feet.Z), 40)
+		if near(feet, 500) then
+			CameraController.shake(0.9, 1.2)
+		end
 		if s.anim then
 			-- the plates break: it staggers, then roars into the new phase
 			BossAnim.phase(s.anim, ev.phase or 2)
