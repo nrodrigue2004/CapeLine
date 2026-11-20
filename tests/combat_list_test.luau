@@ -505,4 +505,26 @@ return function(T: any)
 		end
 		check(not any, "no cape, nothing sways")
 	end)
+
+	test("List combat: the boss result card stays under the top row of buttons", function()
+		local TouchLayout = require("../src/shared/TouchLayout")
+		local P = Config.Ui.phone
+		for _, screen in { { 800, 360 }, { 667, 300 }, { 1280, 720 }, { 1920, 1080 }, { 390, 800 } } do
+			for _, cardH in { 200, 250, 320, 380 } do
+				local w, h = screen[1], screen[2]
+				local k, top = TouchLayout.cardBelowRow(Config, w, h, 380, cardH)
+				local row = if math.min(w, h) < P.compactBelow then P.rowCompact else P.row
+				local tag = string.format("%dx%d card %d", w, h, cardH)
+				check(top >= row + P.gap - 1e-6, tag .. ": below the row")
+				check(top + cardH * k <= h + 1e-6 or k == 0.5, tag .. ": on screen")
+				check(380 * k <= w, tag .. ": fits across")
+				check(k <= 1 and k >= 0.5, tag .. ": scale " .. k)
+			end
+		end
+		local hud = fs.readFile("src/client/Ui/WorldHud.luau")
+		check(
+			string.find(hud, "TouchLayout.cardBelowRow(Config, a.X, a.Y, 380, cardH)", 1, true) ~= nil,
+			"used"
+		)
+	end)
 end

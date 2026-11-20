@@ -341,6 +341,23 @@ function TouchLayout.hud(Config: any, w: number, h: number, opts: ClusterOpts?):
 end
 
 -- The UIScale for a panel drawn at designW x designH so it fits a w x h safe area with a margin
+-- A card that must not cover the top row of screen buttons (the boss result card, item 247: on a phone it sat
+-- over POWERS, GEAR and MAP): its UIScale and its top edge (pixels from the safe area's top), so it sits in the
+-- space under the row, centred there, shrunk as needed (never under half size)
+function TouchLayout.cardBelowRow(
+	Config: any,
+	w: number,
+	h: number,
+	cardW: number,
+	cardH: number
+): (number, number)
+	local P = Config.Ui.phone
+	local row = (if math.min(w, h) < P.compactBelow then P.rowCompact else P.row) + P.gap
+	local avail = h - row - P.gap
+	local k = math.clamp(math.min(avail / cardH, (w - 2 * P.gap) / cardW), 0.5, 1)
+	return k, row + math.max(0, (avail - cardH * k) / 2)
+end
+
 function TouchLayout.panelScale(Config: any, w: number, h: number, designW: number, designH: number): number
 	local P = Config.Ui.phone
 	local fit = math.min((w - 2 * P.panelMargin) / designW, (h - 2 * P.panelMargin) / designH)

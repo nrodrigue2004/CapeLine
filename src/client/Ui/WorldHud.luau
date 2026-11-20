@@ -24,6 +24,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local ContractPlan = require(Shared:WaitForChild("ContractPlan"))
 local BossRange = require(Shared:WaitForChild("BossRange"))
+local TouchLayout = require(Shared:WaitForChild("TouchLayout"))
 
 local Kit = require(script.Parent.Kit)
 local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
@@ -630,6 +631,23 @@ local function showResultNow(r: { [string]: any })
 		end
 		y += row[3] + 12
 	end
+	-- item 247: the card is as tall as its lines and sits under the top row of buttons, shrunk on a phone
+	local cardH = y + 4
+	card.Size = UDim2.fromOffset(380, cardH)
+	local fit = Instance.new("UIScale")
+	fit.Parent = card
+	local function place()
+		local a = Kit.area()
+		local k, top = TouchLayout.cardBelowRow(Config, a.X, a.Y, 380, cardH)
+		fit.Scale = k
+		card.AnchorPoint = Vector2.new(0.5, 0)
+		card.Position = UDim2.new(0.5, 0, 0, top)
+	end
+	place()
+	local relayout = Kit.LayoutChanged:Connect(place)
+	card.Destroying:Connect(function()
+		relayout:Disconnect()
+	end)
 	local tap = Instance.new("TextButton")
 	tap.BackgroundTransparency = 1
 	tap.Text = ""
