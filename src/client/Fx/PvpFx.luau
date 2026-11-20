@@ -6,7 +6,9 @@
 -- * Downed: a grey pulse ring under the kneeling hero.
 -- * PvP defeat: the hero overloads into sparks (the Overload attribute ticks up on the server).
 -- * Pings: Help, Here and Danger markers over the spot, for a few seconds.
--- PLACEHOLDER ART: neon parts and text markers until the art pass.
+-- The rings are Blender meshes (art/blender/rings.py, ReplicatedStorage.Art.Rings; Everything Left 385): the Vigil's
+-- round band with inward chevrons, the Syndicate's notched square, the Downed ring's dashes and plus marks.
+-- PLACEHOLDER ART: flat neon discs while Art.Rings is not imported; the pings are text markers.
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -15,6 +17,8 @@ local FrameProf =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local State = require(script.Parent.Parent.State)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
@@ -24,8 +28,8 @@ local Kit = require(script.Parent.Parent.Ui.Kit)
 local PvpFx = {}
 
 local folder: Folder
-local rings: { [Player]: { part: Part, on: boolean, square: boolean? } } = {}
-local downRings: { [Player]: Part } = {}
+local rings: { [Player]: { part: BasePart, on: boolean, square: boolean? } } = {}
+local downRings: { [Player]: BasePart } = {}
 local overloads: { [Player]: number } = {}
 
 local PING = {
@@ -33,6 +37,53 @@ local PING = {
 	{ text = "HERE", color = Color3.fromRGB(120, 220, 255), mark = "here", shape = "circle" },
 	{ text = "▲ DANGER", color = Color3.fromRGB(255, 90, 80), mark = "danger", shape = "triangle" }, -- the triangle: colorblind-safe danger
 }
+
+-- A ring's mesh lying flat (size studs across), or nil while Art.Rings is not imported
+local RING_UP = 0.12
+local function ringMesh(name: string, color: Color3, size: number): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Rings")
+	local src = set and set:FindFirstChild(name, true)
+	if not (src and src:IsA("MeshPart")) then
+		return nil
+	end
+	local p = MeshFix.clone(src)
+	for _, c in p:GetChildren() do
+		c:Destroy()
+	end
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Material = Enum.Material.Neon
+	p.Color = color
+	p.Size = Vector3.new(size, RING_UP, size)
+	p.Transparency = 0.25
+	p.Parent = folder
+	return p
+end
+
+-- Where a ring lies: flat under the root (a mesh is flat as drawn; the old disc is a cylinder turned on its side)
+local function lay(p: BasePart, at: Vector3, yaw: number)
+	if p:IsA("MeshPart") then
+		p.CFrame = CFrame.new(at) * CFrame.Angles(0, yaw, 0) * MeshFix.turn("Rings")
+	elseif (p :: Part).Shape == Enum.PartType.Block then
+		p.CFrame = CFrame.new(at) * CFrame.Angles(0, yaw, 0)
+	else
+		p.CFrame = CFrame.new(at) * CFrame.Angles(0, 0, math.rad(90))
+	end
+end
+
+-- A size as the part wants it (a mesh and a block lie flat on y; the old disc's thin axis is x)
+local function across(p: BasePart, size: number): Vector3
+	if p:IsA("MeshPart") then
+		return Vector3.new(size, RING_UP, size)
+	elseif (p :: Part).Shape == Enum.PartType.Block then
+		return Vector3.new(size * 0.886, 0.2, size * 0.886)
+	end
+	return Vector3.new(0.2, size, size)
+end
 
 local function ring(color: Color3, size: number): Part
 	local p = Instance.new("Part")
@@ -69,28 +120,27 @@ local function step(now: number)
 		end
 		if want and root then
 			if not r then
-				local part = ring(PvpClient.ringColor(p:GetAttribute("PvpSide")), 1)
-				local goal = Vector3.new(0.2, 7, 7)
-				if square then
-					part.Shape = Enum.PartType.Block
-					part.Size = Vector3.new(1, 0.2, 1)
-					goal = Vector3.new(6.2, 0.2, 6.2)
+				local color = PvpClient.ringColor(p:GetAttribute("PvpSide"))
+				local part: BasePart = ringMesh(if square then "RingSquare" else "RingRound", color, 1)
+					or ring(color, 1)
+				if square and not part:IsA("MeshPart") then
+					(part :: Part).Shape = Enum.PartType.Block
 				end
+				part.Size = across(part, 1)
 				r = { part = part, on = true, square = square } :: any
 				rings[p] = r
 				-- the ring grows in (the "PvP flag on" beat)
-				TweenService:Create(part, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Size = goal }):Play()
+				TweenService
+					:Create(part, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Size = across(part, 7) })
+					:Play()
 			end
-			local ring0 = (r :: any).part :: Part
+			local ring0 = (r :: any).part :: BasePart
 			ring0.Color = PvpClient.ringColor(p:GetAttribute("PvpSide"))
-			ring0.Transparency = if p:GetAttribute("Protected") then 0.8 else 0.4
-			ring0.CFrame = if square
-				then CFrame.new(root.Position - Vector3.new(0, 2.9, 0)) * CFrame.Angles(0, math.rad(45), 0)
-				else CFrame.new(root.Position - Vector3.new(0, 2.9, 0)) * CFrame.Angles(
-					0,
-					0,
-					math.rad(90)
-				)
+			local faint = p:GetAttribute("Protected") == true
+			ring0.Transparency = if ring0:IsA("MeshPart")
+				then (if faint then 0.75 else 0.2)
+				else (if faint then 0.8 else 0.4)
+			lay(ring0, root.Position - Vector3.new(0, 2.9, 0), if square then math.rad(45) else now * 0.6)
 		elseif r then
 			r.part:Destroy()
 			rings[p] = nil
@@ -100,13 +150,14 @@ local function step(now: number)
 		local d = downRings[p]
 		if downed and root then
 			if not d then
-				d = ring(Color3.fromRGB(170, 170, 180), 6)
+				local grey = Color3.fromRGB(170, 170, 180)
+				d = ringMesh("RingDowned", grey, 6) or ring(grey, 6)
 				downRings[p] = d
 			end
 			local pulse = 6 + math.sin(now * 5) * 1.2
-			local dp = d :: Part
-			dp.Size = Vector3.new(0.2, pulse, pulse)
-			dp.CFrame = CFrame.new(root.Position - Vector3.new(0, 2.8, 0)) * CFrame.Angles(0, 0, math.rad(90))
+			local dp = d :: BasePart
+			dp.Size = across(dp, pulse)
+			lay(dp, root.Position - Vector3.new(0, 2.8, 0), -now * 0.8)
 		elseif d then
 			d:Destroy()
 			downRings[p] = nil

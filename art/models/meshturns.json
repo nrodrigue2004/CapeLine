@@ -252,6 +252,13 @@
   "turned": 23,
   "verdict": "rotY180"
  },
+ "Rings": {
+  "asDrawn": 3,
+  "either": 3,
+  "meshes": 3,
+  "turned": 3,
+  "verdict": "symmetric"
+ },
  "Robots": {
   "asDrawn": 9,
   "either": 9,

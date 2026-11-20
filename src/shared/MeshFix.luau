@@ -42,6 +42,7 @@ for _, set in
 		"Ears",
 		"Eyes",
 		"Finds", -- list-combat: the collection finds, 19 of 19 (2026-11-20)
+		"Rings", -- list-combat: the PvP flag rings and the Downed ring, 3 of 3 (2026-11-20)
 		"SiteProps", -- list-combat: the giver's mark, the relay giver and the cat, 8 of 8 (2026-11-20)
 		"Stage", -- list-combat: the costume contest's stage, 11 of 11 (2026-11-20)
 		"Foes", -- list-combat: the robots' gear and the foes' props, 28 of 28 (2026-11-20)
