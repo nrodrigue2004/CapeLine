@@ -4041,6 +4041,102 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test(
+		"List combat: holes in a standing building have torn concrete edges with rebar (destruction kit)",
+		function()
+			local roblox = require("@lune/roblox")
+			local Structure = require("../src/shared/Structure")
+			-- the seams: a 20 x 30 x 20 block's first front panel meets its two corner pillars and the slab above it
+			local rec = { id = 1, x = 10, z = 0, sx = 20, sz = 20, base = 0, top = 30 }
+			local grid = Structure.build(D, rec)
+			local seams = Structure.seams(grid)
+			local front = grid.at["w:1:1:1"]
+			check(front ~= nil, "the front panel")
+			local kinds = {}
+			for _, seam in seams[front] or {} do
+				check(seam.to == front and seam.on ~= front, "seams on the pieces round it")
+				kinds[grid.pieces[seam.on].kind] = (kinds[grid.pieces[seam.on].kind] or 0) + 1
+				check(seam.len >= seam.thick and seam.thick > 0.5, "a seam runs along its longer side")
+				-- the seam's face lies on the panel's box
+				local p = grid.pieces[front]
+				local c = { p.cx, p.cy, p.cz }
+				local sz = { p.sx, p.sy, p.sz }
+				check(
+					math.abs(math.abs(seam.at[seam.n] - c[seam.n]) - sz[seam.n] / 2) < 0.31,
+					"on the panel's face"
+				)
+			end
+			check(kinds.pillar == 2 and kinds.slab == 1, "two pillars and the slab above")
+			check(Structure.seams(grid) == seams, "built once a grid")
+			local T2 = D.structure.torn
+			check(T2 ~= nil and T2.seg > 0 and T2.reach > 0, "tuned")
+			for _, name in Config.Presets.order do
+				check((Config.Presets[name].torn or 0) > 0, name .. " draws torn edges")
+			end
+			for k = 1, 2 do
+				local row = Config.RubbleArt["Torn" .. k]
+				check(
+					row ~= nil and row["Torn" .. k] ~= nil and row["Torn" .. k .. "Rebar"] ~= nil,
+					"Torn" .. k
+				)
+			end
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local id = 4100
+			local info = UiSim.newInstance("StringValue")
+			info.Name = "WorldInfo"
+			info.Value =
+				require("@lune/serde").encode("json", { buildings = { { id, 10, 0, 20, 20, 0, 30, 0 } } })
+			info.Parent = sim.service("ReplicatedStorage")
+			local city = sim.service("Workspace"):FindFirstChild("City")
+			if not city then
+				city = UiSim.newInstance("Folder")
+				city.Name = "City"
+				city.Parent = sim.service("Workspace")
+			end
+			local body = UiSim.newInstance("Model")
+			body:SetAttribute("BuildingId", id)
+			local shell = UiSim.newInstance("Part")
+			shell.Size = roblox.Vector3.new(20, 30, 20)
+			shell.CFrame = roblox.CFrame.new(10, 15, 0)
+			shell.Color = roblox.Color3.fromRGB(180, 120, 90)
+			shell.Parent = body
+			body.Parent = city
+			local BuildingFx = sim:require("Client.Fx.BuildingFx")
+			sim:run("BuildingFx", BuildingFx.init)
+			require("@lune/task").wait(0.3)
+			local n = 0
+			sim:run("hit", function()
+				-- one piece knocked out of the front wall's first storey
+				n = BuildingFx.predict(id, roblox.Vector3.new(10, 5, -11), D.structure.chunkCost, 2, 30)
+			end)
+			check(n >= 1, "the hit knocks a piece out (" .. n .. ")")
+			local wreck = sim.service("Workspace"):FindFirstChild("Wreck_" .. id, true)
+			check(wreck ~= nil, "the building is drawn in pieces")
+			local lips, bars = 0, 0
+			for _, d in (if wreck then wreck:GetChildren() else {}) do
+				if d:IsA("MeshPart") and string.match(d.Name, "^Torn%d$") then
+					lips += 1
+					check(d.CanCollide == false and d.CanQuery == false and d.Anchored, "a lip is look only")
+				elseif d:IsA("MeshPart") and string.match(d.Name, "^Torn%dRebar$") then
+					bars += 1
+					check(d.Material == roblox.Enum.Material.Metal, "rebar is steel")
+				end
+			end
+			check(
+				lips >= 3 and bars == lips,
+				string.format("torn edges round the hole (%d lips, %d rebar)", lips, bars)
+			)
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash

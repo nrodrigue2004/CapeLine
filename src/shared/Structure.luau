@@ -450,6 +450,115 @@ function Structure.standingTop(grid: Grid, gone: { [number]: boolean }): number
 	return grid.base + grid.storeys * grid.storeyH
 end
 
+-- Where two box pieces touch (list-combat 2026-11-20, the destruction kit): each seam is drawn on piece `on` as a torn
+-- edge once piece `to` is gone. at = the shared face's centre, n = the axis (1 x, 2 y, 3 z) and sign out of `on`
+-- toward `to`, along = the axis the seam runs (its longer side, len studs) and thick = its shorter side. Round
+-- buildings' turned pieces have no seams (their chords are drawn turned). Pieces only meet their own and the next
+-- storey. Built once per grid: cached in grid.seams by `to`.
+export type Seam = {
+	on: number,
+	to: number,
+	at: { number },
+	n: number,
+	sign: number,
+	along: number,
+	len: number,
+	thick: number,
+}
+
+function Structure.seams(grid: Grid): { [number]: { Seam } }
+	local cached = (grid :: any).seams
+	if cached then
+		return cached
+	end
+	local out: { [number]: { Seam } } = {}
+	local ps = grid.pieces
+	local function box(p: Piece): ({ number }, { number })
+		return { p.cx, p.cy, p.cz }, { p.sx, p.sy, p.sz }
+	end
+	local function add(to: number, seam: Seam)
+		out[to] = out[to] or {}
+		table.insert(out[to], seam)
+	end
+	for a = 1, #ps do
+		local pa = ps[a]
+		if pa.ry or pa.disc then
+			continue
+		end
+		local ca, sa = box(pa)
+		for b = a + 1, #ps do
+			local pb = ps[b]
+			if pb.ry or pb.disc or math.abs(pb.storey - pa.storey) > 1 then
+				continue
+			end
+			local cb, sb = box(pb)
+			-- the axis they touch on (a gap of about 0), the other two overlapping by more than half a stud
+			local touch, over = 0, {}
+			local ok = true
+			for k = 1, 3 do
+				local gap = math.abs(ca[k] - cb[k]) - (sa[k] + sb[k]) / 2
+				if gap > -0.1 and gap < 0.3 then
+					if touch ~= 0 then
+						ok = false -- touching along two axes: only an edge or corner meets
+						break
+					end
+					touch = k
+				elseif gap <= -0.5 then
+					over[k] = math.min(ca[k] + sa[k] / 2, cb[k] + sb[k] / 2)
+						- math.max(ca[k] - sa[k] / 2, cb[k] - sb[k] / 2)
+				else
+					ok = false
+					break
+				end
+			end
+			if not ok or touch == 0 then
+				continue
+			end
+			local k1, k2 = touch % 3 + 1, (touch + 1) % 3 + 1
+			local along, across = k1, k2
+			if over[k2] > over[k1] then
+				along, across = k2, k1
+			end
+			-- the face's centre: on the touching plane, mid of the overlap on the other two axes
+			local mid = {}
+			for k = 1, 3 do
+				if k == touch then
+					mid[k] = ca[k] + (if cb[k] > ca[k] then 1 else -1) * sa[k] / 2
+				else
+					local lo = math.max(ca[k] - sa[k] / 2, cb[k] - sb[k] / 2)
+					local hi = math.min(ca[k] + sa[k] / 2, cb[k] + sb[k] / 2)
+					mid[k] = (lo + hi) / 2
+				end
+			end
+			local sign = if cb[touch] > ca[touch] then 1 else -1
+			local midB = table.clone(mid)
+			midB[touch] = cb[touch] - sign * sb[touch] / 2
+			add(b, {
+				on = a,
+				to = b,
+				at = mid,
+				n = touch,
+				sign = sign,
+				along = along,
+				len = over[along],
+				thick = over[across],
+			})
+			add(a, {
+				on = b,
+				to = a,
+				at = midB,
+				n = touch,
+				sign = -sign,
+				along = along,
+				len = over[along],
+				thick = over[across],
+			})
+		end
+	end
+	(grid :: any).seams = out
+	return out
+end
+
 function Structure.pack(n: number, gone: { [number]: boolean }): buffer
 	local b = buffer.create(math.ceil(n / 8))
 	for i in gone do

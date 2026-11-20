@@ -133,6 +133,41 @@ mesh("Barrier", "BarrierLegs", legs, STEEL, "Metal")
 mesh("Barrier", "BarrierLamp", [C(0.28, 0.4, -3.6, 1.25, 0, segs=10), S(0.26, -3.6, 1.7, 0, segs=10, rings=6)], LAMP, "Neon")
 
 
+# torn edges (list-combat 2026-11-20, the destruction kit; Tasks "Destruction (M5)": the pieces still standing were
+# clean boxes beside every hole): a broken concrete lip with bent rebar, drawn on a standing piece's face where its
+# neighbour was knocked out (Shared.Structure.seams). Drawn in a 4 x 1 x 1 box: x along the seam, up out of the face
+# (it starts flush on it), z across the piece's thickness; BuildingFx lays one every ~4 studs along the seam.
+for k in range(2):
+    rnd = random.Random(500 + k)
+    teeth = [B(4.0, 0.22, 0.96, 0, 0.11, 0)]
+    x = -1.95
+    while x < 1.9:
+        w = rnd.uniform(0.45, 0.85)
+        h = rnd.uniform(0.3, 1.0)
+        d = rnd.uniform(0.6, 0.95)
+        t = B(w, h, d, x + w / 2, h / 2, rnd.uniform(-0.04, 0.04) * (1 - d))
+        chip(t, rnd, 2)
+        turn(t, "z", rnd.uniform(-12, 12))
+        teeth.append(t)
+        x += w * rnd.uniform(0.7, 0.95)
+    ob = kit.join("Torn%d" % (k + 1), teeth, shade=False)
+    kit.cut(ob, (0, 0, 1), keep_positive=True)  # flush on the face it stands on
+    for nx in (1, -1):  # and inside its 4-stud length, so the next one along meets it
+        shift(ob, (-nx * 2.0, 0, 0))
+        kit.cut(ob, (nx, 0, 0), keep_positive=False)
+        shift(ob, (nx * 2.0, 0, 0))
+    mesh("Torn%d" % (k + 1), "Torn%d" % (k + 1), [ob], CONCRETE, "Concrete", shade=False)
+    bars = []
+    for i in range(2 + k):
+        bx = -1.4 + i * (2.8 / max(1, 1 + k)) + rnd.uniform(-0.2, 0.2)
+        bz = rnd.uniform(-0.25, 0.25)
+        top = rnd.uniform(1.3, 1.9)
+        lean = rnd.uniform(-0.5, 0.5)
+        bars.append(T([(bx, -0.1, bz), (bx + lean * 0.3, top * 0.6, bz), (bx + lean, top, bz + rnd.uniform(-0.3, 0.3))],
+                      [0.055, 0.055, 0.045], segs=5))
+    mesh("Torn%d" % (k + 1), "Torn%dRebar" % (k + 1), bars, REBAR, "Metal")
+
+
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
     lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs)))
@@ -196,6 +231,8 @@ if "--preview" in sys.argv:
             ob.data.materials.append(kit.material("m_" + name, rgb, metal=0.5 if mat == "Metal" else 0, rough=0.8))
             if look == "Barrier":  # the barrier at the back, standing
                 ob.location = (0, 8, 2.4)
+            elif look.startswith("Torn"):  # the torn edges on a wall's stub, behind the heaps
+                ob.location = (int(look[4:]) * 6 - 9, 4, 0.5)
             elif look.startswith("Chunk"):  # the loose chunks in a row in front
                 ob.location = (int(look[5:]) * 4 - 8, -5, 1.2)
             else:

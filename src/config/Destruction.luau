@@ -80,6 +80,10 @@ return {
 		-- a knocked-out wall panel spits `count` broken concrete bits off its torn edges (Art.Rubble chunks; inside the
 		-- debris budget), each size[1] to size[2] times the panel's thickness, at most `most` studs (list-combat 2026-11-20)
 		bits = { count = 2, size = { 1.2, 2.4 }, most = 2.5 },
+		-- the destruction kit (list-combat 2026-11-20): a standing piece beside a knocked-out one shows a torn concrete
+		-- lip with bent rebar along the seam (Art.Rubble Torn1-2, Shared.Structure.seams): one every `seg` studs,
+		-- `reach` studs out of the face (at most `share` of the piece's thickness more); the preset's `torn` caps them
+		torn = { seg = 4, reach = 0.9, share = 0.6 },
 	},
 	-- clash moments
 	clash = { wallRange = 20, perPlayer = 3, window = 10, knock = 26 },

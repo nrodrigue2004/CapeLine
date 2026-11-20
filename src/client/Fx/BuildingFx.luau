@@ -80,7 +80,12 @@ type Rec = {
 	top: number,
 	round: boolean?,
 }
-type Drawn = { state: number, model: Model, parts: { [number]: BasePart }? }
+type Drawn = {
+	state: number,
+	model: Model,
+	parts: { [number]: BasePart }?,
+	edges: { [number]: { BasePart } }?, -- torn edges by seam (on * 65536 + to)
+}
 type Fall = {
 	id: number,
 	t0: number,
@@ -303,6 +308,121 @@ local function rubbleReady(): boolean
 		end
 	end
 	return true
+end
+
+-- The destruction kit's torn edges (list-combat 2026-11-20; Tasks "Destruction (M5)": the pieces still standing were
+-- clean boxes beside every hole). Each standing piece that touched a knocked-out one (Shared.Structure.seams) shows a
+-- broken concrete lip with bent rebar along that seam (Art.Rubble Torn1-2), in the inner kit concrete. The lips are
+-- looks only (no collision or queries); they go with their piece and come back with a redraw. Nil until the Rubble
+-- meshes are imported (the holes keep their clean box edges then).
+local AXES = { Vector3.xAxis, Vector3.yAxis, Vector3.zAxis }
+local function tornEdge(seam: Structure.Seam, like: BasePart, into: Instance): { BasePart }
+	local T = D.structure.torn
+	local out: { BasePart } = {}
+	local nrm = AXES[seam.n] * seam.sign
+	local along = AXES[seam.along]
+	local n = math.max(1, math.floor(seam.len / T.seg + 0.5))
+	local L = seam.len / n
+	local P = math.min(T.reach, seam.thick * T.share)
+	local th = seam.thick * 0.92
+	local at = Vector3.new(seam.at[1], seam.at[2], seam.at[3])
+	local color = like.Color:Lerp(Color3.fromRGB(90, 86, 82), 0.4)
+	for k = 1, n do
+		local name = "Torn" .. ((seam.on + seam.to + k) % 2 + 1)
+		local row = Config.RubbleArt[name]
+		local scale = Vector3.new(L, P, th) / Vector3.new(row.box[1], row.box[2], row.box[3])
+		local x = if k % 2 == 0 then -along else along -- every other one turned round, so they do not repeat
+		local cf = CFrame.fromMatrix(at + along * ((k - 0.5) * L - seam.len / 2) + nrm * (P / 2), x, nrm)
+		for _, piece in { name, name .. "Rebar" } do
+			local a = row[piece]
+			local src = rubbleSource(piece)
+			if not src then
+				continue
+			end
+			local p = MeshFix.clone(src)
+			p:ClearAllChildren()
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			local size = Vector3.new(a.size[1], a.size[2], a.size[3])
+			if piece == name then
+				p.Size = size * scale
+				p.Color = color
+				p.Material = WRECK_MAT
+				p.MaterialVariant = if WRECK_KIT and like.MaterialVariant ~= ""
+					then "Kit" .. WRECK_KIT
+					else ""
+			else
+				p.Size = size * Vector3.new(1, scale.Y, 1) -- the bars grow longer, never fatter
+				p.Color = Color3.fromRGB(a.color[1], a.color[2], a.color[3])
+				p.Material = Enum.Material.Metal
+			end
+			p.CFrame = cf
+				* CFrame.new(Vector3.new(a.offset[1], a.offset[2], a.offset[3]) * scale)
+				* MeshFix.of(p)
+			p.Parent = into
+			table.insert(out, p)
+		end
+	end
+	return out
+end
+
+-- Bring a damaged building's torn edges up to date with what is gone: lips on standing pieces beside gone ones, none
+-- on pieces that went; at most the preset's `torn` seams a building
+local function tear(rec: Rec, d: Drawn, g: { [number]: boolean })
+	local parts = d.parts
+	if not parts then
+		return
+	end
+	local edges = d.edges or {}
+	d.edges = edges
+	local count = 0
+	for key, list in edges do
+		if parts[key // 65536] and g[key % 65536] then
+			count += 1
+		else
+			for _, p in list do
+				p:Destroy()
+			end
+			edges[key] = nil
+		end
+	end
+	local most = QualityController.preset.torn or 0
+	if count >= most or not rubbleReady() then
+		return
+	end
+	local seams = Structure.seams(gridOf(rec))
+	local ids = {}
+	for j in g do
+		table.insert(ids, j)
+	end
+	table.sort(ids) -- the same lips every time for the same holes
+	for _, j in ids do
+		for _, seam in seams[j] or {} do
+			local key = seam.on * 65536 + j
+			local like = parts[seam.on]
+			if like and not edges[key] then
+				edges[key] = tornEdge(seam, like, d.model)
+				count += 1
+				if count >= most then
+					return
+				end
+			end
+		end
+	end
+end
+
+local function untear(d: Drawn?)
+	if d and d.edges then
+		for _, list in d.edges do
+			for _, p in list do
+				p:Destroy()
+			end
+		end
+		d.edges = nil
+	end
 end
 
 local function drawRubble(rec: Rec): Model
@@ -680,6 +800,7 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 			-- the wall's own crunch where the pieces burst out, louder the more went (list-combat 2026-11-20)
 			AudioController.play("wallSmash", knockAt, { volume = math.min(1, 0.45 + 0.12 * knocked) })
 		end
+		tear(rec, d :: Drawn, g)
 		-- a skyscraper keeps its crown up while every piece of the shaft's top storey stands
 		local topStands = true
 		for i in g do
@@ -710,6 +831,7 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 		m.Parent = folder
 		drawn[id] = { state = s, model = m, parts = parts }
 	end
+	untear(drawn[id]) -- the torn edges go with the pieces they stood on
 	local grid = gridOf(rec)
 	local list = {}
 	for i, p in parts do

@@ -26,6 +26,7 @@ return {
 		partBudget = 6000,
 		debris = 60,
 		falling = 240, -- building pieces in a falling storey or collapse animated at once (BuildingFx; the rest just go)
+		torn = 16, -- torn edges (Art.Rubble Torn) a damaged building draws round its holes (BuildingFx; list-combat)
 		craters = 6,
 		craterRim = 6, -- broken rim chunks round each drawn ground crater (GroundFx, fix-destroy)
 		enemiesDrawn = 20,
@@ -60,6 +61,7 @@ return {
 		partBudget = 12000,
 		debris = 150,
 		falling = 600,
+		torn = 48,
 		craters = 12,
 		craterRim = 10,
 		enemiesDrawn = 40,
@@ -94,6 +96,7 @@ return {
 		partBudget = 20000,
 		debris = 250,
 		falling = 1000,
+		torn = 96,
 		craters = 20,
 		craterRim = 14,
 		enemiesDrawn = 60,
