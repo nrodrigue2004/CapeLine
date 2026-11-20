@@ -84,7 +84,14 @@ return {
 	enemyDeath = { parts = 6, life = 2 },
 	-- a robot shot's streak (list-combat 2026-11-20): a camera-facing Trail in the energy strip texture behind the
 	-- pellet, `trail` wide and `life` seconds long, so a shot reads as a streak you can see coming
-	shot = { width = 0.4, trail = 0.7, life = 0.16 },
+	shot = {
+		width = 0.4,
+		trail = 0.7,
+		life = 0.16,
+		-- (list-combat 2026-11-20, combat effects polish) a robot shot that meets a wall, a roof or the street stops
+		-- there in a spray of sparks, a flash and a small scorch; the muzzle flashes as it fires
+		splash = { sparks = 5, tracerSparks = 9, scorch = 1, muzzle = 2 },
+	},
 	-- the newer robots' effects (CombatFx): the Sniper's aim laser (it thickens and blinks for the locked last
 	-- part) and its tracer round, the Interceptor's net, the Grappler's hook on its cable, the Bomber's grenade
 	-- (its light blinks faster as it falls), its burning patch and blast, the Medic Unit's repair beam, the
