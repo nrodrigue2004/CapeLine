@@ -109,7 +109,7 @@ return function(T: any)
 				count += 1
 			end
 		end
-		check(count == 203 + 126, "329 cells (got " .. count .. ")")
+		check(count == 203 + 129, "332 cells (got " .. count .. ")") -- bosses-3: 3 boss markers at the end
 		for i, sheet in IC.sheets do
 			check(type(sheet.id) == "number" and sheet.id >= 0, "sheet " .. i .. " id is a number")
 			local ok, png = pcall(fs.readFile, "art/export/icons/" .. sheet.file)

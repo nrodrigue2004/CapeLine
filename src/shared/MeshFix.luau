@@ -33,6 +33,7 @@ for _, set in
 		"Bodies",
 		"Boots",
 		"Bosses",
+		"Bosses2",
 		"Bramblebeast",
 		"Capes",
 		"Coats",

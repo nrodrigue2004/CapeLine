@@ -116,7 +116,7 @@ return function(T: any)
 				end
 			end
 		end
-		check(n == 4, "all four bosses are animated (" .. n .. ")")
+		check(n == 7, "all seven bosses are animated (" .. n .. ")") -- bosses-3: the Storm Colossus, Swarm Queen and Quarry Titan
 	end)
 
 	test("Boss anim: every attack's wind-up ends exactly at its hit time", function()

@@ -570,10 +570,14 @@ function BossTelegraph.warn(ev: { [string]: any }, groundY: number, color: Color
 		ring(c, ev.r, t, true)
 	elseif shape == "cone" then
 		cone(c, ev.r, ev.arc or 360, ev.yaw or 0, t)
-	elseif shape == "circles" then
+	elseif shape == "circles" or shape == "zone" then
+		-- bosses-3: a zone (storm clouds, lava pools) warns like circles: where it will stay for its time
 		for _, p in ev.points or {} do
 			ring(Vector3.new(p[1], groundY, p[2]), ev.r, t, false, 8)
 		end
+	elseif shape == "gust" then
+		-- bosses-3: the Storm Colossus's gust warns like a cone on the ground under it (it reaches every height)
+		cone(c, ev.r, ev.arc or 80, ev.yaw or 0, t)
 	elseif shape == "lines" then
 		for _, d in ev.points or {} do
 			line(c, Vector3.new(d[1], 0, d[2]), ev.length, ev.width, t)

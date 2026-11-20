@@ -43,6 +43,13 @@ function BossMath.nextDelay(Config: any, rng: any): number
 	return rng:range(e[1], e[2])
 end
 
+-- Which world boss comes next: the bosses take turns in Config.Boss.order (six since bosses-3, 2026-11-20), turn 0
+-- first
+function BossMath.nextInOrder(Config: any, turn: number): string
+	local o = Config.Boss.order
+	return o[turn % #o + 1]
+end
+
 -- A player who has never seen a boss joined at `now`: the next boss is no later than 6 minutes away
 function BossMath.clampForNewPlayer(Config: any, startAt: number, now: number): number
 	return math.min(startAt, now + Config.Boss.schedule.firstClamp)

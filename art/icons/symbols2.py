@@ -664,6 +664,40 @@ def _k_warframe(S, p):
     S.group().poly(ngon(50, 74, 8, 6), p["y"])
 
 
+# bosses-3 (2026-11-20, DRAFT bosses)
+@sym("k_storm")
+def _k_storm(S, p):
+    # the Storm Colossus: a storm cloud over its domed head, a bolt down
+    S.ell(18, 40, 82, 92, p["b"])
+    S.group().ell(30, 30, 70, 58, p["s"])
+    S.rect(30, 56, 70, 64, p["y"], 2)
+    S.group().circle(50, 74, 8, p["c"])
+    cloud(S, p, 50, 18, 1.0, p["k"])
+    S.group().poly(bolt(50, 30, 30, 10), p["y"])
+
+
+@sym("k_swarm")
+def _k_swarm(S, p):
+    # the Swarm Queen: a hex core in a ring, drones round it
+    S.arc(50, 52, 34, 0, 360, 5, p["k"], steps=40)
+    S.group().poly(ngon(50, 52, 22, 6), p["k"])
+    S.poly(ngon(50, 52, 12, 6), p["o"])
+    S.group()
+    for x, y in ((14, 18), (86, 20), (12, 84), (88, 82), (50, 8)):
+        drone(S, p, x, y, 0.55, p["s"])
+
+
+@sym("k_titan")
+def _k_titan(S, p):
+    # the Quarry Titan: a boulder head with lava cracks and glowing eyes
+    S.poly([(16, 34), (34, 12), (70, 10), (88, 32), (84, 80), (60, 92), (30, 90), (12, 70)], p["n"])
+    S.group().line([(30, 50), (40, 62), (36, 76)], 4, p["o"])
+    S.line([(70, 46), (62, 60), (68, 74)], 4, p["o"])
+    S.group().rect(30, 32, 70, 40, p["k"], 2)
+    S.circle(40, 36, 4, p["y"])
+    S.circle(60, 36, 4, p["y"])
+
+
 @sym("k_giver")
 def _k_giver(S, p):
     S.poly([(14, 18), (86, 18), (86, 64), (48, 64), (30, 84), (32, 64), (14, 64)], p["w"])

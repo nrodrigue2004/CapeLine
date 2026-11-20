@@ -234,9 +234,11 @@ return function(T: any)
 		function()
 			for id, def in B.bosses do
 				local react: { [string]: string } = {}
+				local leaps = false
 				for _, a in def.attacks do
 					if a.react then
 						react[a.react] = a.id
+						leaps = leaps or (a.react == "kite" and a.leap == true)
 					end
 				end
 				check(
@@ -249,7 +251,7 @@ return function(T: any)
 				local high = exposure(id, hero(1, 0, def.height + 40, -150))
 				check((high[react.air] or 0) > 0, id .. ": homing shots reach a high, far flier")
 				check(
-					(high[react.kite] or 0) > 0 or react.kite == "Leap",
+					(high[react.kite] or 0) > 0 or leaps, -- a leap's slam never reaches a high flier (the homing shots do)
 					id .. ": the gap closer reaches a kiter"
 				)
 				-- a hero hovering by its body (flight, a swing): the swat or snap

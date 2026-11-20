@@ -516,7 +516,8 @@ def finale(name, art):
 
 
 def boss(name, art, glow, weak):
-    obs = import_fbx(os.path.join(kit.ROOT, "export", "Bosses.fbx"))
+    # bosses-3: the second set (Storm Colossus, Swarm Queen, Quarry Titan) is in Bosses2.fbx (BossArt's `set`)
+    obs = import_fbx(os.path.join(kit.ROOT, "export", (art.get("set") or "Bosses") + ".fbx"))
     img = bpy.data.images.load(os.path.join(kit.ROOT, "export", "bosses", name + "_Color.png"), check_existing=True)
     body = tinted_map(name, img, (128, 128, 128))
     shown = []
@@ -547,6 +548,9 @@ BOSS_VIEW = {  # the camera's yaw round the boss (degrees from its front), a lif
     "RustjawPrime": (24, 0.0, 0.72),
     "LumenMaw": (38, 0.0, 1.0),
     "LeviathanEngine": (40, 0.0, 0.62),
+    "StormColossus": (28, 0.0, 0.9),
+    "SwarmQueen": (30, 0.0, 1.0),
+    "QuarryTitan": (26, 0.0, 0.75),
 }
 
 

@@ -321,6 +321,24 @@ return {
 			},
 		},
 		chest = {
+			-- bosses-3 (2026-11-20): the Swarm Queen's drop (DRAFT name): never rolled by loot (tier "Boss")
+			{
+				n = 30,
+				name = "Hive Harness",
+				shape = "harness",
+				tier = "Boss",
+				boss = "SwarmQueen",
+				color = { 54, 58, 72 },
+			},
+			{
+				n = 31,
+				name = "Shiny Hive Harness",
+				shape = "harness",
+				tier = "Boss",
+				boss = "SwarmQueen",
+				shiny = true,
+				color = { 255, 190, 80 },
+			},
 			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
 			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
 			{
@@ -500,6 +518,24 @@ return {
 			},
 		},
 		legs = {
+			-- bosses-3 (2026-11-20): the Quarry Titan's drop (DRAFT name): never rolled by loot (tier "Boss")
+			{
+				n = 30,
+				name = "Magma Greaves",
+				shape = "greaves",
+				tier = "Boss",
+				boss = "QuarryTitan",
+				color = { 120, 84, 70 },
+			},
+			{
+				n = 31,
+				name = "Shiny Magma Greaves",
+				shape = "greaves",
+				tier = "Boss",
+				boss = "QuarryTitan",
+				shiny = true,
+				color = { 255, 150, 60 },
+			},
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
 			{
 				n = 10,
@@ -528,6 +564,24 @@ return {
 			},
 		},
 		feet = {
+			-- bosses-3 (2026-11-20): the Storm Colossus's drop (DRAFT name): never rolled by loot (tier "Boss")
+			{
+				n = 30,
+				name = "Storm Jets",
+				shape = "jets",
+				tier = "Boss",
+				boss = "StormColossus",
+				color = { 36, 60, 116 },
+			},
+			{
+				n = 31,
+				name = "Shiny Storm Jets",
+				shape = "jets",
+				tier = "Boss",
+				boss = "StormColossus",
+				shiny = true,
+				color = { 150, 230, 255 },
+			},
 			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
 			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
 			{

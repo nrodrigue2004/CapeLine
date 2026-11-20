@@ -20,6 +20,12 @@
 --   far away too long (react "kite": a leap for the walker, a tether yank for the others), and it enrages
 --   (faster, harder hits) when nobody has been close for a while. Melee heroes on the ground are never their
 --   targets; a reactive attack never takes two slots in a row, so the normal rotation still runs.
+-- * bosses-3 (2026-11-20; Config.Boss): a hovering boss floats `alt` above its ground (hover; its targets, objectives
+--   and "close" ride with it) and comes down to its low height on a timer and at each phase (lower events); lifts
+--   (lightning rods and roof pads) ride a hero up to it (lift events, BossService knocks them up); gust pushes heroes
+--   away (strike push); zones linger and hurt every tick (tick events); tall circles reach any height; crater hits dig
+--   (strike crater); a guard (the Swarm Queen's formations) cuts damage until every objective is broken, then the core
+--   is exposed and the boss comes down until they re-form (exposed and reform events).
 
 local BossMath = if script then require(script.Parent.BossMath) else (require :: any)("./BossMath")
 
@@ -63,7 +69,25 @@ export type Pending = {
 	yank: number, -- tether: a hit pulls the hero in to this far from the boss
 	drop: number, -- column: a hit knocks the hero down this far
 	leap: boolean, -- the boss lands at (x, z) when it resolves
+	alt: number, -- bosses-3: the boss's hover height when it warned (cones and lines reach that much higher)
+	tall: boolean, -- circles: a bolt from the clouds, any height up to the boss's top
+	push: number, -- gust: a hit pushes the hero this far away
+	dur: number, -- zone: how long it lingers, hurting every `tick` seconds between lo and hi up
+	tick: number,
+	crater: number, -- the hit digs a crater this wide (0: none)
 }
+export type Zone = {
+	a: string,
+	points: { { number } },
+	r: number,
+	lo: number,
+	hi: number,
+	untilT: number,
+	nextTick: number,
+	tick: number,
+	coeff: number,
+}
+export type Lift = { x: number, y: number, z: number, r: number, kind: string }
 export type Sim = {
 	Config: any,
 	cfg: any,
@@ -99,6 +123,15 @@ export type Sim = {
 	enraged: boolean,
 	cool: { [string]: number }, -- reactive attack id -> ready again at
 	lastReact: boolean, -- the last attack was a reactive one
+	alt: number, -- bosses-3: how high it floats above its ground now (0 for a boss that stands)
+	lowUntil: number, -- it hovers low until then
+	isLow: boolean,
+	nextLower: number, -- its next timed descent
+	zones: { Zone }, -- lingering storm clouds and lava pools
+	lifts: { Lift }, -- lightning rods (and roof pads BossService adds) that ride a hero up to it
+	liftAt: { [number]: number }, -- hero id -> may ride a lift again at
+	exposed: boolean, -- the guard is down (every formation broken)
+	exposedUntil: number,
 }
 
 local function objectHp(Config: any, hits: number, level: number): number
@@ -155,7 +188,30 @@ function BossSim.new(
 		enraged = false,
 		cool = {},
 		lastReact = false,
+		alt = if cfg.hover then cfg.hover.high else 0,
+		lowUntil = 0,
+		isLow = false,
+		nextLower = if cfg.hover and cfg.hover.every
+			then now + sched.landing + cfg.hover.every
+			else math.huge,
+		zones = {},
+		lifts = {},
+		liftAt = {},
+		exposed = false,
+		exposedUntil = 0,
 	}
+	local lf = cfg.lifts
+	if lf then
+		-- lightning rods round the arena on the ground (BossService adds pads on the roofs near it)
+		for i = 1, lf.rods do
+			local a = (i - 0.5) / lf.rods * math.pi * 2
+			local rr = cfg.arenaRadius * lf.ring
+			table.insert(
+				sim.lifts,
+				{ x = x + math.cos(a) * rr, y = groundY, z = z + math.sin(a) * rr, r = lf.r, kind = "rod" }
+			)
+		end
+	end
 	if cfg.lifespan then
 		sim.endsAt = now + sched.landing + cfg.lifespan
 	end
@@ -189,7 +245,7 @@ function BossSim.objectivePos(sim: Sim, ob: Objective): (number, number, number)
 	local row = sim.cfg.objectives.list[ob.idx]
 	if row.at then
 		local dx, dy, dz = BossMath.worldOffset(sim.yaw, row.at[1], row.at[2], row.at[3])
-		return sim.x + dx, sim.y + dy, sim.z + dz
+		return sim.x + dx, sim.y + sim.alt + dy, sim.z + dz
 	end
 	return ob.x, ob.y, ob.z
 end
@@ -212,10 +268,14 @@ function BossSim.targets(sim: Sim): { Target }
 	end
 	for _, t in sim.cfg.targets do
 		local dx, dy, dz = BossMath.worldOffset(sim.yaw, t.at[1], t.at[2], t.at[3])
-		table.insert(
-			out,
-			{ key = t.id, x = sim.x + dx, y = sim.y + dy, z = sim.z + dz, r = t.r, weak = t.weak == true }
-		)
+		table.insert(out, {
+			key = t.id,
+			x = sim.x + dx,
+			y = sim.y + sim.alt + dy,
+			z = sim.z + dz,
+			r = t.r,
+			weak = t.weak == true,
+		})
 	end
 	for _, ob in sim.objectives do
 		if ob.alive then
@@ -268,6 +328,15 @@ function BossSim.damage(sim: Sim, key: string, amount: number): (number, number,
 		return 0, 0, nil
 	end
 	local dmg = amount * (if weakKey(sim, key) then sim.Config.Boss.weakMult else 1)
+	local g = sim.cfg.guard
+	if g then
+		-- bosses-3: the formations shield the swarm; with them all broken the core takes `exposed` x (not x2)
+		if sim.exposed then
+			dmg = amount * (if key == g.key then g.exposed else 1)
+		else
+			dmg = amount * g.guarded
+		end
+	end
 	local dealt = math.min(sim.hp, dmg)
 	sim.hp -= dealt
 	local phase = BossMath.phase(sim.Config, sim.hp / sim.maxHp)
@@ -282,6 +351,7 @@ function BossSim.damage(sim: Sim, key: string, amount: number): (number, number,
 		if su and su.phase == phase then
 			table.insert(sim.events, { k = "summon", kind = su.kind, n = su.n })
 		end
+		BossSim.lower(sim, sim.lastStep) -- bosses-3: a hovering boss comes down at each phase
 	end
 	if sim.hp <= 0 then
 		sim.state = "dead"
@@ -336,8 +406,11 @@ local function addPending(sim: Sim, p: Pending, warn: number)
 		t = warn,
 		nova = p.nova,
 		up = if p.up ~= 12 then p.up else nil,
-		lo = if p.shape == "column" then p.lo else nil,
-		hi = if p.shape == "column" then p.hi else nil,
+		lo = if p.shape == "column" or p.shape == "gust" or p.shape == "zone" then p.lo else nil,
+		hi = if p.shape == "column" or p.shape == "gust" or p.shape == "zone" then p.hi else nil,
+		tall = if p.tall then true else nil,
+		dur = if p.dur > 0 then p.dur else nil,
+		alt = if p.alt ~= 0 then p.alt else nil,
 		shots = if #p.shots > 0 then p.shots else nil,
 		leap = if p.leap then true else nil,
 	})
@@ -374,6 +447,12 @@ local function pending(sim: Sim, atk: any, now: number, src: string): Pending
 		yank = atk.yank or 0,
 		drop = atk.drop or 0,
 		leap = atk.leap == true,
+		alt = sim.alt,
+		tall = atk.tall == true,
+		push = atk.push or 0,
+		dur = atk.dur or 0,
+		tick = atk.tick or 1,
+		crater = atk.crater or 0,
 	}
 end
 
@@ -385,7 +464,31 @@ end
 
 function BossSim.isClose(sim: Sim, h: Hero): boolean
 	local c = sim.cfg.counters
-	return c ~= nil and flat(sim, h) <= c.meleeR and h.y - sim.y <= sim.cfg.height + 15
+	if c == nil or flat(sim, h) > c.meleeR then
+		return false
+	end
+	local up = h.y - sim.y - sim.alt -- above its body's base (its feet, or a hovering boss's bottom)
+	return up <= sim.cfg.height + 15 and (sim.alt <= 0 or up >= -30)
+end
+
+-- bosses-3: a hovering boss comes down to its low height for lowFor seconds (its timer, a phase, its exposed core)
+function BossSim.lower(sim: Sim, now: number, secs: number?)
+	local hv = sim.cfg.hover
+	if not hv then
+		return
+	end
+	local untilT = now + (secs or hv.lowFor or 0)
+	if untilT <= sim.lowUntil then
+		return
+	end
+	sim.lowUntil = untilT
+	if hv.every then
+		sim.nextLower = untilT + hv.every
+	end
+	if not sim.isLow then
+		sim.isLow = true
+		table.insert(sim.events, { k = "lower", on = true, t = untilT - now })
+	end
 end
 
 function BossSim.isAir(sim: Sim, h: Hero): boolean
@@ -476,7 +579,7 @@ local function reactive(sim: Sim, now: number, heroes: { Hero }): (any?, Hero?)
 	end
 	if ready(by.kite) then
 		local best, bt = nil, c.kiteAfter
-		local reach = if by.kite.leap then by.kite.up or 12 else math.huge -- a leap's slam can't reach a high flier
+		local reach = if by.kite.leap then (by.kite.up or 12) + sim.alt else math.huge -- a leap's slam can't reach a high flier
 		for _, h in heroes do
 			local f = sim.far[h.id] or 0
 			if h.alive and f >= bt and h.y - sim.y <= reach then
@@ -489,7 +592,8 @@ local function reactive(sim: Sim, now: number, heroes: { Hero }): (any?, Hero?)
 	end
 	if ready(by.hover) then
 		for _, h in heroes do
-			if h.alive and inColumn(sim, by.hover, h) then
+			-- a hero a lift just carried up (bosses-3) is fighting, not hovering out of reach: it never draws the swat
+			if h.alive and inColumn(sim, by.hover, h) and now >= (sim.liftAt[h.id] or 0) then
 				return by.hover, nil
 			end
 		end
@@ -572,7 +676,7 @@ local function startAttack(sim: Sim, now: number, heroes: { Hero })
 	local atk = if hazard and sim.cycle % 2 == 0 then hazard else list[(sim.cycle // 2) % #list + 1]
 	local p = pending(sim, atk, now, "boss")
 	local targets = near(sim, heroes, 300)
-	if atk.shape == "circles" then
+	if atk.shape == "circles" or atk.shape == "zone" then
 		for i = 1, atk.count do
 			local h = targets[((i - 1) % math.max(1, #targets)) + 1]
 			local bx, bz = if h then h.x else sim.x, if h then h.z else sim.z
@@ -640,10 +744,22 @@ local function hitTest(sim: Sim, p: Pending, h: Hero): boolean
 			return false
 		end
 	elseif p.shape == "circles" then
-		if up > 12 then
+		if up > (if p.tall then p.alt + sim.cfg.height + 40 else 12) then
 			return false
 		end
-	elseif up > sim.cfg.height then
+	elseif p.shape == "gust" then
+		local d = math.sqrt(dx * dx + dz * dz)
+		if d > p.r or up < p.lo or up > p.hi then
+			return false
+		end
+		if d < 4 then
+			return true
+		end
+		local fx, fz = -math.sin(p.yaw), -math.cos(p.yaw)
+		return (fx * dx + fz * dz) / d >= math.cos(math.rad(p.arc / 2))
+	elseif p.shape == "zone" then
+		return false -- a zone hurts on its ticks (zoneTicks), not when it lands
+	elseif up > sim.cfg.height + p.alt then
 		return false
 	end
 	if p.shape == "ring" then
@@ -736,7 +852,36 @@ local function resolve(sim: Sim, p: Pending, heroes: { Hero })
 	if p.leap then
 		ev.leap = true
 	end
-	if p.shape == "circles" or p.shape == "homing" or p.shape == "tether" then
+	if p.push > 0 then
+		ev.push = p.push
+	end
+	if p.crater > 0 then
+		ev.crater = p.crater
+	end
+	if p.tall then
+		ev.tall = true
+	end
+	if p.shape == "zone" then
+		-- it lingers: storm clouds in the sky, lava on the floor (ticks from now, BossSim.step)
+		local now = p.resolveAt
+		table.insert(sim.zones, {
+			a = p.a,
+			points = p.points,
+			r = p.r,
+			lo = p.lo,
+			hi = p.hi,
+			untilT = now + p.dur,
+			nextTick = now,
+			tick = p.tick,
+			coeff = p.coeff,
+		})
+		ev.dur = p.dur
+		ev.lo, ev.hi = p.lo, p.hi
+	end
+	if p.alt ~= 0 then
+		ev.alt = p.alt
+	end
+	if p.shape == "circles" or p.shape == "homing" or p.shape == "tether" or p.shape == "zone" then
 		ev.points = p.points
 		ev.r = p.r
 	elseif p.shape == "pull" then
@@ -885,7 +1030,7 @@ function BossSim.step(sim: Sim, now: number, heroes: { Hero })
 			if BossSim.isClose(sim, h) then
 				anyClose = true
 				sim.far[h.id] = 0
-			elseif flat(sim, h) > c.kiteRange or h.y - sim.y > sim.cfg.height + 15 then
+			elseif flat(sim, h) > c.kiteRange or h.y - sim.y - sim.alt > sim.cfg.height + 15 then
 				sim.far[h.id] = (sim.far[h.id] or 0) + dt
 			end
 		end
@@ -917,6 +1062,7 @@ function BossSim.step(sim: Sim, now: number, heroes: { Hero })
 						r = o.fire.r,
 						warn = o.fire.warn,
 						coeff = o.fire.coeff,
+						tall = o.fire.tall,
 					}, now, "cannon")
 					p.x, p.y, p.z = x, sim.y, z
 					p.points = { { h.x, h.z } }
@@ -925,6 +1071,10 @@ function BossSim.step(sim: Sim, now: number, heroes: { Hero })
 			end
 		end
 	end
+	BossSim.hoverStep(sim, now, dt)
+	BossSim.zoneTicks(sim, now, heroes)
+	BossSim.liftStep(sim, now, heroes)
+	BossSim.guardStep(sim, now)
 	if now >= sim.nextAttack then
 		startAttack(sim, now, heroes)
 	end
@@ -934,6 +1084,153 @@ function BossSim.step(sim: Sim, now: number, heroes: { Hero })
 			table.remove(sim.pending, i)
 			resolve(sim, p, heroes)
 		end
+	end
+end
+
+-- bosses-3: a hovering boss floats toward its high or low height (lowered on its timer, at a phase, exposed)
+function BossSim.hoverStep(sim: Sim, now: number, dt: number)
+	local hv = sim.cfg.hover
+	if not hv then
+		return
+	end
+	if now >= sim.nextLower then
+		BossSim.lower(sim, now)
+	end
+	if sim.isLow and now >= sim.lowUntil then
+		sim.isLow = false -- back up
+		table.insert(sim.events, { k = "lower", on = false })
+	end
+	local goal = if sim.isLow then hv.low else hv.high
+	local step = hv.rate * dt
+	sim.alt += math.clamp(goal - sim.alt, -step, step)
+end
+
+-- The lingering zones hurt whoever is inside (between lo and hi above the ground) every tick
+function BossSim.zoneTicks(sim: Sim, now: number, heroes: { Hero })
+	local c = sim.cfg.counters
+	for i = #sim.zones, 1, -1 do
+		local zn = sim.zones[i]
+		if now >= zn.untilT then
+			table.remove(sim.zones, i)
+		elseif now >= zn.nextTick then
+			zn.nextTick = now + zn.tick
+			local dmg = heroDamage(sim, zn.coeff) * (if sim.enraged and c then c.enrage.dmg else 1)
+			local hits = {}
+			for _, h in heroes do
+				local up = h.y - sim.y
+				if h.alive and up >= zn.lo and up <= zn.hi then
+					for _, pt in zn.points do
+						if (h.x - pt[1]) ^ 2 + (h.z - pt[2]) ^ 2 <= zn.r * zn.r then
+							table.insert(hits, { h.id, dmg })
+							break
+						end
+					end
+				end
+			end
+			if #hits > 0 then
+				table.insert(sim.events, { k = "tick", a = zn.a, hits = hits })
+			end
+		end
+	end
+end
+
+-- Where a hero standing on a lift is carried to (its body's middle, a little above), or nil
+function BossSim.liftTo(sim: Sim): number
+	local lf = sim.cfg.lifts
+	return sim.y + sim.alt + sim.cfg.height * 0.4 + (if lf then lf.above else 0)
+end
+
+-- Pads on the roofs round a hovering boss (BossService passes the standing building boxes near it): the nearest roofs
+-- between 20 studs up and its high hover height, inside its arena and at least 40 studs off its body, kept 30 apart.
+-- A climber, a swinger, a wall runner or a leaper on a roof rides one up to it (bosses-3).
+function BossSim.addRoofPads(sim: Sim, boxes: { any })
+	local lf, hv = sim.cfg.lifts, sim.cfg.hover
+	if not (lf and hv and (lf.roofs or 0) > 0) then
+		return
+	end
+	local list = {}
+	for _, b in boxes do
+		local d = math.sqrt((b.x - sim.x) ^ 2 + (b.z - sim.z) ^ 2)
+		local up = (b.top or 0) - sim.y
+		if up >= 20 and up <= hv.high + 20 and d <= sim.cfg.arenaRadius and d >= 40 then
+			table.insert(list, { b = b, d = d })
+		end
+	end
+	table.sort(list, function(a, c)
+		return a.d < c.d
+	end)
+	local n = 0
+	for _, row in list do
+		if n >= lf.roofs then
+			break
+		end
+		local ok = true
+		for _, l in sim.lifts do
+			if l.kind == "pad" and (l.x - row.b.x) ^ 2 + (l.z - row.b.z) ^ 2 < 900 then
+				ok = false
+			end
+		end
+		if ok then
+			table.insert(sim.lifts, { x = row.b.x, y = row.b.top, z = row.b.z, r = lf.r, kind = "pad" })
+			n += 1
+		end
+	end
+end
+
+-- A hero on a lightning rod or a roof pad rides up to the boss (lift events; BossService knocks them up)
+function BossSim.liftStep(sim: Sim, now: number, heroes: { Hero })
+	local lf = sim.cfg.lifts
+	if not lf or #sim.lifts == 0 then
+		return
+	end
+	local to = BossSim.liftTo(sim)
+	for _, h in heroes do
+		if h.alive and now >= (sim.liftAt[h.id] or 0) and to - h.y > 20 then
+			for i, l in sim.lifts do
+				if (h.x - l.x) ^ 2 + (h.z - l.z) ^ 2 <= l.r * l.r and math.abs(h.y - l.y) <= 10 then
+					sim.liftAt[h.id] = now + lf.every
+					table.insert(sim.events, {
+						k = "lift",
+						id = h.id,
+						lift = i,
+						x = l.x,
+						y = l.y,
+						z = l.z,
+						to = to,
+						bx = sim.x,
+						bz = sim.z,
+					})
+					break
+				end
+			end
+		end
+	end
+end
+
+-- The guard (the Swarm Queen's formations): every objective broken exposes the core and brings it down for `reform`
+-- seconds; then the formations re-form at full strength
+function BossSim.guardStep(sim: Sim, now: number)
+	local g = sim.cfg.guard
+	if not g then
+		return
+	end
+	if not sim.exposed then
+		for _, ob in sim.objectives do
+			if ob.alive then
+				return
+			end
+		end
+		sim.exposed = true
+		sim.exposedUntil = now + g.reform
+		table.insert(sim.events, { k = "exposed", on = true, t = g.reform })
+		BossSim.lower(sim, now, g.reform)
+	elseif now >= sim.exposedUntil then
+		sim.exposed = false
+		for _, ob in sim.objectives do
+			ob.alive = true
+			ob.hp = ob.maxHp
+		end
+		table.insert(sim.events, { k = "exposed", on = false })
 	end
 end
 

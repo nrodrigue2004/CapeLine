@@ -1068,6 +1068,9 @@ return {
 			RustjawPrime = "THE JUNKYARD TITAN",
 			LumenMaw = "THE LIGHT EATER",
 			LeviathanEngine = "THE DEEP MACHINE",
+			StormColossus = "THE WEATHER MACHINE", -- bosses-3 (2026-11-20): DRAFT titles until nate OKs them
+			SwarmQueen = "THE HIVE CORE",
+			QuarryTitan = "THE MAGMA GOLEM",
 			NullWarFrame = "THE IRON OATH",
 		},
 		-- lore step 9: place and event cards in the same style (CinemaHud.card): the Crater the first time a

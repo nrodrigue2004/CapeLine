@@ -52,16 +52,17 @@ return function(T: any)
 					check(e.group == "robots" or e.group == "fakes", kind .. " fills a robot or fake page")
 				end
 			end
-			-- the counts: 20 robots, 4 fakes and the twin's, 18 finale villains (16 chains, 2 encores), 3 bosses
+			-- the counts: 20 robots, 4 fakes and the twin's, 18 finale villains (16 chains, 2 encores), 6 bosses (3 more
+			-- since bosses-3, 2026-11-20)
 			local n = {}
 			for _, e in RoguesFile.list(Config) do
 				n[e.group] = (n[e.group] or 0) + 1
 			end
 			check(
-				n.robots == 20 and n.fakes == 4 and n.villains == 18 and n.bosses == 3,
-				"20 + 4 + 18 + 3 pages"
+				n.robots == 20 and n.fakes == 4 and n.villains == 18 and n.bosses == 6,
+				"20 + 4 + 18 + 6 pages"
 			)
-			check(#RoguesFile.list(Config) == 45, "45 pages")
+			check(#RoguesFile.list(Config) == 48, "48 pages")
 			-- the bosses keep the bits BossService has set since M6
 			for _, id in Config.Boss.order do
 				local e = RoguesFile.forBoss(Config, id)
@@ -121,7 +122,8 @@ return function(T: any)
 					slots += 1
 				end
 			end
-			check(slots == 48, "48 portrait slots: 45 pages and 3 gold pages (" .. slots .. ")")
+			-- bosses-3 (2026-11-20): 3 more world bosses, each a page and a gold page
+			check(slots == 54, "54 portrait slots: 48 pages and 6 gold pages (" .. slots .. ")")
 			-- no slot without a page (a renamed page would leave an orphan upload)
 			local n = 0
 			for _, ids in R.portraits do
@@ -216,7 +218,7 @@ return function(T: any)
 		check(log["17"][2] == R.countMax, "the count stops at countMax")
 		check(RoguesFile.countText(1000) == "999+" and RoguesFile.countText(12) == "12", "the count shown")
 		local n, total = RoguesFile.count(Config, words)
-		check(n == 3 and total == 45, "3 of 45 (a gold page is extra)")
+		check(n == 3 and total == 48, "3 of 48 (a gold page is extra)")
 		check(RoguesFile.dateText(20775) == "18 Nov 2026", "a day as a date")
 		check(RoguesFile.dateText(11016) == "29 Feb 2000", "a leap day")
 		check(RoguesFile.dateText(20088) == "31 Dec 2024", "a year's end")
@@ -236,7 +238,7 @@ return function(T: any)
 		local words = table.create(RoguesFile.WORDS, 0)
 		Bits.set(words, 9)
 		local g, gt = RoguesFile.goldCount(Config, words)
-		check(g == 1 and gt == 3, "1 of 3 gold pages")
+		check(g == 1 and gt == 6, "1 of 6 gold pages")
 	end)
 
 	test("Rogues File: milestone rewards at 10, 25 and every page, earnable looks only", function()
@@ -678,9 +680,9 @@ return function(T: any)
 					end
 				end
 			end
-			check(pages == 45, d.name .. ": 45 pages drawn (" .. pages .. ")")
+			check(pages == 48, d.name .. ": 48 pages drawn (" .. pages .. ")")
 			-- 8 pages beaten (bit 9 is Rustjaw Prime's gold mark, not a page of its own)
-			check(unknown == 45 - 8, d.name .. ": 37 silhouettes (" .. unknown .. ")")
+			check(unknown == 48 - 8, d.name .. ": 40 silhouettes (" .. unknown .. ")")
 			check(gold, d.name .. ": Rustjaw Prime's gold page")
 			-- SHOWDOWN starts the fight and closes the Journal (one main panel)
 			sim:run("open showdown", function()

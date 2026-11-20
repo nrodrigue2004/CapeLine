@@ -175,7 +175,9 @@ end
 function NewsArtKit.portrait(Config: any, bossId: string): Cell?
 	local A = Config.NewsArt
 	local at = A and A.cards.at[bossId]
-	local image = A and asset(A.cards.sheet)
+	-- bosses-3: a sheet holds 4 cells; at[3] names the sheet (1 when left out)
+	local sheet = if at and at[3] and A.cards.sheets then A.cards.sheets[at[3]] else A and A.cards.sheet
+	local image = A and asset(sheet)
 	if not at or not image then
 		return nil
 	end
