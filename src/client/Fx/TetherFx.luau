@@ -2,7 +2,9 @@
 -- TetherFx: swing physics for the weapons on a line (the weapons polish pass, 2026-11-19: the Chain Whip, the
 -- Yo-yo and the Rope Dart lash out on a rope and the Nunchucks swing round the grip; Shared.TetherMath). For every
 -- hero near the camera holding one, the welded line and tip meshes are hidden on this device only
--- (LocalTransparencyModifier) and drawn instead: the line as links along the rope, the tip as local copies of
+-- (LocalTransparencyModifier) and drawn instead: the line as links along the rope (each segment a twisted rope or
+-- three chain links, Art.Tether from art/blender/tether.py, list-combat 2026-11-20; plain links while it is not
+-- imported), the tip as local copies of
 -- its own meshes riding the end. The rope hangs and lags behind the hand; during an attack (HeroAnimator.actionOf)
 -- it pays out along the arm to the move's reach and reels back in, so the swing clips crack it like a whip.
 -- Within HeroAnim.nearRange and at most MAX heroes; every frame is timed by FrameProf. Only meshed weapons swing
@@ -18,12 +20,14 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
 local TetherMath = require(Shared:WaitForChild("TetherMath"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
 
 local TetherFx = {}
 
 local MAX = 6 -- heroes swinging lines at once on this device
+local LINK_TURN = MeshFix.turn("Tether") -- the rope meshes' import turn
 
 type Piece = { part: BasePart, copy: BasePart?, rel: CFrame }
 type Rig = {
@@ -140,9 +144,17 @@ local function setup(p: Player, char: Model, wf: Instance, id: number): Rig?
 	if spec.mode == "rope" then
 		local color = if lines[1] then lines[1].Color else Color3.fromRGB(200, 200, 210)
 		local mat = if lines[1] then lines[1].Material else Enum.Material.Metal
+		local art = ReplicatedStorage:FindFirstChild("Art")
+		local set = art and art:FindFirstChild("Tether")
+		local src = spec.link and set and set:FindFirstChild(spec.link, true)
 		for _ = 1, spec.segs do
-			local l = Instance.new("Part")
-			l.Name = "TetherLink" -- PLACEHOLDER ART: plain links until a rope mesh
+			local l: BasePart = if src and src:IsA("MeshPart")
+				then MeshFix.clone(src)
+				else Instance.new("Part")
+			for _, c in l:GetChildren() do
+				c:Destroy()
+			end
+			l.Name = "TetherLink"
 			l.Anchored = true
 			l.CanCollide = false
 			l.CanQuery = false
@@ -213,7 +225,8 @@ local function draw(p: Player, r: Rig, dt: number)
 		local mid = (a + b) / 2
 		local len = (b - a).Magnitude
 		l.Size = Vector3.new(r.spec.width, r.spec.width, math.max(0.05, len + r.spec.width))
-		l.CFrame = if len > 1e-4 then CFrame.lookAt(mid, b) else CFrame.new(mid)
+		local cf = if len > 1e-4 then CFrame.lookAt(mid, b) else CFrame.new(mid)
+		l.CFrame = if l:IsA("MeshPart") then cf * LINK_TURN else cf
 	end
 	local tipPos, tipDir = TetherMath.tip(r.state)
 	local rot = hand.Rotation

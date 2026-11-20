@@ -64,6 +64,7 @@
         "NemParts": { "$path": "art/models/NemParts.rbxm" },
         "Throwables": { "$path": "art/models/Throwables.rbxm" },
         "Gadget": { "$path": "art/models/Gadget.rbxm" },
+        "Tether": { "$path": "art/models/Tether.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },

@@ -2063,6 +2063,27 @@ return function(T: any)
 		end
 	)
 
+	test("List combat: the line weapons swing a rope or chain mesh (Everything Left 392)", function()
+		local roblox = require("@lune/roblox")
+		local TetherMath = require("../src/shared/TetherMath")
+		local model = roblox.deserializeModel(fs.readFile("art/models/Tether.rbxm"))[1]
+		local ropes = 0
+		for id, spec in TetherMath.SPECS do
+			if spec.mode == "rope" then
+				ropes += 1
+				check(spec.link ~= nil and Config.TetherArt[spec.link] ~= nil, id .. " names its link mesh")
+				local mp = spec.link and model:FindFirstChild(spec.link, true)
+				check(mp ~= nil and mp:IsA("MeshPart"), id .. "'s link is imported")
+			end
+		end
+		check(ropes == 3, "the Chain Whip, Yo-yo and Rope Dart")
+		check(TetherMath.SPECS[32].link == "TetherChain", "the Chain Whip swings a chain")
+		local fx = fs.readFile("src/client/Fx/TetherFx.luau")
+		check(string.find(fx, "MeshFix.clone(src)", 1, true) ~= nil, "TetherFx clones the link mesh")
+		check(string.find(fx, "cf * LINK_TURN", 1, true) ~= nil, "and turns it as imported")
+		check(not string.find(fx, "PLACEHOLDER ART", 1, true), "no placeholder links")
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

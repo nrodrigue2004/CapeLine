@@ -350,6 +350,13 @@
   "turned": 65,
   "verdict": "rotY180"
  },
+ "Tether": {
+  "asDrawn": 1,
+  "either": 1,
+  "meshes": 2,
+  "turned": 2,
+  "verdict": "rotY180"
+ },
  "Throwables": {
   "asDrawn": 4,
   "either": 4,

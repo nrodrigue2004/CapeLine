@@ -17,6 +17,7 @@ export type Spec = {
 	tip: { string }, -- the meshes that ride the end of the line
 	width: number, -- the drawn line's thickness
 	stiff: number, -- how hard an attack drives the tip out along the arm (per second squared, per stud)
+	link: string?, -- the segment's mesh in Art.Tether (art/blender/tether.py; list-combat 2026-11-20): a rope or chain
 }
 export type State = { p: { Vec }, q: { Vec } }
 
@@ -37,6 +38,7 @@ TetherMath.SPECS = {
 		reach = 11,
 		line = { "W32_Chain" },
 		tip = { "W32_Barb" },
+		link = "TetherChain",
 		width = 0.16,
 		stiff = 420,
 	},
@@ -45,6 +47,7 @@ TetherMath.SPECS = {
 		segs = 6,
 		reach = 9,
 		line = { "W34_String" },
+		link = "TetherRope",
 		tip = { "W34_Halves", "W34_Caps", "W34_Glow" },
 		width = 0.05,
 		stiff = 520,
@@ -54,6 +57,7 @@ TetherMath.SPECS = {
 		segs = 8,
 		reach = 12,
 		line = { "W35_Rope" },
+		link = "TetherRope",
 		tip = { "W35_Dart", "W35_Ring", "W35_Ribbon" },
 		width = 0.1,
 		stiff = 460,
