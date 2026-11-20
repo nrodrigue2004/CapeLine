@@ -258,6 +258,28 @@ on it. Play at the default volumes (Music 2, Sound effects 5). Needs Studio:
 508. Walk or fly into the park: the city bed crossfades to birdsong and a breeze; leaving the park brings the
    district's bed back.
 
+### Alive world part 4: retention, the WELCOME BACK card and TO DO (2026-11-20, alive-world)
+A walk through day 2, day 7 and a level 10-20 hero found every return feature already there (the DAILY card, three
+NEW WEEK toasts, boss and bounty toasts, nemesis, Journal GOALS, the friend boost, the Hero Pass) but nothing that
+puts them in one place on rejoin, no tap to act on a toast, and nothing pointing past Act 1 (level 8) when the day's
+chores are done. Fix: the WELCOME BACK card (Shared.ReturnPlan, Ui.ReturnHud, sent by DailyService after the daily
+card) with GO buttons, and TO DO in the MENU drawer. Lune proves the rows, order, limits and wiring (ONLY="Alive4").
+PLACEHOLDER ART: Kit frames and text. Needs Studio:
+509. A returning hero (a save made and past the prologue; rejoin the next UTC day, or DevService "daily" a day
+   passes then rejoin): the DAILY claim card comes first; after it closes, the WELCOME BACK card slides in with a
+   page-flip sound and its rows tick in one by one: the DAY N STREAK line, then TO DO with the owed claim first
+   (gold, GO). Each GO closes the card and opens its screen: DAILY, Hero Pass (PASS or the episode tab), the MAP
+   (boss, bounty, contracts), WANTED (nemesis), the Journal (story, quests, goals). X, Backspace and 30 s close it.
+510. A brand new hero: no WELCOME BACK card on the first session (the prologue and the DAILY card only), but MENU
+   holds TO DO, and it opens the card with the hero's real rows.
+511. TO DO reads "TO DO !" (and MENU "MENU !") while a reward is waiting (the daily claim, a Hero Pass tier to claim,
+   a boss fight live, a Showdown open); opening the card clears the "!".
+512. A new week (a save whose last visit was last week): the card's NEW WEEK news names this week's BOUNTY boss,
+   matching the NEW WEEK toasts; a met nemesis with full Intel adds "<NAME> IS WAITING" and a Showdown row.
+513. A level 10-20 hero with Act 1 done: the card still lists at least three things (DOUBLE contracts with today's
+   count, side quests to start with their giver, the bounty boss or the boss timer, the episode, the closest goal,
+   the Hero Pass) and none is a dead end; on a phone (Device emulator, iPhone SE) it fits with its X reachable.
+
 ### Living world: meshes over the plain shapes and the ambient life (2026-11-19, living-world)
 Lune proves the looks, picks, shop and vending layout, lanes, lights, brakes, corners, manholes, flags, reactions and budgets (ONLY="Living world"; art/preview/life.png, life_street.png, life_textures.png, lorebooks.png, city_audit.txt). These need Studio:
 1. Outskirts: trees have real crowns (round, tall, pine; some autumn and blossom), trunks, crop and corn rows, round hay bales, silo bodies and domes, panelled house doors with knobs, all facing right (no backwards pieces) and colliding like before (walk into a tree trunk, stand on a hay bale). Break a farm building: its door and silo meshes go with it.
