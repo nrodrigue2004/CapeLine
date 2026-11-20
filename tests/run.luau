@@ -23260,7 +23260,15 @@ end
 (require :: any)("./fix_respawn_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the living world's round 2 (shapes-2, 2026-11-19, own file): Art.Shapes, roofs, road pictures, water, lit
 -- windows, Uptown's palette; ONLY="Shapes"
-(require :: any)("./shapes_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./shapes_test")({ test = test, check = check, Config = Config, world = world });
+-- first-30 (2026-11-20, own file): the first 30 seconds and minutes; ONLY="First 30"
+(require :: any)("./first30_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+})
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

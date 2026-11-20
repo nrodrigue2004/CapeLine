@@ -39,6 +39,7 @@ local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
+local NpcAnim = require(Shared:WaitForChild("NpcAnim")) -- first-30: the crowd's cheers, the stage's wave, the gasp
 local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
@@ -68,7 +69,18 @@ local player = Players.LocalPlayer
 local FAKES = { "Radiant", "Bulwark", "Skylance" }
 local FACE = "rbxasset://textures/face.png"
 
-type Npc = { rig: any, pos: Vector3, yaw: number, run: Vector3?, speed: number, phase: number, gone: number? }
+type Npc = {
+	rig: any,
+	pos: Vector3,
+	yaw: number,
+	run: Vector3?,
+	speed: number,
+	phase: number,
+	gone: number?,
+	clip: string?, -- first-30: the NpcAnim clip it plays now, the one before (crossfading out) and since when
+	prev: string?,
+	clipAt: number?,
+}
 
 local folder: Folder? = nil
 local crowd: { Npc } = {}
@@ -535,14 +547,31 @@ local function poseWalk(n: Npc, speed: number, t: number)
 	end
 end
 
-local function poseCheer(n: Npc, t: number)
-	local up = 2.6 + math.sin(t * 5 + n.phase) * 0.35
-	NpcRig.turn(n.rig, "LeftShoulder", CFrame.Angles(up, 0, 0))
-	NpcRig.turn(n.rig, "RightShoulder", CFrame.Angles(up * 0.9, 0, 0))
+-- A whole-body clip from Shared.NpcAnim (first-30, 2026-11-20: was a shoulder sine), crossfading from the clip the
+-- person played before over NpcAnim.crowd.blend; joints the clip leaves out rest
+local clipNow: { [string]: { number } } = {}
+local clipPrev: { [string]: { number } } = {}
+local function poseClip(n: Npc, clip: string, t: number)
+	if n.clip ~= clip then
+		n.prev, n.clip, n.clipAt = n.clip, clip, t
+	end
+	local w = math.clamp((t - (n.clipAt or t)) / NpcAnim.crowd.blend, 0, 1)
+	local a = NpcAnim.sample(clip, t + n.phase, clipNow)
+	local b = if w < 1 and n.prev then NpcAnim.sample(n.prev, t + n.phase, clipPrev) else nil
+	for joint in n.rig.motors do
+		local k = a[joint]
+		local cf = if k then clipTurn(k) else CFrame.identity
+		if b then
+			local kb = b[joint]
+			cf = (if kb then clipTurn(kb) else CFrame.identity):Lerp(cf, w)
+		end
+		NpcRig.turn(n.rig, joint, cf)
+	end
 end
 
-local function poseWave(n: Npc, t: number)
-	NpcRig.turn(n.rig, "RightShoulder", CFrame.Angles(2.8, 0, math.sin(t * 3 + n.phase) * 0.3))
+-- each person in the crowd keeps one cheer (a seeded pick from its phase, so the crowd mixes cheers and claps)
+local function cheerOf(n: Npc): string
+	return NpcAnim.pick(NpcAnim.crowd.cheer, (n.phase / 6) % 1)
 end
 
 local function moveNpc(n: Npc, dt: number, t: number)
@@ -1885,26 +1914,23 @@ local function frame(dt: number)
 	local now = os.clock()
 	if step == "ceremony" then
 		for _, n in crowd do
-			poseCheer(n, now)
+			poseClip(n, cheerOf(n), now)
 		end
 		for name, n in stageNpcs do
-			if name == "crane" then
-				NpcRig.turn(n.rig, "RightShoulder", CFrame.Angles(0.9 + math.sin(now * 2) * 0.4, 0, 0))
-			else
-				poseWave(n, now)
-			end
+			poseClip(n, if name == "crane" then NpcAnim.crowd.crane else NpcAnim.crowd.stage, now)
 		end
 	elseif step == "scan" then
 		sweep(o, t)
-		if t > O.beats.scan * 0.45 then
-			local start = v3(o.start)
-			for _, n in crowd do
-				if start then
-					n.yaw = yawTo(n.pos, start)
-					NpcRig.place(n.rig, CFrame.new(n.pos) * CFrame.Angles(0, n.yaw, 0))
-				end
-				NpcRig.turn(n.rig, "LeftShoulder", CFrame.Angles(0.3, 0, 0))
-				NpcRig.turn(n.rig, "RightShoulder", CFrame.Angles(0.3, 0, 0))
+		-- (first-30) the crowd keeps cheering under the sweep, then gasps toward the hero it stops on
+		local gasp = t > O.beats.scan * 0.45
+		local start = if gasp then v3(o.start) else nil
+		for _, n in crowd do
+			if start and not n.run then
+				n.yaw = yawTo(n.pos, start)
+				NpcRig.place(n.rig, CFrame.new(n.pos) * CFrame.Angles(0, n.yaw, 0))
+			end
+			if not n.run then
+				poseClip(n, if gasp then NpcAnim.crowd.scan else cheerOf(n), now)
 			end
 		end
 	elseif scan then
