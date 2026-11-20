@@ -4930,6 +4930,276 @@
           ]
         ]
       }
+    },
+    {
+      "bg": [
+        70,
+        50,
+        30
+      ],
+      "color": [
+        255,
+        190,
+        120
+      ],
+      "extras": [
+        "cap"
+      ],
+      "face": {
+        "asset": 9250633,
+        "image": 629923753,
+        "name": "Aghast"
+      },
+      "hair": {
+        "asset": 9818081125.0,
+        "name": "Hair Base In Brown"
+      },
+      "key": "driver",
+      "name": "BUS DRIVER",
+      "outfit": {
+        "pants": "Slacks",
+        "pantsTint": [
+          40,
+          46,
+          60
+        ],
+        "shirt": "ButtonShirt",
+        "shirtTint": [
+          70,
+          110,
+          160
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        160,
+        110,
+        80
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        40,
+        16,
+        24
+      ],
+      "color": [
+        220,
+        90,
+        100
+      ],
+      "extras": {},
+      "face": {
+        "asset": 7317765,
+        "image": 7317591,
+        "name": "Slickfang"
+      },
+      "hair": {
+        "asset": 4875445470.0,
+        "name": "Black Short Parted Hair"
+      },
+      "key": "lookout",
+      "name": "SYNDICATE LOOKOUT",
+      "outfit": {
+        "pants": "Jeans",
+        "pantsTint": [
+          50,
+          60,
+          90
+        ],
+        "shirt": "LeatherJacket",
+        "shirtTint": [
+          40,
+          36,
+          44
+        ]
+      },
+      "shape": "slick",
+      "skin": [
+        214,
+        170,
+        140
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        60,
+        60,
+        30
+      ],
+      "color": [
+        255,
+        220,
+        120
+      ],
+      "extras": {},
+      "face": {
+        "asset": 280988393,
+        "image": 280987977,
+        "name": "Mildly Irritated Face"
+      },
+      "hair": {
+        "asset": 13745548,
+        "name": "Cinnamon Hair"
+      },
+      "key": "grocer",
+      "name": "SHOP OWNER",
+      "outfit": {
+        "pants": "Chinos",
+        "pantsTint": [
+          110,
+          90,
+          60
+        ],
+        "shirt": "Polo",
+        "shirtTint": [
+          200,
+          170,
+          90
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        236,
+        196,
+        160
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        40,
+        24,
+        56
+      ],
+      "color": [
+        200,
+        120,
+        255
+      ],
+      "extras": {},
+      "face": {
+        "asset": 9250643,
+        "image": 508490451,
+        "name": "Meanie"
+      },
+      "hair": {
+        "asset": 7259123616.0,
+        "name": "Black Messy Hairstyle"
+      },
+      "key": "fence",
+      "name": "THE FENCE",
+      "outfit": {
+        "pants": "Cargo",
+        "pantsTint": [
+          40,
+          40,
+          46
+        ],
+        "shirt": "Bomber",
+        "shirtTint": [
+          90,
+          50,
+          120
+        ]
+      },
+      "shape": "slick",
+      "skin": [
+        120,
+        84,
+        60
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        20,
+        44,
+        70
+      ],
+      "color": [
+        140,
+        220,
+        255
+      ],
+      "extras": [
+        "headset"
+      ],
+      "face": {
+        "asset": 7317793,
+        "image": 7317606,
+        "name": "Good Intentioned"
+      },
+      "hair": {
+        "asset": 376527350,
+        "name": "Black Ponytail"
+      },
+      "key": "producer",
+      "name": "SHOW PRODUCER",
+      "outfit": {
+        "pants": "Slacks",
+        "pantsTint": [
+          30,
+          30,
+          36
+        ],
+        "shirt": "Turtleneck",
+        "shirtTint": [
+          30,
+          32,
+          40
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        200,
+        150,
+        116
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        50,
+        30,
+        20
+      ],
+      "color": [
+        230,
+        140,
+        90
+      ],
+      "extras": {},
+      "face": {
+        "asset": 7506135,
+        "image": 7506008,
+        "name": "Blinky"
+      },
+      "key": "stagehand",
+      "name": "STAGEHAND",
+      "outfit": {
+        "pants": "Cargo",
+        "pantsTint": [
+          46,
+          46,
+          52
+        ],
+        "shirt": "Hoodie",
+        "shirtTint": [
+          34,
+          34,
+          40
+        ]
+      },
+      "shape": "hood",
+      "skin": [
+        226,
+        180,
+        146
+      ],
+      "style": "person"
     }
   ],
   "villains": [
