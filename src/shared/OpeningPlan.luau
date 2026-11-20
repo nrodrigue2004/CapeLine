@@ -38,6 +38,10 @@ export type Route = {
 	entrance: Point, -- the subway steps
 	billboard: { number }, -- { x, y, z, nx, nz }: the board's centre and the way it faces
 	landing: Point, -- where the hero is after the title
+	-- prologue-cine (2026-11-20): the run off the plaza as a street path the device runs the hero along (start to
+	-- the spark point, round any building in the way), and each roof's half sizes (the long hop's ledge grab)
+	runPath: { Point },
+	roofHalf: { { number } },
 }
 
 -- (PocketLayout.Lane, repeated: the pure-module require pattern drops cross-module types)
@@ -304,6 +308,34 @@ local function groundY(Config: any, world: any, x: number, z: number): number
 	return math.max(gy + 0.2, HeightMap.at(world.heights, x, z))
 end
 
+-- Is the street open along a -> b (every 2 studs on open ground)? The directed run (Shared.PrologueCine) goes
+-- straight through anything, so its path must stay in the street
+function OpeningPlan.clearLine(Config: any, world: any, a: Point, b: Point): boolean
+	local d = dist(a[1], a[3], b[1], b[3])
+	local n = math.max(1, math.ceil(d / 2))
+	for i = 0, n do
+		local f = i / n
+		if not onGround(Config, world, a[1] + (b[1] - a[1]) * f, a[3] + (b[3] - a[3]) * f) then
+			return false
+		end
+	end
+	return true
+end
+
+-- The street path from a to b for the directed run: straight when the street is open, else round the corner
+-- (along x then z, or z then x: Downtown's streets run on the grid), else straight (the stuck timer still holds)
+function OpeningPlan.streetPath(Config: any, world: any, a: Point, b: Point): { Point }
+	if OpeningPlan.clearLine(Config, world, a, b) then
+		return { a, b }
+	end
+	for _, c in { { b[1], a[2], a[3] }, { a[1], a[2], b[3] } } do
+		if OpeningPlan.clearLine(Config, world, a, c) and OpeningPlan.clearLine(Config, world, c, b) then
+			return { a, c, b }
+		end
+	end
+	return { a, b }
+end
+
 -- The rooftop row's first `count` roofs (CityLayout's Layout.row), when every hop is one Leap and no higher
 -- than a Leap climbs; nil if the row is missing or short (the route then picks a chain of ordinary roofs)
 local function rowRoofs(Config: any, world: any, count: number): { any }?
@@ -503,8 +535,10 @@ function OpeningPlan.route(Config: any, world: any, rng: any): Route?
 	end
 	local found = chain :: { any }
 	local roofs = {}
+	local roofHalf = {}
 	for _, b in found do
 		table.insert(roofs, roofPoint(b))
+		table.insert(roofHalf, { (b.sx or 12) / 2, (b.sz or 12) / 2 })
 	end
 	local last = found[#found]
 	local ent =
@@ -557,6 +591,8 @@ function OpeningPlan.route(Config: any, world: any, rng: any): Route?
 		entrance = { ent.x, ent.y, ent.z },
 		billboard = billboard,
 		landing = start,
+		runPath = OpeningPlan.streetPath(Config, world, start, { spark.x, spark.y, spark.z }),
+		roofHalf = roofHalf,
 	}
 end
 

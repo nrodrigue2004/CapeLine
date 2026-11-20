@@ -828,7 +828,9 @@ local function frame()
 	local q = StoryClient.quest
 	-- the marker: the prologue's beat, else the mission's, else the pinned quest's
 	if step then
-		setMarker(if OpeningPlan.CUT[step] then nil else o.target, false, U.prologue.goals[step])
+		-- (prologue-cine, nate 2026-11-20: "dont have the player run to the gold marker": the directed beats have none)
+		local directed = OpeningPlan.CUT[step] or Config.Story.opening.qte.beats[step]
+		setMarker(if directed then nil else o.target, false, U.prologue.goals[step])
 	elseif (m.num or 0) > 0 and not m.done then
 		setMarker(m.target, true)
 	elseif q and q.target then

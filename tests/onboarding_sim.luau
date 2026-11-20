@@ -140,7 +140,10 @@ function Sim.timeline(Config: any, side: string, opts: { carry: boolean? }?): { 
 			gap = largestGap(spans, dur)
 			goal = "watch"
 		else
-			if Sim.TARGETS[step] then
+			if Config.Story.opening.qte.beats[step] then
+				-- prologue-cine (2026-11-20): a directed beat asks for its quick-time prompts, never a marker
+				goal = "prompts"
+			elseif Sim.TARGETS[step] then
 				goal = P.goals[step]
 			elseif table.find(P.verbs[step] or {}, "Basic") then
 				goal = "fight"

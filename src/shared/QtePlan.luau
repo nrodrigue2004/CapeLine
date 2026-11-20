@@ -11,14 +11,20 @@
 -- * after(Config, result, misses): what comes next: { go = "next" | "retry" | "assist", wait = seconds, misses }.
 --   A hit moves on; a miss retries after `retry` s; the `assist`-th miss in a row does the move by itself, so the
 --   story always goes on (no dead ends).
+-- prologue-cine (nate, 2026-11-20: "whole prologue needs to be cutscene with qtes until subway"): every beat to the
+-- subway fight has prompts now (Shared.PrologueCine authors which and where). A prompt has a kind: "press" (one
+-- press: JUMP, DODGE, GRAB, SHIELD, SMASH), "mash" (Config's mash.count presses inside mash.window s: a struggle)
+-- or "hold" (the key held hold.seconds inside hold.window s: the suit snap). mashStep and holdStep are its rules;
+-- worst(prompt) is the longest it can take (every try missed to the help), which the stuck timers must outlast.
 
 local QtePlan = {}
 
-export type Prompt = { action: string, word: string }
+export type Prompt = { action: string, word: string, kind: string?, count: number?, hold: number? }
 export type After = { go: string, wait: number, misses: number }
 
 -- the keys a prompt listens for (any other action is ignored, never a miss)
-QtePlan.KEYS = { Leap = true, Block = true, Basic = true }
+-- (prologue-cine: Catch is GRAB: B, the pad's X, or a tap)
+QtePlan.KEYS = { Leap = true, Block = true, Basic = true, Catch = true }
 
 function QtePlan.on(Config: any, step: string?): boolean
 	return step ~= nil and Config.Story.opening.qte.beats[step] == true
@@ -39,6 +45,10 @@ function QtePlan.prompts(Config: any, step: string, hop: number?): { Prompt }
 			table.insert(out, { action = "Block", word = W.Block })
 		end
 		table.insert(out, { action = "Leap", word = W.Leap })
+		if Q.grab == hop then
+			-- (prologue-cine) the long hop falls short: GRAB the ledge, then climb
+			table.insert(out, { action = "Catch", word = W.Catch })
+		end
 		return out
 	elseif step == "descend" then
 		return { { action = "Leap", word = W.drop } }
@@ -46,23 +56,59 @@ function QtePlan.prompts(Config: any, step: string, hop: number?): { Prompt }
 	return {}
 end
 
-function QtePlan.window(Config: any, misses: number): number
+-- How long a prompt stays open: a press's window, a mash's or a hold's (each `ease` times longer after a miss)
+function QtePlan.window(Config: any, misses: number, kind: string?): number
 	local Q = Config.Story.opening.qte
-	return if misses > 0 then Q.window * Q.ease else Q.window
+	local w = if kind == "mash" then Q.mash.window elseif kind == "hold" then Q.hold.window else Q.window
+	return if misses > 0 then w * Q.ease else w
 end
 
-function QtePlan.judge(Config: any, action: string, pressed: string, t: number, misses: number): string?
+-- A mash prompt: one more press of the right key (or a tap on the prompt). Returns the presses so far and whether
+-- that is enough (Config's mash.count, or the prompt's own count)
+function QtePlan.mashStep(Config: any, p: Prompt, presses: number): (number, boolean)
+	local need = p.count or Config.Story.opening.qte.mash.count
+	local n = presses + 1
+	return n, n >= need
+end
+
+-- A hold prompt: how full it is after `held` s of the key held down (0 to 1), and whether it is done. Letting go
+-- before it fills empties it again (the caller passes 0 held), which is never a miss by itself.
+function QtePlan.holdStep(Config: any, p: Prompt, held: number): (number, boolean)
+	local need = p.hold or Config.Story.opening.qte.hold.seconds
+	local f = math.clamp(held / math.max(0.05, need), 0, 1)
+	return f, f >= 1
+end
+
+-- The longest one prompt can take: shown `lead` s in, then every try missed (each window run out) until the
+-- `assist`-th miss does it by itself
+function QtePlan.worst(Config: any, kind: string?): number
+	local Q = Config.Story.opening.qte
+	local t = Q.lead
+	for k = 0, Q.assist - 1 do
+		t += QtePlan.window(Config, k, kind) + (if k < Q.assist - 1 then Q.retry else 0)
+	end
+	return t
+end
+
+function QtePlan.judge(
+	Config: any,
+	action: string,
+	pressed: string,
+	t: number,
+	misses: number,
+	kind: string?
+): string?
 	if not QtePlan.KEYS[pressed] or t < 0 then
 		return nil
 	end
-	if t > QtePlan.window(Config, misses) then
+	if t > QtePlan.window(Config, misses, kind) then
 		return "miss"
 	end
 	return if pressed == action then "hit" else "miss"
 end
 
-function QtePlan.expired(Config: any, t: number, misses: number): boolean
-	return t > QtePlan.window(Config, misses)
+function QtePlan.expired(Config: any, t: number, misses: number, kind: string?): boolean
+	return t > QtePlan.window(Config, misses, kind)
 end
 
 function QtePlan.after(Config: any, result: string, misses: number): After

@@ -425,6 +425,9 @@ end
 -- The slow-mo finisher (lore step 7, FinisherFx): every hero's clips run at this speed on this device only
 -- (the server is never slowed). The mode clips' clock lags behind by `modeLag`; action clips start later.
 HeroAnimator.timeScale = 1
+-- prologue-cine (2026-11-20): the local hero's pose during a directed move (Fx.PrologueQte: sprint, arc, wall,
+-- leapCrouch, brace, powerCharge...), in place of its mode's; nil: the mode's own
+HeroAnimator.cineMode = nil :: string?
 local modeLag = 0
 local lastUpdate = 0
 
@@ -477,6 +480,9 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 		ride = p:GetAttribute("PowerSet") :: any,
 	}
 	local want = HeroAnim.modeClip(mode, speed, downed, r.modeTo, ctx)
+	if p == player and HeroAnimator.cineMode and HeroAnim.CLIPS[HeroAnimator.cineMode :: string] then
+		want = HeroAnimator.cineMode -- the prologue's directed move (prologue-cine): its own pose, not the mode's
+	end
 	if want ~= r.modeTo then
 		r.modeFrom, r.modeTo, r.modeAt = r.modeTo, want, now
 	end
