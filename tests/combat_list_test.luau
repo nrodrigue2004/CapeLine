@@ -423,4 +423,86 @@ return function(T: any)
 		local hs = fs.readFile("src/server/Services/HeroService.luau")
 		check(string.find(hs, 'player:SetAttribute("Form", form)', 1, true) ~= nil, "the server sets Form")
 	end)
+
+	test("List combat: capes sway with the hero", function()
+		local K = Config.Fx.cape
+		check(K.lift > 30 and K.max <= 90 and K.follow > 0 and K.count >= 8, "the sway's numbers")
+		-- the turn CapeSway uses, CFrame.Angles(-lift, 0, side), carries the hanging drape (0, -1, 0) backward (+z)
+		-- and up, and a strafe to the right swings it left
+		local lift = math.rad(40)
+		local y, z = -math.cos(-lift), -math.sin(-lift) -- Rx(a) * (0, -1, 0) = (0, -cos a, -sin a)
+		check(z > 0.5 and y > -0.9, "lift swings the cape back and up")
+		local side = math.rad(-K.side) -- a strafe right gives side < 0
+		check(math.sin(side) < 0, "a strafe right swings it left") -- Rz(b) * (0, -1, 0) = (sin b, -cos b, 0)
+		local src = fs.readFile("src/client/Fx/CapeSway.luau")
+		for _, needle in
+			{
+				'd:GetAttribute("Sway") == true',
+				"wc.Enabled = false",
+				"CFrame.Angles(-math.rad(r.lift), 0, math.rad(r.side))",
+				'FrameProf.wrap("CapeSway", step)',
+				"math.min(#near, K.count)",
+			}
+		do
+			check(string.find(src, needle, 1, true) ~= nil, "CapeSway: " .. needle)
+		end
+		local lk = fs.readFile("src/shared/LookKit.luau")
+		check(string.find(lk, 'p:SetAttribute("Sway", true)', 1, true) ~= nil, "LookKit marks the drape")
+		check(
+			string.find(lk, 'if tab == "back" and kit and string.sub(kit, 1, 5) == "cape:" then', 1, true)
+				~= nil,
+			"capes only"
+		)
+		local init = fs.readFile("src/client/init.client.luau")
+		check(string.find(init, "CapeSway.init()", 1, true) ~= nil, "CapeSway runs")
+	end)
+
+	test("List combat: the place's LookKit marks only a cape's drape to sway", function()
+		if not T.placePath then
+			return
+		end
+		local roblox = require("@lune/roblox")
+		local WeaponSim = require("./weaponsim")
+		local sim = WeaponSim.new(roblox.deserializePlace(fs.readFile(T.placePath)))
+		local Cfg = sim:module("Config")
+		local LookKit = sim:module("Shared.LookKit")
+		local CreatorRules = sim:module("Shared.CreatorRules")
+		local capes = 0
+		for i, piece in CreatorRules.index(Cfg).byTab.back or {} do
+			if string.sub(piece.kit or "", 1, 5) ~= "cape:" then
+				continue
+			end
+			capes += 1
+			local look = CreatorRules.defaultLook(Cfg)
+			look.pieces.back = i
+			local char = sim:body()
+			LookKit.build(char, look)
+			local torso = char:FindFirstChild("UpperTorso")
+			local swung, kept = 0, 0
+			for _, d in char:GetDescendants() do
+				if d:IsA("BasePart") and d.Name == "back" then
+					local y = torso.CFrame:PointToObjectSpace(d.CFrame.Position).Y - d.Size.Y / 2 -- its lowest edge
+					if d:GetAttribute("Sway") == true then
+						swung += 1
+						check(y < 0, piece.kit .. ": a swung piece hangs past the middle")
+					else
+						kept += 1
+						check(y >= 0, piece.kit .. ": a piece left still sits up on the shoulders")
+					end
+				end
+			end
+			check(swung >= 1, piece.kit .. " has a drape that sways (" .. swung .. ", " .. kept .. " kept)")
+		end
+		check(capes >= 6, "capes checked: " .. capes)
+		-- a look without a cape marks nothing
+		local plain = CreatorRules.defaultLook(Cfg)
+		plain.pieces.back = 0
+		local char = sim:body()
+		LookKit.build(char, plain)
+		local any = false
+		for _, d in char:GetDescendants() do
+			any = any or d:GetAttribute("Sway") == true
+		end
+		check(not any, "no cape, nothing sways")
+	end)
 end

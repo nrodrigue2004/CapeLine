@@ -14,6 +14,23 @@ return {
 		pitch = 0.7,
 		crushAt = 4,
 	},
+	-- item 219: capes sway (Fx.CapeSway; the drape pieces LookKit marks Sway swing about the collar). lift: degrees
+	-- the cape rises behind at full forward speed (`fast` studs/s) and from falling (`fall` studs/s); side: degrees
+	-- it swings out from sideways movement; flutter: degrees of ripple at speed; idle: a slow breath; follow: how
+	-- fast it catches up (per second); reach: only heroes this close to the camera, at most `count` of them.
+	cape = {
+		lift = 70,
+		fast = 60,
+		fall = 70,
+		fallLift = 45,
+		side = 18,
+		flutter = 7,
+		idle = 2.5,
+		follow = 7,
+		reach = 160,
+		count = 16,
+		max = 85,
+	},
 	fov = { base = 70, leap = 1.06, boost = 1.17, blend = 6 },
 	landShake = { time = 0.1, amount = 0.35, minFall = 25 },
 	-- the landing crack (gap polish 2026-11-19): a comic crack decal drawn by art/fx/textures.py --cracks

@@ -65,6 +65,7 @@ local GadgetClient = require(Controllers.GadgetClient)
 local BlockClient = require(Controllers.BlockClient) -- H1: block, breaker, interrupt
 local GuardFx = require(Fx.GuardFx)
 local FormFx = require(Fx.FormFx)
+local CapeSway = require(Fx.CapeSway)
 local ChargeFx = require(Fx.ChargeFx) -- H2: charge-up powers
 local ThrowClient = require(Controllers.ThrowClient) -- H3: pick up and throw
 local LockClient = require(Controllers.LockClient) -- nate's playtest 2026-11-19: soft and hard lock-on
@@ -161,6 +162,7 @@ CombatClient.init()
 BlockClient.init()
 GuardFx.init()
 FormFx.init()
+CapeSway.init()
 ChargeFx.init()
 ThrowClient.init() -- after BlockClient: it wraps CombatClient.blocked
 LockClient.init() -- after CombatClient and WorldFx: it aims casts (CombatClient.lockAim) and frames the camera

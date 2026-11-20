@@ -1452,6 +1452,7 @@ end
 -- ReplicatedStorage.Art.Capes: every piece of the style ("cape:<style>") cloned, sized with the torso, welded to
 -- the UpperTorso at its fitted box and coloured by its role (glow pieces Neon). Nothing is made unless every
 -- piece's mesh is there (then the box cape stays). Returns true when the meshes stand in for the kit's parts.
+local markSway: (Model, Instance, number) -> ()
 local function capeMeshes(
 	char: Model,
 	folder: Instance,
@@ -1600,6 +1601,23 @@ end
 -- (tests/model_fit_test.luau places every mesh kit through these, the game's own code)
 LookKit._pieceMeshes = pieceMeshes
 LookKit._capeMeshes = capeMeshes
+
+-- Cape sway (item 219, spec M11 "a sway tween"): the cape pieces just made that hang down past the torso's middle
+-- (the drape, its lining, tatters and trim; not the yoke, clasps, collar or a mantle's shoulders) are marked Sway,
+-- and Fx.CapeSway swings them about the collar on every device from the body's movement
+markSway = function(char: Model, folder: Instance, from: number)
+	local torso = char:FindFirstChild("UpperTorso")
+	if not (torso and torso:IsA("BasePart")) then
+		return
+	end
+	local list = folder:GetChildren()
+	for i = from + 1, #list do
+		local p = list[i]
+		if p:IsA("BasePart") and torso.CFrame:PointToObjectSpace(p.CFrame.Position).Y - p.Size.Y / 2 < 0 then
+			p:SetAttribute("Sway", true)
+		end
+	end
+end
 
 -- Remove a look built by build() (the folder and the emitters and trails it made on body parts, and a mask's
 -- decals on the head)
@@ -2026,6 +2044,7 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	local headFit: any = nil
 	for _, tab in { "back", "head", "hands", "feet" } do
 		local kit = kitOf(tab)
+		local before = if tab == "back" then #folder:GetChildren() else 0
 		local c, m = slotColors(colors, look, tab)
 		-- the slot's own kits, then the 2026-11-17 extras in PieceKits
 		local extra = PieceKits[tab]
@@ -2044,6 +2063,9 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		end
 		if not drawn then
 			addSpecs(char, folder, tab, kit and (KITS[tab][kit] or (extra and extra[kit])), c, m)
+		end
+		if tab == "back" and kit and string.sub(kit, 1, 5) == "cape:" then
+			markSway(char, folder, before)
 		end
 	end
 	if legDef then
