@@ -3859,9 +3859,16 @@ function CombatFx.slam(center: Vector3, radius: number)
 	ring(center + Vector3.new(0, 0.3, 0), radius, WARN, 0.25, 0.3)
 end
 
-function CombatFx.blocked(pos: Vector3)
-	local p = part(Vector3.one * 1.2, CFrame.new(pos), Color3.fromRGB(200, 235, 255), Enum.PartType.Ball)
-	fade(p, 0.15, { Size = Vector3.one * 3 })
+-- A shield or a parry took a hit (Config.Fx.block): a pale flash, a glow and sparks glancing off it, back
+-- toward `from` (the robot) when it is known
+function CombatFx.blocked(pos: Vector3, from: Vector3?)
+	local B = F.block
+	local c = rgb(B.color)
+	local p = part(Vector3.one * 1.2, CFrame.new(pos), c, Enum.PartType.Ball)
+	fade(p, 0.15, { Size = Vector3.one * B.flash })
+	local back = if from and (from - pos).Magnitude > 1e-3 then (from - pos).Unit else UP
+	FxLib.emit("hitspark", c, pos + back * 0.8, B.sparks, (back + UP * 0.4).Unit)
+	FxLib.emit("glow", c, pos, 1)
 end
 
 ---------------------------------------------------------------------------

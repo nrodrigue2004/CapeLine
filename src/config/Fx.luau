@@ -97,6 +97,9 @@ return {
 	-- chest away from the robot; on your own hero a red arrow on the screen points at who hit you (`arrow`: life s,
 	-- up to `pool` at once, its ring's share of the screen height), a thud (at most every `gap` s) and a shake;
 	-- a melee blow or a hit of `heavy` of your max health or more is heavy: more sparks, a harder shake and thud
+	-- (list-combat 2026-11-20) a blocked hit: a pale flash `flash` studs across, a glow and `sparks` glancing back
+	-- at the robot, with Config.Audio.impact.clank
+	block = { color = { 200, 235, 255 }, flash = 4, sparks = 6 },
 	hurt = {
 		heavy = 0.12,
 		gap = 0.08,

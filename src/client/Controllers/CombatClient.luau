@@ -855,7 +855,8 @@ local function onEvents(list: { any })
 				else
 					local p = myChest()
 					if p then
-						CombatFx.blocked(p) -- shield or parry took it
+						CombatFx.blocked(p, from) -- shield or parry took it: sparks and a clank
+						AudioController.playSpec(IMPACT.clank, p)
 					end
 				end
 			end
@@ -903,6 +904,7 @@ local function onEvents(list: { any })
 			end
 		elseif kind == BLOCKED then
 			CombatFx.blocked(Vector3.new(ev[3], ev[4], ev[5]))
+			AudioController.playSpec(IMPACT.clank, Vector3.new(ev[3], ev[4], ev[5]))
 		elseif kind == AIM then
 			-- {8, e, x,y,z, heroUserId, time, lock}: a Sniper's laser on a hero (bots have no body to aim at)
 			local to = heroChest(ev[6])

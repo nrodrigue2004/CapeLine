@@ -3936,6 +3936,12 @@ return function(T: any)
 			require("@lune/task").wait(0.1) -- the thud's gap runs on the real clock
 			hit(5, nil :: any, nil :: any, nil :: any)
 			check(#sounds == n + 1, "a hit with no robot spot still thuds")
+			-- a hit your shield or parry took (0 damage): sparks glance off and it clanks, no hurt shake
+			local sp0, sh0 = sparks, #shakes
+			hit(0, 40, 10, 0)
+			check(sparks == sp0 + 1, "a blocked hit sparks")
+			check(sounds[#sounds] == SimConfig.Audio.impact.clank, "and clanks")
+			check(#shakes == sh0, "with no hurt shake")
 			-- a robot's punch (SWING) near you: a hot streak, a fist flash and a whoosh; far off, nothing
 			local Enemy = sim:require("Client.Controllers.EnemyRenderer")
 			local realFacing = Enemy.facing
