@@ -97,6 +97,7 @@ local SideOnly = require(Controllers.SideOnly) -- side-content: hides the other 
 local PassHud = require(Ui.PassHud) -- H8: the Hero Pass, the episode and travel styles
 local BoardHud = require(Ui.BoardHud) -- WP2: the weekly boards and the plaza board
 local DailyHud = require(Ui.DailyHud) -- WP1: the daily streak card and the daily quest tracker
+local ReturnHud = require(Ui.ReturnHud) -- retention pass: the WELCOME BACK card and the TO DO button
 local TravelStyleFx = require(Fx.TravelStyleFx) -- H8: travel styles on every screen
 local StoryHud = require(Ui.StoryHud)
 local GuideHud = require(Ui.GuideHud) -- lore step 6: the guides' line box
@@ -203,6 +204,7 @@ SideOnly.init()
 PassHud.init()
 BoardHud.init()
 DailyHud.init()
+ReturnHud.init()
 TravelStyleFx.init()
 Toasts.init()
 -- pt-ui (2026-11-19): a cast or a landed hit is fighting, so non-urgent popups wait (Ui.Popups; hits taken come
