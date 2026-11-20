@@ -1074,4 +1074,36 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
 		end
 	end)
+
+	test("List combat: rubble heaps in Blender meshes (Art.Rubble)", function()
+		local roblox = require("@lune/roblox")
+		local art = Config.RubbleArt
+		local model = roblox.deserializeModel(fs.readFile("art/models/Rubble.rbxm"))[1]
+		for k = 1, 4 do
+			local heap = art["Rubble" .. k]
+			check(heap ~= nil and heap.box ~= nil, "heap " .. k)
+			for _, name in { "Rubble" .. k, "Rubble" .. k .. "Rebar" } do
+				local mp = model:FindFirstChild(name, true)
+				check(mp ~= nil and mp:IsA("MeshPart"), name .. " imported")
+				check(heap[name] ~= nil, name .. " in the fit table")
+			end
+			-- the heap's main mesh fills the box it is drawn for, so stretched it fills Chunker's box exactly
+			local main = heap["Rubble" .. k]
+			for i = 1, 3 do
+				check(math.abs(main.size[i] - heap.box[i]) < 1e-3, "the heap fills its box")
+				check(math.abs(main.offset[i]) < 1e-3, "centred on it")
+			end
+		end
+		local fx = fs.readFile("src/client/Fx/BuildingFx.luau")
+		check(string.find(fx, "local heaps = rubbleReady()", 1, true) ~= nil, "BuildingFx draws the heaps")
+		check(string.find(fx, "* MeshFix.of(p)", 1, true) ~= nil, "with the import turn")
+		check(
+			string.find(fs.readFile("src/shared/MeshFix.luau"), '"Rubble", --', 1, true) ~= nil,
+			"MeshFix turns it"
+		)
+		check(
+			string.find(fs.readFile("default.project.json"), "art/models/Rubble.rbxm", 1, true) ~= nil,
+			"in the place"
+		)
+	end)
 end

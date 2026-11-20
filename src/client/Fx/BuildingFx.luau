@@ -36,6 +36,7 @@ local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Chunker = require(Shared:WaitForChild("Chunker"))
@@ -269,6 +270,36 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 	return m, parts
 end
 
+-- The rubble heaps' meshes (ReplicatedStorage.Art.Rubble), found once; all eight or none (the boxes stay)
+local rubbleFound: { [string]: MeshPart } = {}
+local function rubbleSource(name: string): MeshPart?
+	local hit = rubbleFound[name]
+	if hit and hit.Parent then
+		return hit
+	end
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Rubble")
+	local src = set and set:FindFirstChild(name, true)
+	if src and src:IsA("MeshPart") then
+		rubbleFound[name] = src
+		return src
+	end
+	return nil
+end
+local function rubbleReady(): boolean
+	for heap, row in Config.RubbleArt do
+		for name, v in row do
+			if type(v) == "table" and name ~= "box" and not rubbleSource(name) then
+				return false
+			end
+		end
+		if not rubbleSource(heap) then
+			return false
+		end
+	end
+	return true
+end
+
 local function drawRubble(rec: Rec): Model
 	local color, material, variant = bodyLook(models[rec.id])
 	local inner = ""
@@ -277,10 +308,46 @@ local function drawRubble(rec: Rec): Model
 	end
 	local m = Instance.new("Model")
 	m.Name = "Rubble_" .. rec.id
+	local heaps = rubbleReady()
 	for i, r in Chunker.rubble(D, rec, rec.id) do
+		local cf = CFrame.new(r.cx, r.cy, r.cz)
+			* CFrame.Angles(math.rad(r.rx), math.rad(r.ry), math.rad(r.rz))
+		if heaps then
+			-- item 291: a heap of broken slabs, lumps and rebar (art/blender/rubble.py) stretched to the same box
+			local name = "Rubble" .. ((rec.id + i) % 4 + 1)
+			local row = Config.RubbleArt[name]
+			local k = Vector3.new(r.sx, r.sy, r.sz) / Vector3.new(row.box[1], row.box[2], row.box[3])
+			for _, piece in { name, name .. "Rebar" } do
+				local a = row[piece]
+				local src = rubbleSource(piece)
+				if src then
+					local p = MeshFix.clone(src)
+					p:ClearAllChildren()
+					p.Anchored = true
+					p.Size = Vector3.new(a.size[1], a.size[2], a.size[3]) * k
+					p.CFrame = cf
+						* CFrame.new(Vector3.new(a.offset[1], a.offset[2], a.offset[3]) * k)
+						* MeshFix.of(p)
+					if piece == name then
+						p.Color = shade(color:Lerp(Color3.fromRGB(90, 86, 82), 0.35), i)
+						p.Material = material
+						p.MaterialVariant = inner
+						p.CanCollide = true
+					else
+						p.Color = Color3.fromRGB(a.color[1], a.color[2], a.color[3])
+						p.Material = Enum.Material.Metal
+						p.CanCollide = false
+						p.CanQuery = false
+					end
+					p.CanTouch = false
+					p.Parent = m
+				end
+			end
+			continue
+		end
 		local p = newPart(
 			Vector3.new(r.sx, r.sy, r.sz),
-			CFrame.new(r.cx, r.cy, r.cz) * CFrame.Angles(math.rad(r.rx), math.rad(r.ry), math.rad(r.rz)),
+			cf,
 			shade(color:Lerp(Color3.fromRGB(90, 86, 82), 0.35), i),
 			material,
 			inner

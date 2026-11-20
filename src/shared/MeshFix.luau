@@ -58,6 +58,7 @@ for _, set in
 		"Powers", -- list-combat: the power summons, rides and forms, 30 of 30 (2026-11-20)
 		"Prologue",
 		"Robots",
+		"Rubble", -- list-combat: the rubble heaps, 8 of 8 (2026-11-20)
 		"SetPieces",
 		"Shapes", -- shapes-2: the living world's round 2, 59 of 59 match it (2026-11-19)
 		"Shoulders",

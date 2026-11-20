@@ -245,6 +245,13 @@
   "turned": 38,
   "verdict": "rotY180"
  },
+ "Rubble": {
+  "asDrawn": 0,
+  "either": 0,
+  "meshes": 8,
+  "turned": 8,
+  "verdict": "rotY180"
+ },
  "SetPieces": {
   "asDrawn": 65,
   "either": 65,
