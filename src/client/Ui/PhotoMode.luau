@@ -104,15 +104,31 @@ end
 
 local function backdrop(name: string)
 	clearOverlay()
+	-- the look's printed overlay (Config.Ui.photoBackdrops), under the caption; the drawn frame or lines only
+	-- when it has none
+	local id = (U.photoBackdrops or {})[name]
+	local pictured = id ~= nil and id ~= 0
+	if pictured then
+		local img = Instance.new("ImageLabel")
+		img.Name = "BackdropArt"
+		img.BackgroundTransparency = 1
+		img.Size = UDim2.fromScale(1, 1)
+		img.Image = "rbxassetid://" .. tostring(id)
+		img.ScaleType = Enum.ScaleType.Stretch
+		img.ZIndex = 0
+		img.Parent = overlay
+	end
 	if name == "COMIC" then
 		-- a thick comic-page frame with a caption box
-		local frameEdge = Kit.frame({
-			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			round = false,
-		})
-		Kit.stroke(frameEdge, Kit.color.ink, 18)
-		frameEdge.Parent = overlay
+		if not pictured then
+			local frameEdge = Kit.frame({
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				round = false,
+			})
+			Kit.stroke(frameEdge, Kit.color.ink, 18)
+			frameEdge.Parent = overlay
+		end
 		local cap = Kit.label({
 			Text = string.upper(tostring(player:GetAttribute("HeroName") or player.DisplayName)),
 			AnchorPoint = Vector2.new(0, 0),
@@ -127,8 +143,8 @@ local function backdrop(name: string)
 		cap.Parent = overlay
 		colour(0.02, 0.2, 0.25, Color3.new(1, 1, 1))
 	elseif name == "SPEED" then
-		-- anime speed lines from the edges toward the hero
-		for i = 1, 28 do
+		-- anime speed lines from the edges toward the hero (the picture's inked lines when it has one)
+		for i = 1, if pictured then 0 else 28 do
 			local a = i / 28 * math.pi * 2
 			local l = Kit.frame({
 				AnchorPoint = Vector2.new(0, 0.5),

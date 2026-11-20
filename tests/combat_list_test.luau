@@ -1211,6 +1211,28 @@ return function(T: any)
 		)
 	end)
 
+	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
+		local ids = Config.Ui.photoBackdrops
+		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do
+			check(type(ids[name]) == "number" and ids[name] > 0, name .. " has its uploaded picture")
+			check(
+				fs.isFile(
+					"art/export/ui/photo/"
+						.. string.sub(name, 1, 1)
+						.. string.lower(string.sub(name, 2))
+						.. ".png"
+				),
+				name .. " is drawn by art/ui/photo_backdrops.py"
+			)
+		end
+		local src = fs.readFile("src/client/Ui/PhotoMode.luau")
+		check(
+			string.find(src, "U.photoBackdrops", 1, true) ~= nil,
+			"PhotoMode lays the picture over the screen"
+		)
+		check(string.find(src, '"BackdropArt"', 1, true) ~= nil, "as BackdropArt")
+	end)
+
 	test("List combat: citizens stop to chat (Everything Left 275)", function()
 		local CitizenSim = require("../src/shared/CitizenSim")
 		local sim = CitizenSim.new(Config, {}, 3)

@@ -2,6 +2,15 @@
 -- in the bottom 80 px right (the flight pad).
 return {
 	touchTarget = 56, -- at least 48 px
+	-- Photo Mode's backdrop overlays (art/ui/photo_backdrops.py, list-combat 2026-11-20, Everything Left 354): a
+	-- see-through picture over the whole screen per LOOK (0: the drawn frame or lines alone)
+	photoBackdrops = {
+		COMIC = 135372080682696,
+		SPEED = 100206540963520,
+		SUNSET = 138457076859038,
+		NOIR = 71003852103076,
+		NEON = 134182754669308,
+	},
 	safe = 16,
 	-- a press that starts and ends on a kit button counts as a tap even if the engine sends no Activated
 	-- (nate's playtest 2026-11-19, "buttons are extremely unreliable"): it may move this many pixels, and
