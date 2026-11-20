@@ -985,8 +985,9 @@ local function rig(
 ): { BasePart }
 	local parts: { BasePart } = {}
 	for _, pc in pieces do
-		local mesh = PowerMeshes.make(pc, folder) -- the Blender look when imported (Fx.PowerMeshes)
-		local p: BasePart = mesh or part(pc[1], CFrame.new(), pc[3], pc[4])
+		local mesh = if pc[8] then nil else PowerMeshes.make(pc, folder) -- the Blender look (Fx.PowerMeshes)
+		local p: BasePart = pc[8] or mesh or part(pc[1], CFrame.new(), pc[3], pc[4])
+		p.Parent = folder
 		p.Transparency = pc[5] or 0
 		if pc[6] then
 			p.Material = pc[6]
@@ -1015,15 +1016,74 @@ local function rig(
 	return parts
 end
 
+-- A see-through copy of a hero's own body (Shadow Clones, Holo Decoy, the water and spirit copies; 2026-11-20, was
+-- a block figure): every visible part of their character as it stands now (the body, the gear and the catalog
+-- hair), in the path's colour, glowing and see-through, at `places` offsets in the caster's facing. Pieces in rig()'s
+-- format with the copy as pc[8]; nil when the caster's character is not here (a bot, or out of range).
+local GHOST = { most = 48, tint = 0.75 }
+local function ghostPieces(userId: number?, places: { Vector3 }, color: Color3, alpha: number): { any }?
+	local p = if userId then Players:GetPlayerByUserId(userId) else nil
+	local char = p and p.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not (root and root:IsA("BasePart")) then
+		return nil
+	end
+	local turn = root.CFrame.Rotation
+	local src: { BasePart } = {}
+	for _, d in char:GetDescendants() do
+		if d:IsA("BasePart") and d ~= root and d.Transparency < 0.95 and #src < GHOST.most then
+			table.insert(src, d)
+		end
+	end
+	if #src == 0 then
+		return nil
+	end
+	local out = {}
+	for _, at in places do
+		local base = CFrame.new(turn * at) * turn
+		for _, d in src do
+			local c = d:Clone()
+			for _, k in c:GetChildren() do
+				if not k:IsA("DataModelMesh") then -- keep an accessory's SpecialMesh; drop welds, decals, sounds
+					k:Destroy()
+				end
+			end
+			if c:IsA("MeshPart") then
+				c.TextureID = ""
+			end
+			c.Anchored = true
+			c.CanCollide = false
+			c.CanQuery = false
+			c.CanTouch = false
+			c.Massless = true
+			c.CastShadow = false
+			c.Color = d.Color:Lerp(color, GHOST.tint)
+			table.insert(out, {
+				c.Size,
+				base * root.CFrame:ToObjectSpace(d.CFrame),
+				c.Color,
+				nil,
+				alpha,
+				Enum.Material.Neon,
+				nil,
+				c,
+			})
+		end
+	end
+	return out
+end
+
 -- Summons (Turret Drop, Fix-It Drone, Shadow Clones, Ward Totem, the Ascended Guardian, Shock Mines, Holo
--- Decoy and the water and spirit copies): simple part-built stand-ins. PLACEHOLDER ART until the VFX pass.
+-- Decoy and the water and spirit copies): the Blender looks where there is one (Fx.PowerMeshes), the copies a
+-- see-through copy of the caster's own hero (ghostPieces); else simple part-built stand-ins (PLACEHOLDER ART).
 function CombatFx.summon(
 	kind: string,
 	at: () -> Vector3?,
 	duration: number,
 	style: string,
 	color: Color3,
-	radius: number?
+	radius: number?,
+	userId: number?
 )
 	local dark = Color3.fromRGB(45, 48, 60)
 	local glass = if style == "Anime" then 0.55 else 0.4
@@ -1033,6 +1093,18 @@ function CombatFx.summon(
 	local LOOK =
 		{ turret = "Turret", drone = "Drone", totem = "Totem", guardian = "Guardian", mines = "Mine" }
 	local look = LOOK[kind]
+	local ghosts = if kind == "clones"
+		then ghostPieces(userId, { Vector3.new(-4, 0, 2), Vector3.new(4, 0, 2) }, color, glass)
+		elseif kind == "holo" then ghostPieces(userId, { Vector3.zero }, color, 0.5)
+		else nil
+	if ghosts then
+		rig(ghosts, at, duration, nil, nil)
+		local p0 = at()
+		if p0 then
+			CombatFx.buffPop(p0, style, color)
+		end
+		return
+	end
 	if look and PowerMeshes.ready(look) then
 		if kind == "mines" then
 			pieces = {}
@@ -4418,7 +4490,7 @@ local function castShapes(row: any, style: string, data: CastData)
 			local c = data.c
 			CombatFx.summon(row.summon, function()
 				return c + Vector3.new(0, 3, 0)
-			end, data.dur or row.decoy or 5, style, color)
+			end, data.dur or row.decoy or 5, style, color, nil, data.a)
 		end
 	elseif shape == "field" and row.summon == "mech" then
 		CombatFx.nova(o, 10, style, color, true, fxSet) -- the mech is the hero's own form (the Form attribute)
@@ -4426,7 +4498,7 @@ local function castShapes(row: any, style: string, data: CastData)
 		local c = data.c or o
 		CombatFx.summon(row.summon, data.follow or function()
 			return c + Vector3.new(0, 3, 0)
-		end, data.dur or row.duration, style, color, data.r or row.radius)
+		end, data.dur or row.duration, style, color, data.r or row.radius, data.a)
 		if row.summon == "mines" then
 			CombatFx.field(
 				c,

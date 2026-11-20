@@ -3290,6 +3290,108 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: Shadow Clones and decoys are see-through copies of your own hero", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		-- a hero facing +x (turned 90 degrees), with a hat mesh on top
+		local face = roblox.CFrame.new(10, 3, 0) * roblox.CFrame.Angles(0, -math.pi / 2, 0)
+		local char = UiSim.newInstance("Model")
+		local function add(class, name, size, cf, color)
+			local p = UiSim.newInstance(class)
+			p.Name = name
+			p.Size = size
+			p.CFrame = cf
+			p.Color = color
+			p.Parent = char
+			return p
+		end
+		add("Part", "HumanoidRootPart", V(2, 2, 1), face, roblox.Color3.new(1, 1, 1)).Transparency = 1
+		add(
+			"Part",
+			"UpperTorso",
+			V(2, 1.6, 1),
+			face * roblox.CFrame.new(0, 0.6, 0),
+			roblox.Color3.fromRGB(200, 40, 40)
+		)
+		add(
+			"MeshPart",
+			"GhostHat",
+			V(1.4, 0.8, 1.4),
+			face * roblox.CFrame.new(0, 2.6, 0),
+			roblox.Color3.new(0, 0, 0)
+		)
+		char.Parent = sim.service("Workspace")
+		local me = sim.service("Players").LocalPlayer
+		me.Character = char
+		local col = roblox.Color3.fromRGB(90, 60, 200)
+		sim:run("clones", function()
+			CombatFx.summon("clones", function()
+				return V(10, 3, 0)
+			end, 3, "Comic", col, nil, me.UserId)
+		end)
+		sim:run("frame", function()
+			sim.service("RunService").RenderStepped:Fire(1 / 60)
+		end)
+		local hats, torsos, roots = {}, 0, 0
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsDescendantOf(char) then
+				continue
+			end
+			if d.Name == "GhostHat" then
+				table.insert(hats, d)
+			elseif d.Name == "UpperTorso" then
+				torsos += 1
+			elseif d.Name == "HumanoidRootPart" then
+				roots += 1
+			end
+		end
+		check(
+			#hats == 2 and torsos == 2,
+			"two copies of the hero, gear and all (" .. #hats .. ", " .. torsos .. ")"
+		)
+		check(roots == 0, "the invisible root is not copied")
+		for _, h in hats do
+			check(h.Material == roblox.Enum.Material.Neon and h.Transparency > 0.3, "glowing and see-through")
+			check(h.Anchored and not h.CanCollide and not h.CanQuery, "look only")
+			-- left and right of the hero in the hero's own facing (+x forward: the sides are along z)
+			local rel = face:PointToObjectSpace(h.CFrame.Position)
+			check(math.abs(math.abs(rel.X) - 4) < 0.05, string.format("beside the hero (%.2f)", rel.X))
+			check(math.abs(rel.Y - 2.6) < 0.05, "the hat on the copy's head")
+		end
+		-- no character here (a bot): the old stand-in figure
+		sim:run("bot clones", function()
+			CombatFx.summon("clones", function()
+				return V(40, 3, 0)
+			end, 3, "Comic", col, nil, 999)
+		end)
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		local src = fs.readFile("src/client/Fx/CombatFx.luau")
+		check(
+			string.find(src, "data.dur or row.duration, style, color, data.r or row.radius, data.a)", 1, true)
+				~= nil,
+			"the cast passes the caster"
+		)
+		check(
+			string.find(
+				fs.readFile("src/client/Controllers/CombatClient.luau"),
+				"r.dur or row.decoy, style, color, nil, r.a)",
+				1,
+				true
+			) ~= nil,
+			"decoys pass the caster"
+		)
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash

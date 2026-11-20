@@ -684,7 +684,7 @@ local function onResult(list: { any })
 						local c1 = r.c
 						CombatFx.summon("holo", function()
 							return c1
-						end, r.dur or row.decoy, style, color)
+						end, r.dur or row.decoy, style, color, nil, r.a)
 					end
 					if row.shape == "leap" and r.e then
 						CombatFx.dash(r.o, r.e, style, color, fxSet) -- others see the leap's streak
