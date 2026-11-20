@@ -3,6 +3,10 @@
 #     a tile, transparent between the pickets; the box itself is hidden), Shared.LifeKit.
 #   * Flag_<Name>.png: the roof and plaza flags (Fx.CityLife's cloth): Brightharbor's beacon star, Uptown's sunset,
 #     the Docks' wave and Old Town's clock. Original designs, no real flags or brands.
+#   * Banner_Uptown.png (alive-world, 2026-11-20): the tall cloth banners hung on Uptown's towers (Fx.CityLife),
+#     2 x 7 like the 10 x 35 stud cloth, the sunset over the district's colour bands, a swallowtail cut out of its foot.
+#   * Kite.png and KiteTail.png (alive-world round 2, 2026-11-20): the park's kites (Fx.ParkLife) flown from the
+#     picnics, drawn white and pale so the Texture's Color3 tints each kite, and its tail of bows on a cord.
 #   * Tilled.png: the farm fields' tilled soil (MaterialVariant KitTilled, 8 studs a tile), and its three kit maps
 #     in art/export/city/Tilled_<Color|Normal|Roughness>.png.
 # Output: art/export/life/*.png and art/preview/life_textures.png.  Run: python3 art/life/textures.py
@@ -104,6 +108,76 @@ def oldtown(d, W, H):
     d.line([(cx, cy), (cx + r * 0.42, cy + r * 0.1)], fill=INK, width=14)
 
 
+def banner_uptown():
+    W, H = 256, 896
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    notch = 120  # the swallowtail's cut, from the foot up
+    body = [(0, 0), (W, 0), (W, H), (W / 2, H - notch), (0, H)]
+    d.polygon(body, fill=(120, 90, 160, 255))
+    # the district's sunset bands across the middle, bottom-heavy like the flag
+    bands = [(240, 110, 90), (250, 150, 80), (252, 196, 92)]
+    y0 = 300
+    for i, c in enumerate(bands):
+        d.rectangle([0, y0 + i * 70, W, y0 + (i + 1) * 70], fill=c + (255,))
+    # the sun rising over the bands, rays fanned above it
+    cx, cy, r = W / 2, y0, 92
+    d.pieslice([cx - r, cy - r, cx + r, cy + r], 180, 360, fill=(255, 246, 220, 255), outline=INK, width=7)
+    d.line([(cx - r, cy), (cx + r, cy)], fill=INK, width=7)
+    for k in range(5):
+        a = math.pi + 0.4 + k * (math.pi - 0.8) / 4
+        d.line([(cx + math.cos(a) * 106, cy + math.sin(a) * 106), (cx + math.cos(a) * 140, cy + math.sin(a) * 140)],
+               fill=(255, 246, 220, 255), width=12)
+    # a gold header where the rod holds it, and a gold star in the lower field
+    d.rectangle([0, 0, W, 60], fill=(250, 200, 50, 255))
+    d.line([(0, 60), (W, 60)], fill=INK, width=7)
+    star(d, W / 2, 640, 62, 26, 5, (250, 200, 50, 255))
+    # an ink edge all the way round (the swallowtail too), and a cream trim inside it
+    edge = body + [body[0]]
+    d.line([(x + (5 if x == 0 else -5 if x == W else 0), y + (5 if y == 0 else 0)) for x, y in edge], fill=INK, width=10)
+    d.line([(14, 70), (14, H - 34)], fill=(255, 246, 220, 255), width=5)
+    d.line([(W - 14, 70), (W - 14, H - 34)], fill=(255, 246, 220, 255), width=5)
+    im.save(os.path.join(OUT, "Banner_Uptown.png"))
+    return im
+
+
+def kite():
+    W, H = 512, 640
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    top, left, right, bot, mid = (W / 2, 8), (8, H * 0.36), (W - 8, H * 0.36), (W / 2, H - 8), (W / 2, H * 0.36)
+    # four panels, two white and two pale grey, so a tint reads as a two-tone kite
+    d.polygon([top, left, mid], fill=(255, 255, 255, 255))
+    d.polygon([top, mid, right], fill=(214, 214, 214, 255))
+    d.polygon([left, bot, mid], fill=(214, 214, 214, 255))
+    d.polygon([mid, bot, right], fill=(255, 255, 255, 255))
+    # a cream sun disc on the crossing, the spars and the ink edge
+    d.ellipse([W / 2 - 60, H * 0.36 - 60, W / 2 + 60, H * 0.36 + 60], fill=(255, 246, 220, 255), outline=INK, width=8)
+    d.line([top, bot], fill=INK, width=8)
+    d.line([left, right], fill=INK, width=8)
+    d.line([top, left, bot, right, top], fill=INK, width=12, joint="curve")
+    im.save(os.path.join(OUT, "Kite.png"))
+    return im
+
+
+def kite_tail():
+    W, H = 128, 640
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.line([(W / 2, 0), (W / 2, H)], fill=INK, width=6)
+    cols = [(240, 90, 90), (250, 200, 50), (70, 150, 230), (120, 200, 120), (236, 84, 160)]
+    for i in range(5):
+        y = 64 + i * 120
+        c = cols[i] + (255,)
+        d.polygon([(W / 2, y), (14, y - 30), (14, y + 30)], fill=c, outline=INK)
+        d.polygon([(W / 2, y), (W - 14, y - 30), (W - 14, y + 30)], fill=c, outline=INK)
+        d.line([(W / 2, y), (14, y - 30), (14, y + 30), (W / 2, y)], fill=INK, width=5)
+        d.line([(W / 2, y), (W - 14, y - 30), (W - 14, y + 30), (W / 2, y)], fill=INK, width=5)
+        d.ellipse([W / 2 - 9, y - 9, W / 2 + 9, y + 9], fill=c, outline=INK, width=4)
+    im.save(os.path.join(OUT, "KiteTail.png"))
+    return im
+
+
 def tilled():
     S = 512
     rng = np.random.default_rng(7)
@@ -139,6 +213,8 @@ def tilled():
 
 pk = picket()
 fl = [flag(n, f) for n, f in (("Brightharbor", brightharbor), ("Uptown", uptown), ("Docks", docks), ("OldTown", oldtown))]
+bn = banner_uptown()
+kt, kl = kite(), kite_tail()
 tilled()
 sheet = Image.new("RGBA", (512 + 4 * 400 + 512 + 60, 560), (120, 130, 140, 255))
 sheet.alpha_composite(pk.resize((512, 512)), (10, 24))
@@ -146,4 +222,15 @@ for i, f in enumerate(fl):
     sheet.alpha_composite(f.resize((384, 256)), (532 + i * 400, 150))
 sheet.paste(Image.open(os.path.join(OUT, "Tilled.png")).convert("RGBA"), (532 + 4 * 400, 24))
 sheet.save(os.path.join(ROOT, "preview", "life_textures.png"))
+bsheet = Image.new("RGBA", (660, 920), (150, 170, 196, 255))
+bsheet.alpha_composite(bn, (20, 12))
+bsheet.alpha_composite(bn.resize((96, 336)), (320, 40))
+ks = Image.new("RGBA", (420, 420), (150, 190, 230, 255))
+for i, tint in enumerate([(240, 90, 90), (70, 150, 230)]):
+    # the Texture's Color3 multiplies the picture's colour; its alpha stays
+    k = Image.fromarray(np.uint8(np.asarray(kt, float) * np.array(list(tint) + [255]) / 255))
+    ks.alpha_composite(k.resize((128, 160)), (30 + i * 180, 20))
+    ks.alpha_composite(kl.resize((26, 130)), (81 + i * 180, 178))
+bsheet.alpha_composite(ks, (236, 480))
+bsheet.save(os.path.join(ROOT, "preview", "life_banner.png"))
 print("life textures written")

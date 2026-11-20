@@ -10,6 +10,8 @@
 --   and drifting (three tied at the boathouse), a splash thrown up where a big hit lands on the water.
 -- * The carousel turns (its ParkSpin pieces, the horses rising and falling) and the fountains play (spray from the
 --   top bowl, a curtain spilling off each bowl's lip); a big hit near one bursts it into a tall geyser for a while.
+-- * Kites (alive-world round 2, 2026-11-20): some picnics fly a kite from a sitter's hand, high over the lawn
+--   downwind, swooping in a figure eight with its tail of bows (Config.Park.life.kite, Shared.LifePlan.kite).
 -- No Art.Park imported: no boats, ducks, dogs, picnics or guitars (people and jets still come).
 
 local Players = game:GetService("Players")
@@ -25,6 +27,7 @@ local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local ParkLayout = require(Shared:WaitForChild("ParkLayout"))
+local LifePlan = require(Shared:WaitForChild("LifePlan"))
 local Controllers = script.Parent.Parent.Controllers
 local QualityController = require(Controllers.QualityController)
 local CitizenRenderer = require(Controllers.CitizenRenderer)
@@ -228,7 +231,20 @@ type Mover = {
 	coat: { number }?,
 	on: boolean,
 }
-type Picnic = { x: number, z: number, ry: number, people: { Person }, look: Look?, on: boolean }
+type Kite = { part: BasePart, hand: Attachment, tailEnd: Attachment, beams: { Beam } }
+type Picnic = {
+	x: number,
+	z: number,
+	ry: number,
+	people: { Person },
+	look: Look?,
+	on: boolean,
+	flies: boolean, -- this picnic has a kite (by hash)
+	kite: Kite?,
+	u: number,
+	v: number,
+	tint: number,
+}
 type Busker = { x: number, z: number, ry: number, person: Person, guitar: Look?, case: Look?, on: boolean }
 type Duck = {
 	x: number,
@@ -339,6 +355,85 @@ local function setPicnic(p: Picnic, on: boolean)
 		for _, person in p.people do
 			giveBack(person)
 		end
+	end
+end
+
+---------------------------------------------------------------------------- kites
+local KT = L.kite
+
+local function beam(a0: Attachment, a1: Attachment, width: number, parent: Instance): Beam
+	local b = Instance.new("Beam")
+	b.Attachment0 = a0
+	b.Attachment1 = a1
+	b.Width0 = width
+	b.Width1 = width
+	b.FaceCamera = true
+	b.Segments = 12
+	b.LightInfluence = 1
+	b.Parent = parent
+	return b
+end
+
+local function makeKite(p: Picnic): Kite?
+	if not folder then
+		return nil
+	end
+	local w, h = KT.size[1], KT.size[2]
+	local part = Instance.new("Part")
+	part.Name = "Kite"
+	part.Size = Vector3.new(w, h, 0.05)
+	part.Transparency = 1
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	local tint = rgb(KT.tints[p.tint])
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local tex = Instance.new("Texture")
+		tex.Texture = "rbxassetid://" .. tostring(KT.image)
+		tex.Face = face
+		tex.StudsPerTileU = w
+		tex.StudsPerTileV = h
+		tex.Color3 = tint
+		tex.Parent = part
+	end
+	-- the bridle on the spars' crossing, the tail from the foot
+	local bridle = Instance.new("Attachment")
+	bridle.Position = Vector3.new(0, h * 0.14, 0)
+	bridle.Parent = part
+	local foot = Instance.new("Attachment")
+	foot.Position = Vector3.new(0, -h / 2, 0)
+	foot.Parent = part
+	local terrain = Workspace.Terrain
+	local hand = Instance.new("Attachment")
+	hand.Name = "KiteHand"
+	hand.Parent = terrain
+	local tailEnd = Instance.new("Attachment")
+	tailEnd.Name = "KiteTail"
+	tailEnd.Parent = terrain
+	local str = beam(hand, bridle, 0.07, part)
+	str.Color = ColorSequence.new(Color3.fromRGB(245, 245, 240))
+	str.Transparency = NumberSequence.new(0.15)
+	local tail = beam(foot, tailEnd, 1.3, part)
+	tail.Texture = "rbxassetid://" .. tostring(KT.tail)
+	tail.TextureMode = Enum.TextureMode.Stretch
+	tail.TextureLength = 1
+	part.Parent = folder
+	return { part = part, hand = hand, tailEnd = tailEnd, beams = { str, tail } }
+end
+
+local function setKite(p: Picnic, on: boolean)
+	if on == (p.kite ~= nil) then
+		return
+	end
+	if on then
+		p.kite = makeKite(p)
+	elseif p.kite then
+		p.kite.part:Destroy()
+		p.kite.hand:Destroy()
+		p.kite.tailEnd:Destroy()
+		p.kite = nil
 	end
 end
 
@@ -560,6 +655,21 @@ local function pickAll(at: Vector3)
 	pick(picnics, B.picnics, at, r, function(p: Picnic)
 		return p.x, p.z
 	end, setPicnic)
+	-- kites: the nearest picnics that are out and fly one, up to the preset's count
+	local fliers: { { p: Picnic, d: number } } = {}
+	for _, p in picnics do
+		if p.on and p.flies then
+			table.insert(fliers, { p = p, d = dist2(p.x, p.z, at) })
+		else
+			setKite(p, false)
+		end
+	end
+	table.sort(fliers, function(a, b)
+		return a.d < b.d
+	end)
+	for k, f in fliers do
+		setKite(f.p, k <= (B.kites or 0))
+	end
 	pick(buskers, B.buskers, at, r, function(b: Busker)
 		return b.x, b.z
 	end, setBusker)
@@ -698,6 +808,24 @@ local function step(dt: number)
 				placeBody(body, pos.X, pos.Y, pos.Z, yaw, body.rig.layout.ground * 0.52)
 				sit(body.rig, math.sin(now * 1.3 + k))
 			end
+		end
+		local kite = p.kite
+		if kite then
+			-- the line from the first sitter's hand up to the kite, which faces back down it and banks as it swoops
+			local hand = (foot * CFrame.new(-1.4, 2.2, 0.4)).Position
+			local dx, dy, dz, bank = LifePlan.kite(KT, now, p.u * 6.28, p.u, p.v)
+			local kpos = hand + Vector3.new(dx, dy, dz)
+			local cf = CFrame.lookAt(kpos, hand) * CFrame.Angles(0, 0, bank)
+			table.insert(roots, kite.part)
+			table.insert(rootCFrames, cf)
+			kite.hand.WorldPosition = hand
+			-- the tail streams downwind under the kite, its bows rippling (the beam's curve)
+			local wx, wz = KT.wind[1], KT.wind[2]
+			local foot2 = cf * Vector3.new(0, -KT.size[2] / 2, 0)
+			kite.tailEnd.WorldPosition = foot2 + Vector3.new(wx * 4, -KT.tailLength, wz * 4)
+			local wig = math.sin(now * 5 + p.u * 9) * 1.4
+			kite.beams[2].CurveSize0 = wig
+			kite.beams[2].CurveSize1 = -wig
 		end
 	end
 	-- buskers
@@ -872,10 +1000,17 @@ function ParkLife.init()
 		end
 		for k, s in park.spots.picnics do
 			id += 2
-			table.insert(
-				picnics,
-				{ x = s[1], z = s[2], ry = s[3], people = { { id = id - 1 }, { id = id } }, on = false }
-			)
+			table.insert(picnics, {
+				x = s[1],
+				z = s[2],
+				ry = s[3],
+				people = { { id = id - 1 }, { id = id } },
+				on = false,
+				flies = (Rng.hash(P.seed, k, 47) % 1000) / 1000 < L.kite.chance,
+				u = (Rng.hash(P.seed, k, 48) % 1000) / 1000,
+				v = (Rng.hash(P.seed, k, 49) % 1000) / 1000,
+				tint = Rng.hash(P.seed, k, 50) % #L.kite.tints + 1,
+			})
 			if k >= 40 then
 				break
 			end
@@ -948,12 +1083,14 @@ end
 
 -- how many of each are on now (the Dev panel and the tests' log)
 function ParkLife.counts(): { [string]: number }
-	local out = { movers = 0, picnics = 0, buskers = 0, ducks = 0, boats = 0, jets = 0, spin = #spin }
+	local out =
+		{ movers = 0, picnics = 0, buskers = 0, ducks = 0, boats = 0, jets = 0, kites = 0, spin = #spin }
 	for _, m in movers do
 		out.movers += if m.on then 1 else 0
 	end
 	for _, p in picnics do
 		out.picnics += if p.on then 1 else 0
+		out.kites += if p.kite then 1 else 0
 	end
 	for _, b in buskers do
 		out.buskers += if b.on then 1 else 0

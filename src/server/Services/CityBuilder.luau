@@ -105,6 +105,7 @@ local function color(key: string): Color3
 	return c
 end
 
+local ALIVE_SET = Config.Life.alive and Config.Life.alive.set
 local ALIVE_TAGS = (Config.Life.alive and Config.Life.alive.tags or {}) :: { [string]: string }
 local function makePart(b: any): BasePart -- also CityBuilder.part (mission pockets)
 	local p: BasePart
@@ -427,7 +428,9 @@ local function lifeParts(b: any): { BasePart }?
 				ch:Destroy()
 			end
 		end
-		p.Name = b.kind
+		-- round 3's looks are visual only over a box that stays: named "dress" so the street smash (Fx.BuildingFx,
+		-- parts named "prop") never flings a crane's cab or trolley off it (alive-world round 2, 2026-11-20)
+		p.Name = if pc.set == ALIVE_SET then "dress" else b.kind
 		p.Anchored = true
 		p.Size = Vector3.new(pc.size[1], pc.size[2], pc.size[3])
 		p.CFrame = CFrame.new(pc.x, pc.y, pc.z) * CFrame.Angles(0, math.rad(pc.ry), 0) * MeshFix.of(p) -- the import's turn
@@ -861,7 +864,11 @@ end
 function CityBuilder.publishInfo(world: any)
 	local info = { seed = world.seed, hash = world.hash, safehouses = {}, beacons = {}, landmarks = {} }
 	for id, s in world.safehouses do
-		table.insert(info.safehouses, { id = id, name = s.name, x = s.x, z = s.z, district = s.district })
+		-- y: the pad's top, for the pad's corner flags (Fx.CityLife, alive-world 2026-11-20)
+		table.insert(
+			info.safehouses,
+			{ id = id, name = s.name, x = s.x, y = s.y, z = s.z, district = s.district }
+		)
 	end
 	for id, b in world.beacons do
 		table.insert(info.beacons, { id = id, name = b.name, x = b.x, y = b.y, z = b.z })

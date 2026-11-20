@@ -114,7 +114,7 @@ return {
 		},
 		padKit = "Terrazzo", -- the safehouse pad's kit texture (under its painted ring)
 		-- boxes the devices bring to life (CollectionService tags on the box, Fx.CityLife)
-		tags = { FoundryChimney = "LifeSmoke", CraneBeam = "LifeGulls" },
+		tags = { FoundryChimney = "LifeSmoke", CraneBeam = "LifeGulls", CraneBoom = "LifeCrane" },
 	},
 	-- lit windows after dusk (shapes-2; Fx.LitWindows, Shared.LitPlan): each kit front's lit picture
 	-- (art/city/litwindows.py, uploaded) over the building faces near the camera in an unlit SurfaceGui; images 0
@@ -196,6 +196,9 @@ return {
 			smoke = 1,
 			smokeRate = 3,
 			hazards = false,
+			banners = 2, -- Uptown's tower banners hung near the camera, and the segments in each
+			bannerSegs = 3,
+			cranes = 1, -- Docks cranes whose trolleys run near the camera
 		},
 		medium = {
 			cars = 8,
@@ -213,6 +216,9 @@ return {
 			smoke = 3,
 			smokeRate = 6,
 			hazards = true,
+			banners = 6, -- Uptown's tower banners hung near the camera, and the segments in each
+			bannerSegs = 5,
+			cranes = 3, -- Docks cranes whose trolleys run near the camera
 		},
 		high = {
 			cars = 14,
@@ -230,6 +236,9 @@ return {
 			smoke = 3,
 			smokeRate = 10,
 			hazards = true,
+			banners = 12, -- Uptown's tower banners hung near the camera, and the segments in each
+			bannerSegs = 7,
+			cranes = 3, -- Docks cranes whose trolleys run near the camera
 		},
 	},
 	-- traffic on the lane lines (Shared.LifePlan.lanes: Downtown's and Uptown's dashes; the tram lines are left
@@ -269,6 +278,24 @@ return {
 	},
 	-- harbour gulls (alive-world): a colony circles over each Docks crane near the camera (tag LifeGulls) and wheels
 	-- out and up from a hero who flies through it or a big hit, then drifts back
+	-- the Docks' gantry cranes at work (alive-world round 2, 2026-11-20; Fx.CityLife, Shared.LifePlan.crane): on each
+	-- device near the camera the trolley and its hook run out along the boom and back (boom-local z from its middle,
+	-- a..b), easing in and out, waiting `pause` seconds at each end, and the hook swings on its cable at each start
+	-- and stop (a damped pendulum: `swing` radians a kick, `freq` rad/s, `damp` a second). Visual only: the boxes
+	-- that collide never move (Decisions 2026-11-20: the server-owned moving prop stays NEEDS NATE)
+	cranes = {
+		range = 700,
+		a = -24,
+		b = 30,
+		speed = 7,
+		pause = { 3, 6 },
+		swing = 0.07,
+		freq = 2.6,
+		damp = 0.7,
+		pivot = 2, -- the trolley's wheels this far under the boom's middle
+		find = { 2, 3 }, -- a trolley or cable piece within this x and z of the boom's look offset (8)
+		at = 8,
+	},
 	gulls = {
 		range = 600, -- colonies within this of the camera
 		above = 16, -- the colony's middle this high over the crane's beam
@@ -311,6 +338,26 @@ return {
 		back = 12, -- seconds the cover stays off
 	},
 	flagRoofs = { chance = 0.14, salt = 45, maxHeight = 260, size = { 6, 4 }, wind = 1.6 },
+	-- alive-world round 2 (2026-11-20): flags on both front corners of every safehouse pad (Life.flags by district),
+	-- and tall cloth banners hung in pairs down one face of Uptown's tall towers (Banner_Uptown.png from
+	-- art/life/textures.py, 10 x 35 studs, a rod at the top; Shared.LifePlan.towerBanners, Fx.CityLife). They billow
+	-- out from the wall (LifePlan.billow) and go with their tower when it breaks
+	banners = {
+		safeInset = 2.5, -- studs in from the pad's front corners
+		districts = { Uptown = true },
+		minHeight = 200, -- a tower's shaft at least this tall
+		minWidth = 40,
+		chance = 0.55,
+		salt = 46,
+		spread = 0.32, -- the pair stands this share of the face's half width either side of its middle
+		out = 1.8, -- studs out from the wall, clear of the kit's fronts
+		drop = 10, -- the rod this far under the shaft's top (below the cornice)
+		size = { 10, 35 },
+		wind = 1.1,
+		range = 600, -- studs from the camera a banner may hang
+		images = { Uptown = 101273146356518 },
+		rod = { 230, 190, 70 },
+	},
 	drone = { range = 320, orbit = 34, height = 28, stay = 18, speed = 60 },
 	-- props the device bursts when they are knocked loose (Fx.CityLife): hydrants spray, machines spill cans,
 	-- bins and news boxes scatter paper

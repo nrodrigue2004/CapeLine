@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 alive-world round 2: safehouse corner flags, Uptown tower banners, Docks crane trolleys at work, park kites; pockets, Deep and HQs audited (already dressed); city bed already live. Studio 500-503.
 - 2026-11-20 playtest-gaps20: gaps19 + crowd clips, next-mission card, level 5 cue, real unlock text; safehouses, cranes, chimneys and roof gardens as meshes, traffic flees fights, gulls, chimney smoke.
 - 2026-11-20 playtest-gaps19: gaps18 + 20 mobility moves (choice at ranks 3 and 5) + destroy-all (park, coral, cars, craters, sea splash, heavy collapses, glass, bending lamps).
 - 2026-11-20 first-30: the Ceremony crowd cheers, claps and gasps on whole-body clips; the next mission with START on the HUD after the prologue; Patch flags level 5's power slot and move training; level-up unlocks read the real config; the scan lock beeps. Studio 97-100.

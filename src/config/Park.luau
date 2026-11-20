@@ -319,6 +319,7 @@ return {
 				ducks = 6,
 				boats = 3,
 				jets = 2,
+				kites = 0, -- kites flown from the nearest picnics that have one (alive-world round 2)
 				spin = true,
 			},
 			medium = {
@@ -331,6 +332,7 @@ return {
 				ducks = 12,
 				boats = 5,
 				jets = 4,
+				kites = 2, -- kites flown from the nearest picnics that have one (alive-world round 2)
 				spin = true,
 			},
 			high = {
@@ -343,6 +345,7 @@ return {
 				ducks = 20,
 				boats = 7,
 				jets = 6,
+				kites = 4, -- kites flown from the nearest picnics that have one (alive-world round 2)
 				spin = true,
 			},
 		},
@@ -356,6 +359,28 @@ return {
 		burst = { radius = 26, time = 6, rate = 220, speed = 55 }, -- a big impact this close bursts a fountain
 		splash = { rate = 160, speed = 45, ring = 18, time = 1.2 }, -- an impact on the water throws a splash
 		busk = { volume = 0.35, range = 60 },
+		-- kites over the lawns (alive-world round 2, 2026-11-20; Fx.ParkLife): a picnic by hash flies one from its
+		-- first sitter's hand, downwind `out` studs and `height` up, swooping in a slow figure eight; the picture is
+		-- Kite.png tinted (Texture.Color3) and its tail of bows KiteTail.png (art/life/textures.py), on Beams
+		kite = {
+			chance = 0.5,
+			image = 82155722551914,
+			tail = 77749191766464,
+			size = { 4.4, 5.5 },
+			tailLength = 9,
+			height = { 38, 62 },
+			out = { 26, 44 },
+			wind = { 0.6, 0.8 }, -- the way the wind blows (x, z), the same over the whole park
+			swoop = { 7, 3.5 }, -- the figure eight's half width and half height, studs
+			speed = 0.55,
+			tints = {
+				{ 240, 90, 90 },
+				{ 70, 150, 230 },
+				{ 250, 200, 50 },
+				{ 120, 200, 120 },
+				{ 236, 84, 160 },
+			},
+		},
 		people = 900000, -- the id space park people take their looks from (CitizenRenderer.borrow)
 	},
 	sounds = {
