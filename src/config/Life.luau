@@ -85,6 +85,37 @@ return {
 		-- hidden under its picture); 0 = not built
 		decals = { Zebra = 72425385136303, Drain = 116604205472367, Dash = 79628484169672 },
 	},
+	-- round 3 (alive-world, 2026-11-20, nate: "too many simple shapes and untextured parts ... the world must feel
+	-- alive"): Art.Alive looks (art/blender/alive.py, Config.AliveArt) over the plain boxes a player sees most: the
+	-- safehouses' terminals, canopy and pad, the Docks' gantry cranes, the Foundry's chimneys and Uptown's roof
+	-- gardens. Visual only: every box stays (collisions, queries, the terminals' prompts); the ones in `hide` are
+	-- hidden under their meshes. Until every mesh of a look is imported the box shows as before.
+	alive = {
+		set = "Alive", -- ReplicatedStorage.Art.Alive (art/models/Alive.rbxm; MeshFix.turn("Alive"))
+		hide = {
+			TermBank = true,
+			TermLoadout = true,
+			TermRespawn = true,
+			TermContracts = true,
+			TermWeapons = true,
+			SafeCanopy = true,
+			CraneLeg = true,
+			CraneBeam = true,
+			CraneBoom = true,
+			FoundryChimney = true,
+		},
+		-- the safehouse terminals' looks by their kind (WorldMap.buildSafehouse)
+		terminals = {
+			bank = "TermBank",
+			loadout = "TermLoadout",
+			respawn = "TermRespawn",
+			contracts = "TermContracts",
+			weapons = "TermWeapons",
+		},
+		padKit = "Terrazzo", -- the safehouse pad's kit texture (under its painted ring)
+		-- boxes the devices bring to life (CollectionService tags on the box, Fx.CityLife)
+		tags = { FoundryChimney = "LifeSmoke", CraneBeam = "LifeGulls" },
+	},
 	-- lit windows after dusk (shapes-2; Fx.LitWindows, Shared.LitPlan): each kit front's lit picture
 	-- (art/city/litwindows.py, uploaded) over the building faces near the camera in an unlit SurfaceGui; images 0
 	-- are not drawn. Budgets per preset: how far and how many faces.
@@ -158,6 +189,13 @@ return {
 			flags = 3,
 			flagSegs = 4,
 			drones = 0,
+			-- alive-world (2026-11-20): harbour gull colonies and gulls in each, Foundry chimneys smoking and their
+			-- smoke's rate, hazard lights on cars scared off by a fight
+			gullColonies = 1,
+			gulls = 4,
+			smoke = 1,
+			smokeRate = 3,
+			hazards = false,
 		},
 		medium = {
 			cars = 8,
@@ -168,6 +206,13 @@ return {
 			flags = 6,
 			flagSegs = 6,
 			drones = 1,
+			-- alive-world (2026-11-20): harbour gull colonies and gulls in each, Foundry chimneys smoking and their
+			-- smoke's rate, hazard lights on cars scared off by a fight
+			gullColonies = 2,
+			gulls = 6,
+			smoke = 3,
+			smokeRate = 6,
+			hazards = true,
 		},
 		high = {
 			cars = 14,
@@ -178,6 +223,13 @@ return {
 			flags = 10,
 			flagSegs = 8,
 			drones = 2,
+			-- alive-world (2026-11-20): harbour gull colonies and gulls in each, Foundry chimneys smoking and their
+			-- smoke's rate, hazard lights on cars scared off by a fight
+			gullColonies = 3,
+			gulls = 9,
+			smoke = 3,
+			smokeRate = 10,
+			hazards = true,
 		},
 	},
 	-- traffic on the lane lines (Shared.LifePlan.lanes: Downtown's and Uptown's dashes; the tram lines are left
@@ -196,6 +248,50 @@ return {
 		spawnMin = 90, -- spawn at least this far from the camera
 		knock = { radius = 1.6, up = 46, out = 60, spin = 5, life = 7 }, -- a big impact flings cars in radius x this
 		honk = 0.3, -- chance a braking car honks
+		-- alive-world (2026-11-20, nate: "traffic reacting to fights"): a robot or a big hit within `radius` of a car
+		-- (or of the road `ahead` of it) scares it: it brakes, flashes its hazards and honks, waits `wait` s, U-turns
+		-- (`turn` s round a loop `stretch` times the lane gap long) and races off at `flee` x cruise for `fleeFor` s.
+		-- Dangers are checked every `every` s; a big hit counts for `bangFor` s.
+		fear = {
+			radius = 55,
+			ahead = 35,
+			wait = 0.7,
+			turn = 1.8,
+			stretch = 2.6,
+			flee = 1.45,
+			fleeFor = 8,
+			bangFor = 6,
+			every = 0.4,
+			honk = 0.6,
+			blink = 0.35,
+			hazard = { 255, 170, 40 },
+		},
+	},
+	-- harbour gulls (alive-world): a colony circles over each Docks crane near the camera (tag LifeGulls) and wheels
+	-- out and up from a hero who flies through it or a big hit, then drifts back
+	gulls = {
+		range = 600, -- colonies within this of the camera
+		above = 16, -- the colony's middle this high over the crane's beam
+		out = 18, -- and this far out over the water (+z)
+		radius = { 12, 30 },
+		height = { -4, 14 },
+		speed = { 14, 22 },
+		scale = 1.7, -- a gull is a pigeon mesh this much bigger
+		scare = 30,
+		bang = 160,
+		calm = 7, -- seconds before a scared colony drifts back
+		body = { 240, 240, 236 },
+		wing = { 170, 178, 190 },
+	},
+	-- the Foundry's chimney smoke (alive-world): dark plumes from the stacks near the camera (tag LifeSmoke), a black
+	-- burst when a big hit lands near one
+	smoke = {
+		range = 900,
+		color = { 70, 64, 62 },
+		size = { 8, 34 },
+		life = { 7, 10 },
+		speed = { 9, 15 },
+		puff = 30,
 	},
 	-- pigeons on the sidewalk corners near the camera: peck, hop, and burst up and away from a hero or a bang
 	pigeons = {

@@ -85,20 +85,39 @@ end
 
 -- A safehouse: a pad, a shelter with a roof and a sign, and the bank, loadout, respawn and contract board
 -- terminals (the board from M6) and the Weapon Rack (the hero creator plan)
-local function buildSafehouse(list: { Box }, w: any, s: any, x: number, z: number, gy: number): Safehouse
+local function buildSafehouse(
+	list: { Box },
+	w: any,
+	s: any,
+	x: number,
+	z: number,
+	gy: number,
+	life: any?
+): Safehouse
 	local c = w.safehouse
 	local pad = c.pad
 	local top = gy + 1.2
+	-- (alive-world, 2026-11-20: the pad, canopy and terminals wear Art.Alive looks over their boxes, Config.Life.alive)
+	local A = life and life.alive
 	BoxKit.box(list, "plaza", x, gy + 0.6, z, pad, 1.2, pad, "safe", { tag = "safehouse", ref = s.id })
+	if A then
+		list[#list].look, list[#list].kit = "SafePadRing", A.padKit
+	end
 	local shelterZ = z - pad / 2 + 7
 	BoxKit.box(list, "building", x, top + 6, shelterZ, 22, 12, 10, "slate")
 	BoxKit.box(list, "ledge", x, top + 12.75, shelterZ + 3, 28, 1.5, 18, "safe")
+	if A then
+		list[#list].look = "SafeCanopy"
+	end
 	BoxKit.box(list, "glow", x, top + 10, shelterZ + 5.2, 14, 2, 0.4, "beaconGlow", { ghost = true })
 	local terminals = {}
 	for i, kind in { "bank", "loadout", "respawn", "contracts", "weapons" } do
 		local tx = x + (i - 3) * 7
 		local tz = shelterZ + 8
 		BoxKit.box(list, "terminal", tx, top + 2.5, tz, 3, 5, 2, kind, { tag = kind, ref = s.id })
+		if A then
+			list[#list].look = A.terminals[kind]
+		end
 		terminals[kind] = { x = tx, y = top + 2.5, z = tz }
 	end
 	local respawn = {}
@@ -306,7 +325,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	local safehouses: { [number]: Safehouse } = {}
 	for _, s in w.safehouses do
 		local spot = safeSpots[s.id]
-		safehouses[s.id] = buildSafehouse(hubBoxes, w, s, spot.x, spot.z, spot.gy)
+		safehouses[s.id] = buildSafehouse(hubBoxes, w, s, spot.x, spot.z, spot.gy, Config.Life)
 	end
 	local spots: { [string]: Point } = table.clone(docks.spots)
 	for k, v in oldTown.spots do

@@ -168,8 +168,9 @@ end
 local lines = {
 	"City audit (art/city/audit.luau, seed 202647, " .. os.date("!%Y-%m-%d") .. "): what the player sees, by kind and district.",
 	"mesh = Blender meshes; texture = a box in a kit MaterialVariant; plain = a plain coloured shape.",
-	"before = round 1 (the living world, art/preview/city_audit_round1.txt), after = round 2 (shapes-2: Art.Shapes,",
-	"the roads' and roofs' kit textures). Biggest plain groups first.",
+	"before = round 1 (the living world, art/preview/city_audit_round1.txt), after = today: round 2 (shapes-2: Art.Shapes,",
+	"the roads' and roofs' kit textures) and round 3 (alive-world: Art.Alive over the safehouses, the Docks' cranes, the",
+	"Foundry's chimneys and Uptown's roof gardens). Biggest plain groups first.",
 	"",
 	string.format("%-52s %-10s %22s   %22s", "kind", "district", "before plain/tex/mesh", "after plain/tex/mesh"),
 }

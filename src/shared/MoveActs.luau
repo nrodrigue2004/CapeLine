@@ -86,6 +86,15 @@ function MoveActs.start(book: { [string]: number }, id: string, now: number, cd:
 	book[id] = now + cd * (slack or 1)
 end
 
+-- A move's input in plain words for a device ("mouse", "gamepad" or "touch"): its `how` with the buttons named
+function MoveActs.howTo(base: any, id: string, device: string): string
+	local mv = base.moves[id]
+	local keys = base.moveKeys[device] or base.moveKeys.mouse
+	return (string.gsub(mv and mv.how or "", "{(%a+)}", function(k)
+		return keys[k] or k
+	end))
+end
+
 ---------------------------------------------------------------------------
 -- Flight
 ---------------------------------------------------------------------------
@@ -134,6 +143,50 @@ function MoveActs.phaseHolds(m: any, startedAt: number, now: number, inside: boo
 	return t < m.time or (inside and t < m.time * 2)
 end
 
+-- Phase: where a flicker that ran out inside a building carries the hero (never left in the walls): the first open
+-- spot on along the travel (dx, dy, dz; flattened, never down), else the nearest open side round it or straight
+-- up. blocked(x, y, z): is there building within reach of that point? Nil when nothing is open (then the device
+-- keeps the flicker going until it is out).
+function MoveActs.phaseExit(
+	m: any,
+	px: number,
+	py: number,
+	pz: number,
+	dx: number,
+	dy: number,
+	dz: number,
+	blocked: (number, number, number) -> boolean
+): (number?, number?, number?)
+	local e = m.exit
+	local l = len3(dx, math.max(dy, 0), dz)
+	if l > 1e-3 then
+		local ux, uy, uz = dx / l, math.max(dy, 0) / l, dz / l
+		local d = e.step
+		while d <= e.far + 1e-6 do
+			local x, y, z = px + ux * d, py + uy * d, pz + uz * d
+			if not blocked(x, y, z) then
+				return x, y, z
+			end
+			d += e.step
+		end
+	end
+	local d = e.step
+	while d <= e.side + 1e-6 do
+		for i = 0, 7 do
+			local a = i * math.pi / 4
+			local x, z = px + math.cos(a) * d, pz + math.sin(a) * d
+			if not blocked(x, py, z) then
+				return x, py, z
+			end
+		end
+		if not blocked(px, py + d, pz) then
+			return px, py + d, pz
+		end
+		d += e.step
+	end
+	return nil, nil, nil
+end
+
 -- Blazing Ram: a ram's structure damage and how hard its pieces fly
 function MoveActs.blazeDamage(m: any, dmg: number): number
 	return dmg * m.ram
@@ -158,13 +211,17 @@ function MoveActs.circled(m: any, samples: { Sample }, now: number): (boolean, n
 		return false, 0, 0
 	end
 	local cx, cz = 0, 0
+	local slow = 0
 	for i = first, #samples do
 		local s = samples[i]
 		if s.s < m.speed then
-			return false, 0, 0
+			slow += 1
 		end
 		cx += s.x
 		cz += s.z
+	end
+	if slow > n * (m.slow or 0) then
+		return false, 0, 0
 	end
 	cx, cz = cx / n, cz / n
 	local turned = 0
@@ -181,6 +238,18 @@ function MoveActs.circled(m: any, samples: { Sample }, now: number): (boolean, n
 		last = a
 	end
 	return math.abs(turned) / (2 * math.pi) >= m.turns, cx, cz
+end
+
+-- Tornado Run's numbers for a device: touch and gamepad get the forgiving `easy` ones on top
+function MoveActs.tornadoFor(m: any, device: string): any
+	if (device == "touch" or device == "gamepad") and m.easy then
+		local out = table.clone(m)
+		for k, v in m.easy do
+			out[k] = v
+		end
+		return out
+	end
+	return m
 end
 
 -- Afterimage: a hard stop: from `from` studs/s or more (peak, `ago` s back) to under `to` now, within `within` s

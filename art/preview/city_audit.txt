@@ -1,57 +1,58 @@
 City audit (art/city/audit.luau, seed 202647, 2026-11-20): what the player sees, by kind and district.
 mesh = Blender meshes; texture = a box in a kit MaterialVariant; plain = a plain coloured shape.
-before = round 1 (the living world, art/preview/city_audit_round1.txt), after = round 2 (shapes-2: Art.Shapes,
-the roads' and roofs' kit textures). Biggest plain groups first.
+before = round 1 (the living world, art/preview/city_audit_round1.txt), after = today: round 2 (shapes-2: Art.Shapes,
+the roads' and roofs' kit textures) and round 3 (alive-world: Art.Alive over the safehouses, the Docks' cranes, the
+Foundry's chimneys and Uptown's roof gardens). Biggest plain groups first.
 
 kind                                                 district    before plain/tex/mesh     after plain/tex/mesh
-crops                                                Outskirts       0      0   7728          0      0   7728
-trees                                                Outskirts       0      0   6524          0      0   6524
-ground (roads, walks, fields)                        Outskirts     165   2647      0         49   2763      0
-fences                                               Outskirts     105   2276      0          0   2276    105
-house doors                                          Outskirts       0      0   1365          0      0   1365
-farm props (hay, silos)                              Outskirts       0      0   1312          0      0   1312
-other props (containers, rocks, posts, glows)        Downtown       75      0      0         75      0      0
-other props (containers, rocks, posts, glows)        Outskirts    3847      0      0         58     88   4127
-trees                                                Uptown         28      0     16         28      0     16
-other props (containers, rocks, posts, glows)        Docks          41     53      0         41     53      0
+crops                                                Outskirts       0      0   7728          0      0   7560
+trees                                                Outskirts       0      0   6524          0      0   6736
+ground (roads, walks, fields)                        Outskirts     165   2647      0         29   3135      6
+fences                                               Outskirts     105   2276      0          0   2181    102
+house doors                                          Outskirts       0      0   1365          0      0   1320
+farm props (hay, silos)                              Outskirts       0      0   1312          0      0   1268
+other props (containers, rocks, posts, glows)        Downtown       75      0      0         35      0     24
+other props (containers, rocks, posts, glows)        Outskirts    3847      0      0         22     88   3994
+other props (containers, rocks, posts, glows)        Docks          41     53      0          8     53     33
+trees                                                Uptown         28      0     16          0      0     41
 landmark lights (glows)                              Outskirts       0      0      0         25      0      3
 landmarks                                            Outskirts      89     53      0          0     49     65
-other props (containers, rocks, posts, glows)        OldTown        23      0      0         23      0      0
-other props (containers, rocks, posts, glows)        Uptown         10      0      0         10      0      0
-building bodies                                      Outskirts       8   2073      0          8   2073      0
+other props (containers, rocks, posts, glows)        OldTown        23      0      0          5      0     18
+building bodies                                      Outskirts       8   2073      0          8   1965      0
+other props (containers, rocks, posts, glows)        Uptown         10      0      0          8      0      0
 trees                                                OldTown         0      0      8          0      0      8
 window bands                                         Downtown        8      0      0          8      0      0
-ground (roads, walks, fields)                        Docks           5      4      0          5      4      0
-ground (roads, walks, fields)                        Downtown     1098     56      0          5   1537      0
 window bands                                         OldTown         4      0      0          4      0      0
-ground (roads, walks, fields)                        OldTown       243     62      0          3    302      0
 building bodies                                      Downtown        2    370      0          2    370      0
-fences                                               Downtown        2      0      0          2      0      0
+ground (roads, walks, fields)                        Docks           5      4      0          2      4      3
 roofs and cornices                                   OldTown        71    320      0          2    320     69
 window bands                                         Docks           2      0      0          2      0      0
 building bodies                                      Docks           1     10      0          1     10      0
 building bodies                                      OldTown         1    233      0          1    233      0
+fences                                               Downtown        2      0      0          1      0      0
+ground (roads, walks, fields)                        Downtown     1098     56      0          1   1537      4
 ground (roads, walks, fields)                        Uptown        501     27      0          1    687      0
-roofs and cornices                                   Outskirts      67   2730      0          1   2730     66
-building bodies                                      Uptown          0    154      0          0    154      0
+roofs and cornices                                   Outskirts      67   2730      0          1   2640     49
+building bodies                                      Uptown          0    154      0          0    167      0
+ground (roads, walks, fields)                        OldTown       243     62      0          0    302      3
 parked vehicles                                      Docks           0      0      2          0      0      2
 parked vehicles                                      Downtown        0      0     28          0      0     28
 parked vehicles                                      OldTown         0      0     10          0      0     10
-roof clutter (tanks, AC, vents, antennas, billboards) Downtown        0      0    267          0      0    267
-roof clutter (tanks, AC, vents, antennas, billboards) Uptown          0      0     66          0      0     66
+roof clutter (tanks, AC, vents, antennas, billboards) Downtown        0      0    267          0      0    284
+roof clutter (tanks, AC, vents, antennas, billboards) Uptown          0      0     66          0      0     61
 roofs and cornices                                   Docks           7      0      0          0      0      7
 roofs and cornices                                   Downtown      404      0      0          0      0    404
-roofs and cornices                                   Uptown        171      0      0          0      0    171
+roofs and cornices                                   Uptown        171      0      0          0      0    186
 storefronts (awnings, shops)                         Downtown        0      0    625          0      0    625
-storefronts (awnings, shops)                         Outskirts       0      0      0          0      0    446
-storefronts (awnings, shops)                         Uptown          0      0    294          0      0    294
+storefronts (awnings, shops)                         Outskirts       0      0      0          0      0    400
+storefronts (awnings, shops)                         Uptown          0      0    294          0      0    262
 street furniture (device props)                      Docks           0      0     85          0      0     85
 street furniture (device props)                      Downtown        0      0   2626          0      0   2626
 street furniture (device props)                      OldTown         0      0    387          0      0    387
-street furniture (device props)                      Outskirts       0      0   5858          0      0   5858
-street furniture (device props)                      Uptown          0      0   1306          0      0   1306
+street furniture (device props)                      Outskirts       0      0   5858          0      0   5694
+street furniture (device props)                      Uptown          0      0   1306          0      0   1298
 tower perches                                        Downtown        0      0    180          0      0    180
-tower perches                                        Uptown          0      0     83          0      0     83
+tower perches                                        Uptown          0      0     83          0      0     77
 window bands                                         Outskirts     648      0      0          0      0    202
 
-total                                                             7626  11068  28770        354  13649  34435
+total                                                             7626  11068  28770        166  13741  34124

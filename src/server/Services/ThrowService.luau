@@ -483,7 +483,7 @@ local function canGrab(hero: any): boolean
 		and not BlockService.blocking(hero)
 end
 
-local function grab(hero: any, id: number, yanked: boolean?)
+local function grab(hero: any, id: number, yanked: boolean?, taken: boolean?)
 	if id == 0 then
 		if hero.carry then
 			setDown(hero)
@@ -511,7 +511,7 @@ local function grab(hero: any, id: number, yanked: boolean?)
 	if d > reach or math.abs(it.y - p.Y) > reach then
 		return
 	end
-	if it.vehicle and not VehicleService.take(it.vehicle) then
+	if it.vehicle and not taken and not VehicleService.take(it.vehicle) then
 		return
 	end
 	it.busy = true
@@ -717,12 +717,31 @@ function ThrowService.yank(
 		if (at - p).Magnitude > range + 6 then
 			return false
 		end
-		if it.vehicle then
-			grab(hero, id, true)
-			return hero.carry ~= nil
-		end
 		local look = root.CFrame.LookVector
-		fly(it, at, p + Vector3.new(look.X, 0, look.Z) * 3, time, 4, hero, function()
+		local to = p + Vector3.new(look.X, 0, look.Z) * 3
+		if it.vehicle then
+			-- a car flies in on the shared arc (every device flies it from ThrowFly), out of the traffic, and
+			-- lands in the hands; if the hero cannot hold it by then it is set down there (home in 30 s)
+			if not VehicleService.take(it.vehicle) then
+				return false
+			end
+			it.busy = true
+			it.model:SetAttribute("ThrowBusy", true)
+			Net.fireAll("ThrowFly", it.id, at, to, time, 4, if hero.player then hero.player.UserId else 0)
+			CombatService.after(time, function()
+				it.busy = false
+				it.model:SetAttribute("ThrowBusy", nil)
+				it.x, it.y, it.z = to.X, to.Y, to.Z
+				if hero.alive and not hero.carry then
+					grab(hero, id, true, true)
+				end
+				if not hero.carry or hero.carry.id ~= id then
+					place(it, to, false)
+				end
+			end)
+			return true
+		end
+		fly(it, at, to, time, 4, hero, function()
 			if hero.alive and not hero.carry then
 				grab(hero, id, true)
 			end
