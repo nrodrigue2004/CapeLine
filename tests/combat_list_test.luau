@@ -2904,11 +2904,77 @@ return function(T: any)
 		check(#beams() == 0, "and they are gone once faded")
 		local left = 0
 		for _, d in ws:GetDescendants() do
-			if d:IsA("Attachment") and (d.Name == "Bolt0" or d.Name == "Bolt1") then
+			if d:IsA("Attachment") and (d.Name == "Lightning0" or d.Name == "Lightning1") then
 				left += 1
 			end
 		end
 		check(left == 0, "no attachments left behind (" .. left .. ")")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
+	test("List combat: bolts and held beams are drawn energy strips (Everything Left 381)", function()
+		local roblox = require("@lune/roblox")
+		local E = Config.Fx.energyBeam
+		check(E ~= nil and E.texture > 0 and E.width > 0 and E.speed > 0, "the energy strip is set")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		local orange = roblox.Color3.fromRGB(255, 140, 60)
+		local target = V(0, 5, -30)
+		sim:run("cast", function()
+			CombatFx.bolt(V(0, 5, 0), V(0, 5, -40), "Comic", orange, "Fire")
+			CombatFx.beamHold(function()
+				return V(0, 5, 0)
+			end, function()
+				return target
+			end, 0.4, "Comic", orange, "Fire")
+		end)
+		local ws = sim.service("Workspace")
+		local function named(n: string): any
+			for _, d in ws:GetDescendants() do
+				if d:IsA("Beam") and d.Name == n then
+					return d
+				end
+			end
+			return nil
+		end
+		local bolt, held = named("EnergyBolt"), named("EnergyBeam")
+		check(
+			bolt ~= nil and string.find(bolt.Texture, tostring(E.texture), 1, true) ~= nil,
+			"a bolt streaks"
+		)
+		check(
+			held ~= nil and held.TextureSpeed > 0 and held.FaceCamera,
+			"the held beam scrolls, facing the camera"
+		)
+		local rs = sim.service("RunService")
+		target = V(10, 5, -30)
+		sim:run("frame", function()
+			rs.RenderStepped:Fire(1 / 60)
+		end)
+		local a1 = held and held.Attachment1
+		check(a1 ~= nil and (a1.Position - target).Magnitude < 1e-3, "the beam follows its target")
+		local task = require("@lune/task")
+		task.wait(0.5)
+		sim:run("frame", function()
+			rs.RenderStepped:Fire(1 / 60)
+		end)
+		check(named("EnergyBolt") == nil and named("EnergyBeam") == nil, "both gone after")
+		local left = 0
+		for _, d in ws:GetDescendants() do
+			if d:IsA("Attachment") and string.find(d.Name, "^Energy") then
+				left += 1
+			end
+		end
+		check(left == 0, "no attachments left (" .. left .. ")")
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 

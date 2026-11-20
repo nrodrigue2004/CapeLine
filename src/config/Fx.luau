@@ -68,6 +68,10 @@ return {
 	-- facing Beam per bolt with one of these frames (white, tinted by the path colour), switched every `flick` s
 	-- while it fades over its life; `tile` studs a repeat of the strip, drawn `width` studs wide. Zap Bolt, Chain
 	-- Lightning and Bolt Ride use it; an empty list keeps the part-built zigzags
+	-- the held beams' drawn energy column (list-combat 2026-11-20, Everything Left 381; art/fx/energy_beam.py): a
+	-- camera-facing Beam `width` studs wide (bolts `boltWidth`), `tile` studs a repeat, scrolling `speed` tiles a
+	-- second toward the target (bolts twice as fast), tinted by the path colour; 0 keeps the glow cylinders
+	energyBeam = { texture = 110251524477546, width = 2.6, boltWidth = 1.5, tile = 8, speed = 2.5 },
 	lightning = {
 		frames = { 121443883514116, 81424120668608, 127621354126477, 135751948381156 },
 		tile = 9,

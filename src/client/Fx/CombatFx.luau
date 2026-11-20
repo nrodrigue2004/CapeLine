@@ -144,6 +144,47 @@ local function beam(from: Vector3, to: Vector3, width: number, color: Color3, li
 	return p
 end
 
+-- A camera-facing textured Beam from `from` to `to` (list-combat 2026-11-20): a drawn strip (white, tinted) on two
+-- attachments on the Terrain (always there in game; the headless tests' place has none: the Fx folder), `tile`
+-- studs a repeat, scrolling at `speed`. The caller moves the attachments and destroys all three.
+local function stripBeam(
+	name: string,
+	texture: number,
+	from: Vector3,
+	to: Vector3,
+	width: number,
+	color: Color3,
+	tile: number,
+	speed: number
+): (Beam, Attachment, Attachment)
+	local terrain: Instance = Workspace:FindFirstChildOfClass("Terrain") or folder
+	local a0 = Instance.new("Attachment")
+	a0.Name = name .. "0"
+	a0.Position = from
+	a0.Parent = terrain
+	local a1 = Instance.new("Attachment")
+	a1.Name = name .. "1"
+	a1.Position = to
+	a1.Parent = terrain
+	local b = Instance.new("Beam")
+	b.Name = name
+	b.Attachment0 = a0
+	b.Attachment1 = a1
+	b.FaceCamera = true
+	b.Width0, b.Width1 = width, width
+	b.TextureMode = Enum.TextureMode.Wrap
+	b.TextureLength = tile
+	b.TextureSpeed = speed
+	b.LightEmission = 1
+	b.Brightness = 2
+	b.Segments = 1
+	b.Color = ColorSequence.new(color)
+	b.Transparency = NumberSequence.new(0)
+	b.Texture = "rbxassetid://" .. texture
+	b.Parent = terrain
+	return b, a0, a1
+end
+
 -- Drawn lightning (list-combat 2026-11-20, Everything Left 167): a camera-facing textured Beam from `from` to `to`
 -- on two Terrain attachments, one of Config.Fx.lightning's bolt frames flicked every `flick` s, thinning and fading
 -- over `life`. False when no frames are set (the callers keep their part-built zigzags).
@@ -153,32 +194,8 @@ local function lightning(from: Vector3, to: Vector3, width: number, color: Color
 	if not frames or #frames == 0 or (to - from).Magnitude < 0.5 then
 		return false
 	end
-	-- attachments live on the Terrain (always there in game; the headless tests' place has none: the Fx folder)
-	local terrain: Instance = Workspace:FindFirstChildOfClass("Terrain") or folder
-	local a0 = Instance.new("Attachment")
-	a0.Name = "Bolt0"
-	a0.Position = from
-	a0.Parent = terrain
-	local a1 = Instance.new("Attachment")
-	a1.Name = "Bolt1"
-	a1.Position = to
-	a1.Parent = terrain
-	local b = Instance.new("Beam")
-	b.Name = "Lightning"
-	b.Attachment0 = a0
-	b.Attachment1 = a1
-	b.FaceCamera = true
-	b.Width0, b.Width1 = width, width
-	b.TextureMode = Enum.TextureMode.Wrap
-	b.TextureLength = L.tile
-	b.LightEmission = 1
-	b.Brightness = 2
-	b.Segments = 1
-	b.Color = ColorSequence.new(color)
-	b.Transparency = NumberSequence.new(0)
 	local pick = math.random(#frames)
-	b.Texture = "rbxassetid://" .. frames[pick]
-	b.Parent = terrain
+	local b, a0, a1 = stripBeam("Lightning", frames[pick], from, to, width, color, L.tile, 0)
 	local start, nextFlick = os.clock(), os.clock() + L.flick
 	local conn
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
@@ -390,6 +407,27 @@ function CombatFx.bolt(from: Vector3, to: Vector3, style: string, color: Color3?
 		and lightning(from, to, F.lightning.width, if style == "Anime" then WHITE else c, F.bolt.life * 2.5)
 	then
 		-- Zap Bolt: the drawn bolt over a thin white-hot core
+		beam(from, to, F.bolt.width * 0.5, WHITE, F.bolt.life)
+	elseif (F.energyBeam.texture or 0) > 0 and (to - from).Magnitude >= 0.5 then
+		-- the drawn energy streak (Config.Fx.energyBeam) round a white-hot core, racing toward the target
+		local E = F.energyBeam
+		local b, a0, a1 = stripBeam("EnergyBolt", E.texture, from, to, E.boltWidth, c, E.tile, E.speed * 2)
+		local life = F.bolt.life * (if style == "Anime" then 1.8 else 1.4)
+		local start = os.clock()
+		local conn
+		conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
+			local t = (os.clock() - start) / life
+			if t >= 1 then
+				conn:Disconnect()
+				b:Destroy()
+				a0:Destroy()
+				a1:Destroy()
+				return
+			end
+			b.Transparency = NumberSequence.new(t * t)
+			local w = E.boltWidth * (1 - 0.6 * t)
+			b.Width0, b.Width1 = w, w
+		end))
 		beam(from, to, F.bolt.width * 0.5, WHITE, F.bolt.life)
 	elseif style == "Anime" then
 		beam(from, to, F.bolt.width * 0.6, WHITE, F.bolt.life)
@@ -1282,6 +1320,15 @@ function CombatFx.beamHold(
 	local nextFx = 0
 	local glow = part(Vector3.new(1.4, 1.4, 1), CFrame.new(), color)
 	glow.Transparency = if style == "Anime" then 0.6 else 0.25
+	-- the drawn energy column (Config.Fx.energyBeam, Everything Left 381) in place of the glow cylinder, its
+	-- swells and streaks racing out toward the target
+	local E = F.energyBeam
+	local strip: Beam?, s0: Attachment?, s1: Attachment?
+	local a00, b00 = from(), to()
+	if (E.texture or 0) > 0 and a00 and b00 then
+		strip, s0, s1 = stripBeam("EnergyBeam", E.texture, a00, b00, E.width, color, E.tile, E.speed)
+		glow.Transparency = 1
+	end
 	local start = os.clock()
 	local conn
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
@@ -1290,6 +1337,11 @@ function CombatFx.beamHold(
 			conn:Disconnect()
 			fade(core, 0.15)
 			fade(glow, 0.2)
+			if strip then
+				strip:Destroy();
+				(s0 :: Attachment):Destroy();
+				(s1 :: Attachment):Destroy()
+			end
 			return
 		end
 		local d = b - a
@@ -1301,6 +1353,12 @@ function CombatFx.beamHold(
 		core.CFrame = cf
 		glow.Size = Vector3.new(w * 4 * wobble, w * 4 * wobble, len)
 		glow.CFrame = cf
+		if strip then
+			(s0 :: Attachment).Position = a;
+			(s1 :: Attachment).Position = b
+			local sw = E.width * wobble * (if style == "Anime" then 0.75 else 1)
+			strip.Width0, strip.Width1 = sw, sw
+		end
 		local now = os.clock()
 		if now >= nextFx then
 			nextFx = now + 0.15
