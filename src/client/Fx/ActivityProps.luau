@@ -19,6 +19,7 @@ local ActivityKit = require(Shared:WaitForChild("ActivityKit"))
 local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local StoryProps = require(script.Parent.StoryProps)
 
 local ActivityProps = {}
 
@@ -129,6 +130,7 @@ end
 
 local function dress(m: Model, kind: ActivityKit.Kind, anchor: BasePart)
 	local d: Dressed = { model = m, kind = kind, meshes = {}, hidden = {}, conns = {} }
+	local rest: { [Weld]: CFrame } = {} -- each weld's resting C0, for the hit punch
 	local scale = m:GetAttribute("LookScale")
 	for _, mesh in ActivityKit.meshes(Config, kind, if type(scale) == "number" then scale else 1) do
 		local p = ActivityProps.clone(mesh)
@@ -151,11 +153,28 @@ local function dress(m: Model, kind: ActivityKit.Kind, anchor: BasePart)
 			w.Parent = p
 			p.Parent = holder()
 			table.insert(d.meshes, p)
+			rest[w] = off
 		end
 	end
 	for _, p in m:GetDescendants() do
 		hide(d, p)
 	end
+	-- a breakable (an incident's or event's object, SiteKit.object's Hp): each hit jolts the look and springs it back
+	-- with a clank (list-combat 2026-11-20; they took hits without a twitch)
+	local hp = m:GetAttribute("Hp")
+	local last = if type(hp) == "number" then hp else 1
+	table.insert(
+		d.conns,
+		m:GetAttributeChangedSignal("Hp"):Connect(function()
+			local now = m:GetAttribute("Hp")
+			if type(now) == "number" then
+				if now < last then
+					StoryProps.punch(rest, anchor.Position)
+				end
+				last = now
+			end
+		end)
+	)
 	-- parts streaming in later hide too; the anchor going (streamed out or removed) takes the look with it
 	table.insert(
 		d.conns,

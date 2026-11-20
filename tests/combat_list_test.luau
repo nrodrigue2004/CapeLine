@@ -2782,6 +2782,17 @@ return function(T: any)
 		end
 	)
 
+	test("List combat: incident and event objects jolt on each hit (ActivityProps)", function()
+		local fx = fs.readFile("src/client/Fx/ActivityProps.luau")
+		check(string.find(fx, 'm:GetAttributeChangedSignal("Hp")', 1, true) ~= nil, "listens to what is left")
+		check(string.find(fx, "StoryProps.punch(rest, anchor.Position)", 1, true) ~= nil, "the shared punch")
+		check(
+			string.find(fs.readFile("src/client/Fx/StoryProps.luau"), "function StoryProps.punch(", 1, true)
+				~= nil,
+			"StoryProps shares it"
+		)
+	end)
+
 	test("List combat: side styles wear their side's crest over the shape (Everything Left 398)", function()
 		local roblox = require("@lune/roblox")
 		local SG = Config.SideGearArt

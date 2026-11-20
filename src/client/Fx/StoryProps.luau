@@ -136,9 +136,10 @@ end
 -- A hit lands on a break target (list-combat 2026-11-20: they took their hits without a twitch): the look jolts off
 -- its rest and springs back, with a clank where it was hit
 local PUNCH = 0.6 -- studs of jolt at full; less on a big look
-local function punch(d: Dressed, at: Vector3)
+-- (ActivityProps punches its dressed incident and event objects the same way)
+function StoryProps.punch(welds: { [Weld]: CFrame }, at: Vector3)
 	local n = 0
-	for w, rest in d.rest do
+	for w, rest in welds do
 		n += 1
 		local kick = Vector3.new(math.random() - 0.5, math.random() * 0.4, math.random() - 0.5) * PUNCH
 		w.C0 = rest * CFrame.new(kick) * CFrame.Angles(kick.Z * 0.12, 0, -kick.X * 0.12)
@@ -241,7 +242,7 @@ local function dress(m: Model, look: string, root: BasePart)
 		m:GetAttributeChangedSignal("Hp"):Connect(function()
 			local now = m:GetAttribute("Hp")
 			if type(now) == "number" and now < d.hp and (now > 0 or STAYS[look]) then
-				punch(d, root.Position)
+				StoryProps.punch(d.rest, root.Position)
 			elseif type(now) == "number" and now <= 0 and not d.broken then
 				-- the last hit: the look bursts apart at once (the server keeps the broken target until the step ends)
 				d.broken = true
