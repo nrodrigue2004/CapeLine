@@ -45,6 +45,9 @@ return {
 		-- round buttons (touch and gamepad keep the buttons; the opening's verb buttons still show)
 		keyLine = { "Leap", "Fly", "Boost", "Down" },
 	},
+	-- the drawn CAPELINE logo (art/ui/logo.py; DRAFT until nate OKs it), the main menu's title; LoadingCard.LOGO
+	-- holds the same id (ReplicatedFirst cannot wait for Config). 0 keeps the typed title.
+	logo = 138065040749947,
 	phone = {
 		compactBelow = 500, -- a screen whose short side is under this many pixels is a phone (compact HUD)
 		row = 46, -- the top row of screen buttons (POWERS, GEAR, MAP...), its height

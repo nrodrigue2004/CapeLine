@@ -527,4 +527,18 @@ return function(T: any)
 			"used"
 		)
 	end)
+
+	test("List combat: the drawn logo is on the loading card and the menu", function()
+		local card = fs.readFile("src/first/LoadingCard.luau")
+		local id = tonumber(string.match(card, "LoadingCard.LOGO = (%d+)"))
+		check(id ~= nil and id > 0, "the loading card has the logo's id")
+		check(Config.Ui.logo == id, "the menu shows the same logo")
+		check(
+			string.find(card, "if drawn.IsLoaded then", 1, true) ~= nil,
+			"the typed title stays until it loads"
+		)
+		local menu = fs.readFile("src/client/Ui/MainMenu.luau")
+		check(string.find(menu, '"rbxassetid://" .. Config.Ui.logo', 1, true) ~= nil, "the menu draws it")
+		check(fs.isFile("art/ui/logo.py") and fs.isFile("art/preview/logo.png"), "its source and preview")
+	end)
 end

@@ -25,6 +25,11 @@ local HALFTONE = "rbxassetid://89303571654854"
 -- waiting": the city and sound at once): the day patrol from the Music atlas (copied from Config.AudioClips,
 -- tests/intro_film_test keeps it in step), at the default music level (Config.Settings music 2 of 10) until the
 -- saved setting takes over; LoadingScreen fades it out as the game's own music starts
+-- the drawn CAPELINE logo (Everything Left 85; art/ui/logo.py, preview art/preview/logo.png, DRAFT until nate OKs
+-- it): shown over the typed Bangers title once the image has loaded (the typed one stays if it never does).
+-- Config.Ui.logo holds the same id for the main menu.
+LoadingCard.LOGO = 138065040749947
+
 LoadingCard.MUSIC = { atlas = 100160094926729, start = 0.05, length = 34.2857, volume = 0.35, group = 0.2 }
 
 -- the skyline along the foot of the card: Brightharbor's towers in two layers drifting past (heights as a share
@@ -263,6 +268,29 @@ function LoadingCard.build(parent: Instance): Card
 		ZIndex = 4,
 	})
 	stroke(logo, 6)
+	if LoadingCard.LOGO ~= 0 then
+		local drawn = Instance.new("ImageLabel")
+		drawn.Name = "LogoImage"
+		drawn.BackgroundTransparency = 1
+		drawn.AnchorPoint = Vector2.new(0.5, 0.5)
+		drawn.Position = UDim2.fromScale(0.5, 0.5)
+		drawn.Size = UDim2.fromScale(1.15, 2.2) -- the word fills about 85% of the image's width
+		drawn.ScaleType = Enum.ScaleType.Fit
+		drawn.Image = "rbxassetid://" .. LoadingCard.LOGO
+		drawn.ImageTransparency = 1
+		drawn.ZIndex = 5
+		drawn.Parent = logoBox
+		task.spawn(function()
+			pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ drawn })
+			end)
+			if drawn.IsLoaded then
+				drawn.ImageTransparency = 0
+				shade.Visible = false
+				logo.Visible = false
+			end
+		end)
+	end
 
 	-- the red caption box under it
 	local cap, capShadow =

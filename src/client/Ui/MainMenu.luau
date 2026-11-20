@@ -121,6 +121,29 @@ function MainMenu.init()
 		maxText = 64,
 	})
 	title.Parent = panel
+	if (Config.Ui.logo or 0) ~= 0 then
+		-- the drawn logo over the typed title once it has loaded (Everything Left 85)
+		local drawn = Instance.new("ImageLabel")
+		drawn.Name = "Logo"
+		drawn.BackgroundTransparency = 1
+		drawn.Size = UDim2.new(1, -10, 0, 96)
+		drawn.Position = UDim2.fromOffset(5, -8)
+		drawn.ScaleType = Enum.ScaleType.Fit
+		drawn.Image = "rbxassetid://" .. Config.Ui.logo
+		drawn.ImageTransparency = 1
+		drawn.ZIndex = title.ZIndex + 1
+		drawn.Parent = panel
+		task.spawn(function()
+			pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ drawn })
+			end)
+			if drawn.IsLoaded and drawn.Parent then
+				drawn.ImageTransparency = 0
+				title.TextTransparency = 1
+				title.TextStrokeTransparency = 1
+			end
+		end)
+	end
 	sub = Kit.label({
 		Text = "",
 		Size = UDim2.new(1, -20, 0, 40),
