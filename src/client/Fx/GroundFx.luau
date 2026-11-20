@@ -6,7 +6,8 @@
 -- `heal` seconds the rim sinks back into the ground and the decal fades; then it goes (CraterGone).
 -- Budget: the preset's `craters` nearest the camera are drawn, `craterRim` chunks each (Config.Presets), anchored,
 -- no collisions or queries; updated 4 times a second (FrameProf).
--- PLACEHOLDER ART: the rim chunks are plain parts in the ground's colour.
+-- The rim chunks are the broken blocks of Art.Rubble (Chunk1-3, art/blender/rubble.py; 2026-11-20) stretched to each
+-- chunk's box once they are imported; before that plain parts in the ground's colour (PLACEHOLDER ART).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -17,6 +18,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local CraterRules = require(Shared:WaitForChild("CraterRules"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local Juice = require(script.Parent.Juice)
@@ -47,6 +49,29 @@ local function part(size: Vector3, cf: CFrame, color: Color3, material: Enum.Mat
 	p.Color = color
 	p.Material = material
 	return p
+end
+
+-- Art.Rubble's broken blocks (all three, or nil: the parts stay)
+local chunkSrc: { MeshPart }? = nil
+local function chunks(): { MeshPart }?
+	if chunkSrc and chunkSrc[1].Parent then
+		return chunkSrc
+	end
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Rubble")
+	if not set then
+		return nil
+	end
+	local out = {}
+	for k = 1, 3 do
+		local src = set:FindFirstChild("Chunk" .. k, true)
+		if not (src and src:IsA("MeshPart")) then
+			return nil
+		end
+		out[k] = src
+	end
+	chunkSrc = out
+	return out
 end
 
 local function groundLook(c: CraterRules.Crater): (Color3, Enum.Material)
@@ -101,7 +126,25 @@ local function draw(c: CraterRules.Crater): Drawn
 		local cf = CFrame.new(r.x, r.y, r.z)
 			* CFrame.Angles(0, math.rad(r.ry), 0)
 			* CFrame.Angles(0, 0, math.rad(r.tilt))
-		local chunk = part(Vector3.new(r.sx, r.sy, r.sz), cf, color:Lerp(PIT, 0.2), material)
+		local size = Vector3.new(r.sx, r.sy, r.sz)
+		local src = chunks()
+		local chunk: BasePart
+		if src then
+			local mp = MeshFix.clone(src[(c.id + #rim) % 3 + 1])
+			mp:ClearAllChildren()
+			mp.Anchored = true
+			mp.CanCollide = false
+			mp.CanQuery = false
+			mp.CanTouch = false
+			mp.Size = size -- one mesh filling its own box: stretched to the chunk's
+			cf = cf * MeshFix.of(mp)
+			mp.CFrame = cf
+			mp.Color = color:Lerp(PIT, 0.2)
+			mp.Material = material
+			chunk = mp
+		else
+			chunk = part(size, cf, color:Lerp(PIT, 0.2), material)
+		end
 		chunk.CastShadow = true
 		chunk.Parent = m
 		table.insert(rim, { part = chunk, from = cf, drop = r.sy + 0.5 })

@@ -3253,6 +3253,43 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: crater rims are broken Blender blocks (Art.Rubble chunks)", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		check(Config.Destruction.ground.on == true, "ground craters are on")
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local GroundFx = sim:require("Client.Fx.GroundFx")
+		sim:run("GroundFx", GroundFx.init)
+		local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+		sim:run("crater", function()
+			remotes:WaitForChild("CraterAdd").OnClientEvent:Fire({ 5, 4, 0, -6, 7, 0, 0 })
+		end)
+		require("@lune/task").wait(0.3)
+		sim:run("frame", function()
+			sim.service("RunService").Heartbeat:Fire(1 / 60)
+		end)
+		local crater = sim.service("Workspace"):FindFirstChild("GroundCrater_5", true)
+		check(crater ~= nil, "the crater is drawn")
+		local meshes, plain = 0, 0
+		for _, d in (if crater then crater:GetChildren() else {}) do
+			if d:IsA("MeshPart") and string.match(d.Name, "^Chunk%d$") then
+				meshes += 1
+				check(d.CanCollide == false and d.CanQuery == false and d.Anchored, d.Name .. " is look only")
+			elseif d:IsA("Part") and d.Shape == roblox.Enum.PartType.Block and d.Transparency == 0 then
+				plain += 1
+			end
+		end
+		check(meshes >= 4, "the rim is broken blocks (" .. meshes .. ")")
+		check(plain == 0, "no plain block chunks left (" .. plain .. ")")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash
