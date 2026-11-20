@@ -1528,6 +1528,30 @@ HEAD.glob = function(from, to, style, color, accent, s) -- Tide: a water glob in
 end
 HEAD.tracer = function(from, to, style, color, accent, s) -- Gunslinger: a fast bright tracer
 	local t = flightTime(from, to, 420)
+	-- the Blender bullet (Art.Powers Bullet, Everything Left 173): a copper slug and its tapered tracer streak
+	if PowerMeshes.ready("Bullet") then
+		local B = Config.PowerArt.Bullet
+		local turnP = MeshFix.turn("Powers")
+		for _, name in { "BulletSlug", "BulletStreak" } do
+			local m = B[name]
+			local k = if name == "BulletStreak" then s * 1.4 else s * 1.6
+			local mp = PowerMeshes.part(name, Vector3.new(m.size[1], m.size[2], m.size[3]) * k)
+			if mp then
+				mp.Color = if name == "BulletSlug"
+					then Color3.fromRGB(m.color[1], m.color[2], m.color[3])
+					elseif anime(style) then WHITE
+					else accent
+				mp.Material = if name == "BulletSlug" then Enum.Material.Metal else Enum.Material.Neon
+				mp.Transparency = m.alpha or 0
+				mp.Parent = folder
+				fly(mp, from, to, t, nil, nil, CFrame.new(0, 0, m.offset[3] * k) * turnP)
+			end
+		end
+		local glow = part(Vector3.new(0.5, 0.5, 2.5) * s, CFrame.new(), color)
+		glow.Transparency = 0.6
+		fly(glow, from, to, t, nil, 0.015)
+		return
+	end
 	local p = part(Vector3.new(0.18, 0.18, 4) * s, CFrame.new(), if anime(style) then WHITE else accent)
 	fly(p, from, to, t)
 	local glow = part(Vector3.new(0.5, 0.5, 2.5) * s, CFrame.new(), color)

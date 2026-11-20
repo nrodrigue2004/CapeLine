@@ -271,6 +271,14 @@ rebar = [T([(x, Y0 - 0.6, 2.5), (x + 0.2, Y0 - 0.9, 3.4), (x + 0.6, Y0 - 1.0, 3.
 mesh("PsiSlab", "SlabRebar", rebar, (120, 80, 60), "Metal")
 mesh("PsiSlab", tint("SlabAura"), [TOR(3.3, 0.08, 0, Y0 - 1.3, 0, segs=36, csegs=5)], PATH, "Neon", alpha=0.3)
 
+# ================================================================ Gunslinger's bullet (Everything Left 173, 2026-11-20): a copper round-nose
+# slug and a tapered tracer streak behind it (anchor: the slug's centre; front -z, the streak along +z). CombatFx's
+# tracer head flies both.
+slug = [C(0.1, 0.26, 0, 0, 0.02, segs=12, axis="z"), S(0.1, 0, 0, -0.11, sc=(1, 1, 1.6), segs=12, rings=8),
+        C(0.105, 0.05, 0, 0, 0.16, segs=12, axis="z")]
+mesh("Bullet", "BulletSlug", slug, (205, 120, 60), "Metal")
+mesh("Bullet", tint("BulletStreak"), [C(0.16, 4.0, 0, 0, 2.2, segs=10, r2=0.0, axis="z")], PATH, "Neon", alpha=0.2)
+
 # ================================================================ the nemesis's armour (NemesisFx, Everything Left 218): each piece drawn to fill
 # the box of the part it replaces on the Brute Bot (centred on it), so NemesisFx sizes it to that same box.
 # shoulders: 5 x 1 x 3 (times the build's width)
@@ -381,7 +389,8 @@ if "--preview" in sys.argv:
     spots = {"Turret": (-14, 6, 3), "Drone": (-8, 6, 4), "Totem": (-2, 6, 3), "Mine": (3, 6, 0.5), "Mech": (8, 6, 1.2),
              "Guardian": (15, 8, 0), "SpiritBeast": (-15, -6, 7.8), "Hoverboard": (-6, -6, 3.7), "RockSlab": (2, -6, 4.6),
              "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5), "Nemesis": (-22, 8, 4),
-             "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2)}
+             "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
+             "Bullet": (-4, -14, 2)}
     for look, meshes in LOOKS.items():
         x, yb, y = spots[look]
         for name, ob in meshes.items():

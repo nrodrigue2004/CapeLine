@@ -379,7 +379,8 @@ return function(T: any)
 		check(string.find(cf, 'if row.id == "GirderSwing" then', 1, true) ~= nil, "the held girder")
 		-- 181: Psi Platform's slab carries a crate and a barrel (kit meshes), faded with the ride
 		check(
-			string.find(cf, 'for i, name in { [3] = "Crate", [4] = "Barrel" } do', 1, true) ~= nil,
+			-- (the last two pieces since the PsiSlab look, Everything Left 382)
+			string.find(cf, 'for i, name in { [n - 1] = "Crate", [n] = "Barrel" } do', 1, true) ~= nil,
 			"psi junk"
 		)
 		check(
@@ -973,8 +974,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 46,
-			"46 meshes in 16 looks (Everything Left 382 added the jets, the rail and the slab): " .. n
+			n == 48,
+			"48 meshes in 17 looks (382 added the jets, the rail and the slab; 173 the bullet): " .. n
 		)
 		for _, look in
 			{
@@ -989,6 +990,7 @@ return function(T: any)
 				"FlameJets",
 				"LightRail",
 				"PsiSlab",
+				"Bullet",
 			}
 		do
 			check(art[look] ~= nil, look .. " look")
@@ -999,6 +1001,7 @@ return function(T: any)
 				'PowerMeshes.ready("StonePillar")',
 				'PowerMeshes.ready("ThornVine")',
 				'PowerMeshes.ready("Wave")',
+				'PowerMeshes.ready("Bullet")',
 				"RIDE[set] ~= nil and PowerMeshes.ready(RIDE[set])",
 				"look and PowerMeshes.ready(look)",
 			}
@@ -2638,6 +2641,48 @@ return function(T: any)
 			)
 		end
 	)
+
+	test("List combat: Gunslinger's shots fly a Blender bullet (Everything Left 173)", function()
+		local roblox = require("@lune/roblox")
+		local B = Config.PowerArt.Bullet
+		check(B ~= nil and B.BulletSlug ~= nil and B.BulletStreak ~= nil, "the Bullet look")
+		check(B.BulletStreak.tint == true, "the tracer takes the path colour")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local color = roblox.Color3.fromRGB(255, 200, 80)
+		sim:run("shot", function()
+			CombatFx.bolt(
+				roblox.Vector3.new(0, 5, 0),
+				roblox.Vector3.new(0, 5, -60),
+				"Comic",
+				color,
+				"Gunslinger"
+			)
+		end)
+		local fx = sim.service("Workspace"):FindFirstChild("Fx")
+		local slug, streak = 0, 0
+		for _, d in fx:GetDescendants() do
+			if d:IsA("MeshPart") and d.Name == "BulletSlug" then
+				slug += 1
+				check(d.Material == roblox.Enum.Material.Metal, "a copper slug")
+			elseif d:IsA("MeshPart") and d.Name == "BulletStreak" then
+				streak += 1
+				check(d.Material == roblox.Enum.Material.Neon, "a glowing streak")
+			end
+		end
+		check(
+			slug >= 1 and streak >= 1,
+			string.format("the bullet flies (%d slugs, %d streaks)", slug, streak)
+		)
+	end)
 
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
