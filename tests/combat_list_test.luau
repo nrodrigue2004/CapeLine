@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 89,
-			"89 meshes in 37 looks (Siege Mode's anchors; the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 96,
+			"96 meshes in 41 looks (the supers' sigil, sunrise, helix and crater; Siege Mode's anchors; the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3928,6 +3928,70 @@ return function(T: any)
 				end
 			end
 			check(boxes == 0, "no plain anchor boxes")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
+		"List combat: the supers' own Blender looks: Psychic Storm's sigil, Dawnburst's sunrise, the light helix, Meteor Leap's crater",
+		function()
+			local roblox = require("@lune/roblox")
+			local S = Config.Fx.supers
+			check(
+				S and S.helix > 1 and S.dawn > 0 and S.crater > 0 and S.craterHold > 0,
+				"the supers' looks are tuned"
+			)
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			local A = Config.Abilities.list
+			local function data(): any
+				return { o = V(0, 5, 0), d = V(0, 0, -1), e = V(0, 5, -40), c = V(0, 3, -20), r = 14 }
+			end
+			local function count(): { [string]: number }
+				local seen = {}
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("MeshPart") then
+						seen[d.Name] = (seen[d.Name] or 0) + 1
+					end
+				end
+				return seen
+			end
+			sim:run("Psychic Storm", function()
+				CombatFx.superMoment(A.PsychicStorm, "Comic", data())
+			end)
+			sim:run("Dawnburst", function()
+				CombatFx.superMoment(A.Dawnburst, "Anime", data())
+			end)
+			sim:run("Meteor Leap", function()
+				CombatFx.superMoment(A.MeteorLeap, "Comic", data(), true)
+			end)
+			local seen = count()
+			for _, name in
+				{
+					"SigilOuter",
+					"SigilInner",
+					"DawnBurst",
+					"DawnCrown",
+					"PillarHelix",
+					"CraterBowl",
+					"CraterRim",
+				}
+			do
+				check((seen[name] or 0) >= 1, name .. " is drawn (" .. tostring(seen[name]) .. ")")
+			end
+			for _ = 1, 10 do
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 30)
+				end)
+			end
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
