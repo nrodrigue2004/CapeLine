@@ -339,7 +339,11 @@ return function(T: any)
 			)
 			local client = "src/client/Controllers/HqClient.luau"
 			check(has(client, "wantedPoster(f)") and has(client, "nemesisHeads(f)"), "HqClient draws both")
-			check(has(client, "PLACEHOLDER ART: a paper part with a SurfaceGui"), "labelled PLACEHOLDER ART")
+			-- the printed bill since 2026-11-20 (Everything Left 397, Config.Hq.wanted.paper)
+			check(
+				has(client, "Config.Hq.wanted.paper") or has(client, "W.paper"),
+				"the poster wears the printed paper"
+			)
 			check(has(client, 'Instance.new("ViewportFrame")'), "the poster's bust is a ViewportFrame")
 			check(
 				has(client, "WantedRules.bust(") and has(client, "WantedRules.head("),

@@ -461,7 +461,12 @@ return function(T: any)
 		check(string.find(throw, "ThrowMath.canWreck(cfg)", 1, true) ~= nil, "only kinds that leave one")
 		check(string.find(throw, 'SetAttribute("WreckGone", true)', 1, true) ~= nil, "every screen pops it")
 		check(string.find(throw, "if it.wreck then", 1, true) ~= nil, "a wreck never goes home like a prop")
-		check(string.find(throw, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder art is labelled")
+		-- the throwables wear Art.Throwables since 2026-11-20 (Everything Left 390): no placeholder label left
+		check(
+			string.find(throw, "Art.Throwables", 1, true) ~= nil
+				or string.find(throw, "PLACEHOLDER ART", 1, true) ~= nil,
+			"the look is named"
+		)
 		local enemy = source("src/server/Services/EnemyService.luau")
 		check(
 			string.find(enemy, "ThrowService", 1, true) == nil,

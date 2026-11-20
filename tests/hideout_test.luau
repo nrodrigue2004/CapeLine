@@ -325,7 +325,7 @@ return function(T: any)
 		do
 			check(has(hq, needle), "HqClient: " .. needle)
 		end
-		check(has("src/client/Fx/HqMeshes.luau", 'ROOTS = { "Hq", "Hideout" }'), "HqMeshes finds Art.Hideout")
+		check(has("src/client/Fx/HqMeshes.luau", 'ROOTS = { "Hq", "Hideout"'), "HqMeshes finds Art.Hideout")
 		check(has("src/server/Services/SetPieceMeshes.luau", '"Hideout"'), "and the server's set pieces")
 		check(
 			has("src/server/Services/HqService.luau", "HideoutKit.stairHead()"),
