@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 playtest-gaps18: gaps17 + torn wall edges with rebar, petals, prologue kid and shover dressed, logo slam title card, break targets jolt and burst.
 - 2026-11-20 playtest-gaps17: gaps16 + feathered wings, Interceptor net and Grappler claw, cage lances, hex plates, snowflakes, psi gems, ring pieces, robot scrap.
 - 2026-11-20 playtest-gaps16: gaps15 + prologue barrier mesh, robot shot streaks, shockwave rings, crater scorch, halo and spin hoops, glassy shatter stones, repair beams, Bomber flame rim.
 - 2026-11-20 playtest-gaps15: gaps14 + textured lightning, energy beams, broken-block rubble, meshed bolt heads, comic hit stars, held girder, crater rims, glowing hero copies, prologue tunnel rubble and girder.
