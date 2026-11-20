@@ -972,7 +972,7 @@ return function(T: any)
 				check(m.tris < 5000, name .. " stays light")
 			end
 		end
-		check(n == 30, "30 meshes in 12 looks: " .. n)
+		check(n == 37, "37 meshes in 13 looks: " .. n)
 		for _, look in
 			{ "Turret", "Drone", "Totem", "Mine", "Guardian", "SpiritBeast", "Hoverboard", "RockSlab" }
 		do
@@ -1071,6 +1071,40 @@ return function(T: any)
 				shell ~= nil and #shell == 6,
 				"chest, core, two sleeves, two greaves: " .. tostring(shell and #shell)
 			)
+			-- the nemesis armour (Everything Left 218): every trait piece in its Blender mesh, in the part's box
+			local NemesisFx = sim:require("Client.Fx.NemesisFx")
+			sim:run("NemesisFx", NemesisFx.init)
+			local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+			sim:run("nemesis", function()
+				remotes:WaitForChild("NemesisState").OnClientEvent:Fire({
+					k = "spawn",
+					id = 77,
+					name = "Gravemaw",
+					rank = 2,
+					colors = 1,
+					build = "bulky",
+					head = "horned",
+					cape = true,
+					traits = 0xFF,
+				})
+			end)
+			local nem = {}
+			for _, d in ws:FindFirstChild("NemesisFx"):GetChildren() do
+				if d:IsA("MeshPart") then
+					nem[d.Name] = (nem[d.Name] or 0) + 1
+				end
+			end
+			for _, name in
+				{ "NemShoulders", "NemCape", "NemPlates", "NemCannon", "NemAntenna", "NemAntennaTip" }
+			do
+				check(nem[name] == 1, name .. " drawn as a mesh: " .. tostring(nem[name]))
+			end
+			check(nem.NemHorn == 2, "two horns")
+			for _, d in ws:FindFirstChild("NemesisFx"):GetChildren() do
+				if d.Name == "NemShoulders" then
+					check(math.abs(d.Size.X - 6.5) < 1e-3, "the bulky build widens the shoulders")
+				end
+			end
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
 		end
 	end)

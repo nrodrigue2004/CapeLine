@@ -3,7 +3,10 @@
 -- cape (or not) and a head piece, one visible piece per trait (extra plates, a second arm cannon, a heal
 -- drone orbiting it, a summoner's antenna; the cloak flickers it out), the glowing weak point on its back
 -- once your Intel is complete, the red warning shapes of its signature attacks, and the teleport flash
--- when it escapes. PLACEHOLDER ART: plain parts until the nemesis renderer on the R15 rig (art pass).
+-- when it escapes. Its armour (shoulders, horns, cape, plates, second cannon, antenna) is drawn in Blender
+-- meshes (art/blender/powers.py look Nemesis, list-combat 2026-11-20, Everything Left 218) sized to the same boxes
+-- the parts had; until they are imported the parts stay. PLACEHOLDER ART: the body is still the Brute Bot (a
+-- nemesis body of its own on the R15 rig is NEEDS NATE).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -15,9 +18,11 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local NemesisMath = require(Shared:WaitForChild("NemesisMath"))
 local Net = require(Shared:WaitForChild("Net"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local Juice = require(script.Parent.Juice)
+local PowerMeshes = require(script.Parent.PowerMeshes)
 
 local NemesisFx = {}
 
@@ -55,6 +60,28 @@ local function part(size: Vector3, color: Color3, shape: Enum.PartType?, materia
 	return p
 end
 
+-- An armour piece: its Blender mesh in the part's box (colour and material kept) once the Nemesis look is
+-- imported, else the plain part. The returned offset carries the mesh's import turn.
+local function armour(
+	name: string,
+	size: Vector3,
+	off: CFrame,
+	color: Color3,
+	shape: Enum.PartType?,
+	material: Enum.Material?
+): (BasePart, CFrame)
+	if PowerMeshes.ready("Nemesis") then
+		local m = PowerMeshes.part(name, size)
+		if m then
+			m.Color = color
+			m.Material = material or Enum.Material.SmoothPlastic
+			m.Parent = folder
+			return m, off * MeshFix.turn("Powers")
+		end
+	end
+	return part(size, color, shape, material), off
+end
+
 local function drop(id: number)
 	local r = rigs[id]
 	if r then
@@ -76,10 +103,33 @@ local function build(d: { [string]: any })
 	end
 	-- its head piece and cape (the build shows as the shoulders' width)
 	local wide = if d.build == "bulky" or d.build == "spiked" then 1.3 else 1
-	add(part(Vector3.new(5 * wide, 1, 3), trim, nil, Enum.Material.Metal), CFrame.new(0, 3.2, 0))
+	add(
+		armour(
+			"NemShoulders",
+			Vector3.new(5 * wide, 1, 3),
+			CFrame.new(0, 3.2, 0),
+			trim,
+			nil,
+			Enum.Material.Metal
+		)
+	)
 	if d.head == "horned" then
-		add(part(Vector3.new(0.6, 2.2, 0.6), trim), CFrame.new(-1.2, 6.2, 0) * CFrame.Angles(0, 0, 0.4))
-		add(part(Vector3.new(0.6, 2.2, 0.6), trim), CFrame.new(1.2, 6.2, 0) * CFrame.Angles(0, 0, -0.4))
+		add(
+			armour(
+				"NemHorn",
+				Vector3.new(0.6, 2.2, 0.6),
+				CFrame.new(-1.2, 6.2, 0) * CFrame.Angles(0, 0, 0.4),
+				trim
+			)
+		)
+		add(
+			armour(
+				"NemHorn",
+				Vector3.new(0.6, 2.2, 0.6),
+				CFrame.new(1.2, 6.2, 0) * CFrame.Angles(0, 0, -0.4),
+				trim
+			)
+		)
 	elseif d.head == "dome" then
 		add(part(Vector3.new(3, 3, 3), main, Enum.PartType.Ball, Enum.Material.Glass), CFrame.new(0, 5.8, 0))
 	elseif d.head == "cyclops" then
@@ -94,21 +144,50 @@ local function build(d: { [string]: any })
 		)
 	end
 	if d.cape then
-		add(part(Vector3.new(4.5 * wide, 6, 0.3), main, nil, Enum.Material.Fabric), CFrame.new(0, 0.5, 1.8))
+		add(
+			armour(
+				"NemCape",
+				Vector3.new(4.5 * wide, 6, 0.3),
+				CFrame.new(0, 0.5, 1.8),
+				main,
+				nil,
+				Enum.Material.Fabric
+			)
+		)
 	end
 	-- traits: one visible piece each
 	for i, t in N.traits do
 		if NemesisMath.hasTrait(d.traits or 0, i) then
 			if t.id == "plates" then
 				add(
-					part(Vector3.new(5.5 * wide, 3, 0.6), trim, nil, Enum.Material.DiamondPlate),
-					CFrame.new(0, 1.4, -1.9)
+					armour(
+						"NemPlates",
+						Vector3.new(5.5 * wide, 3, 0.6),
+						CFrame.new(0, 1.4, -1.9),
+						trim,
+						nil,
+						Enum.Material.DiamondPlate
+					)
 				)
 			elseif t.id == "second" then
-				add(
-					part(Vector3.new(1.2, 1.2, 4), trim, Enum.PartType.Cylinder, Enum.Material.Metal),
-					CFrame.new(3.4 * wide, 2, -1) * CFrame.Angles(0, math.pi / 2, 0)
-				)
+				if PowerMeshes.ready("Nemesis") then
+					-- the mesh is drawn along x: turned a quarter so it points ahead
+					add(
+						armour(
+							"NemCannon",
+							Vector3.new(4, 1.2, 1.2),
+							CFrame.new(3.4 * wide, 2, -1) * CFrame.Angles(0, math.pi / 2, 0),
+							trim,
+							nil,
+							Enum.Material.Metal
+						)
+					)
+				else
+					add(
+						part(Vector3.new(1.2, 1.2, 4), trim, Enum.PartType.Cylinder, Enum.Material.Metal),
+						CFrame.new(3.4 * wide, 2, -1) * CFrame.Angles(0, math.pi / 2, 0)
+					)
+				end
 			elseif t.id == "healDrone" then
 				add(
 					part(
@@ -121,7 +200,28 @@ local function build(d: { [string]: any })
 					true
 				)
 			elseif t.id == "summon" then
-				add(part(Vector3.new(0.3, 3, 0.3), trim, nil, Enum.Material.Metal), CFrame.new(1, 7, 0.8))
+				add(
+					armour(
+						"NemAntenna",
+						Vector3.new(0.3, 3, 0.3),
+						CFrame.new(1, 7, 0.8),
+						trim,
+						nil,
+						Enum.Material.Metal
+					)
+				)
+				if PowerMeshes.ready("Nemesis") then
+					add(
+						armour(
+							"NemAntennaTip",
+							Vector3.new(0.4, 0.4, 0.4),
+							CFrame.new(1, 8.6, 0.8),
+							main,
+							nil,
+							Enum.Material.Neon
+						)
+					)
+				end
 			end
 		end
 	end

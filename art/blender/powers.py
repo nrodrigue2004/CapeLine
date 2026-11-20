@@ -229,6 +229,57 @@ leg = [C(0.62, 1.05, 0, 0.0, 0, segs=10, r2=0.7), B(0.9, 0.6, 0.35, 0, 0.2, -0.6
 mesh("Mech", "MechLeg", leg, (210, 216, 226), "Metal")
 
 
+# ================================================================ the nemesis's armour (NemesisFx, Everything Left 218): each piece drawn to fill
+# the box of the part it replaces on the Brute Bot (centred on it), so NemesisFx sizes it to that same box.
+# shoulders: 5 x 1 x 3 (times the build's width)
+pads = []
+for sx in (-1, 1):
+    pad = S(1.0, sx * 1.6, 0, 0, sc=(0.95, 0.55, 1.45), segs=14, rings=8)
+    pads.append(kit.cut(pad, (0, 0, 1), keep_positive=True))
+    pads.append(B(1.7, 0.18, 2.6, sx * 1.55, -0.02, 0, bev=0.05))
+    for k in range(3):
+        pads.append(TOR(0.75 - k * 0.18, 0.06, sx * 1.6, 0.06 + k * 0.12, 0, segs=16, csegs=4))
+pads.append(B(1.6, 0.6, 2.2, 0, 0.05, 0, bev=0.12))
+mesh("Nemesis", "NemShoulders", pads, (90, 30, 40), "Metal")
+# a horn: 0.6 x 2.2 x 0.6, curling back at the tip
+mesh("Nemesis", "NemHorn", [T([(0, -1.1, 0), (0, -0.2, 0.05), (0, 0.6, 0.2), (0, 1.1, 0.5)], [0.3, 0.24, 0.14, 0.01], segs=10)],
+     (90, 30, 40), "SmoothPlastic")
+# the cape: 4.5 x 6 x 0.3, folds that open toward the hem
+rings = []
+for k in range(9):
+    y = 3 - 6 * k / 8
+    w = 1.8 + 0.45 * k / 8
+    ring = []
+    for j in range(13):
+        x = -w + 2 * w * j / 12
+        fold = 0.12 * math.sin(j * math.pi / 2) * (0.3 + k / 8)
+        ring.append((x, y, fold))
+    for j in range(13):
+        x = w - 2 * w * j / 12
+        fold = 0.12 * math.sin((12 - j) * math.pi / 2) * (0.3 + k / 8)
+        ring.append((x, y, fold + 0.08))
+    rings.append(ring)
+cape = rings_mesh(rings)
+for v in cape.data.vertices:  # a ragged hem: every other fold a little longer
+    if v.co.z < -2.9:
+        v.co.z -= 0.25 * (1 + math.sin(v.co.x * 4))
+mesh("Nemesis", "NemCape", [cape], (150, 30, 50), "Fabric")
+# chest plates: 5.5 x 3 x 0.6, a ridged breastplate with rivets
+plate = [B(5.0, 2.6, 0.4, 0, 0, 0, bev=0.15), B(0.5, 2.6, 0.5, 0, 0, -0.08, bev=0.12)]
+for sx in (-1, 1):
+    plate.append(B(2.0, 0.3, 0.45, sx * 1.4, 0.7, -0.04, bev=0.08))
+    plate += [S(0.12, sx * 2.25, y, -0.22, segs=6, rings=4) for y in (-0.9, 0.0, 0.9)]
+mesh("Nemesis", "NemPlates", plate, (90, 30, 40), "DiamondPlate")
+# the second arm cannon: 4 long (along x) by 1.2, barrel rings and a glowing muzzle
+can = [C(0.55, 2.8, 0.4, 0, 0, segs=14, axis="x"), C(0.4, 1.3, -1.6, 0, 0, segs=12, axis="x")]
+can += [TOR(0.5, 0.08, x, 0, 0, axis="x", segs=14, csegs=4) for x in (-1.2, -0.7, 0.9, 1.5)]
+mesh("Nemesis", "NemCannon", can, (70, 72, 80), "Metal")
+# the summoner's antenna: 0.3 x 3 x 0.3
+ant = [C(0.12, 2.6, 0, -0.2, 0, segs=8, r2=0.06), TOR(0.14, 0.03, 0, 0.2, 0, segs=10, csegs=4), TOR(0.12, 0.03, 0, 0.7, 0, segs=10, csegs=4)]
+mesh("Nemesis", "NemAntenna", ant, (70, 72, 80), "Metal")
+mesh("Nemesis", tint("NemAntennaTip"), [S(0.2, 0, 1.3, 0, segs=10, rings=6)], (255, 60, 60), "Neon")
+
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -287,7 +338,7 @@ if "--preview" in sys.argv:
     kit.studio(res=(1600, 700), samples=24)
     spots = {"Turret": (-14, 6, 3), "Drone": (-8, 6, 4), "Totem": (-2, 6, 3), "Mine": (3, 6, 0.5), "Mech": (8, 6, 1.2),
              "Guardian": (15, 8, 0), "SpiritBeast": (-15, -6, 7.8), "Hoverboard": (-6, -6, 3.7), "RockSlab": (2, -6, 4.6),
-             "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5)}
+             "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5), "Nemesis": (-22, 8, 4)}
     for look, meshes in LOOKS.items():
         x, yb, y = spots[look]
         for name, ob in meshes.items():
@@ -303,3 +354,51 @@ if "--preview" in sys.argv:
     ground.data.materials.append(kit.material("g", (70, 74, 84)))
     kit.camera((2, -48, 22), (2, 0, 3), lens=30)
     kit.render(os.path.join(kit.ROOT, "preview", "powers.png"))
+
+# ================================================================ --nemesis: the armour on a stand-in Brute Bot body, at NemesisFx's offsets and
+# boxes (front: -z), seen from the front and three-quarters
+if "--nemesis" in sys.argv:
+    for o in list(bpy.context.scene.objects):
+        o.hide_render = True
+    kit.studio(res=(1200, 700), samples=24)
+    PLACE = [  # mesh, box (Roblox x, up, z), centre, turn (degrees about z then x)
+        ("NemShoulders", (5, 1, 3), (0, 3.2, 0), 0),
+        ("NemHorn", (0.6, 2.2, 0.6), (-1.2, 6.2, 0), 23),
+        ("NemHorn", (0.6, 2.2, 0.6), (1.2, 6.2, 0), -23),
+        ("NemCape", (4.5, 6, 0.3), (0, 0.5, 1.8), 0),
+        ("NemPlates", (5.5, 3, 0.6), (0, 1.4, -1.9), 0),
+        ("NemCannon", (4, 1.2, 1.2), (3.4, 2, -1), 0),
+        ("NemAntenna", (0.3, 3, 0.3), (1, 7, 0.8), 0),
+        ("NemAntennaTip", None, None, 0),
+    ]
+    import mathutils
+    for k, yaw in enumerate((0, 35)):
+        base = mathutils.Matrix.Translation((k * 9 - 4.5, 0, 0)) @ mathutils.Matrix.Rotation(math.radians(yaw), 4, "Z")
+        body = kit.box("bot", 4.2, 3.2, 5.0, at=(0, 0, 1.6))
+        body.data.materials.append(kit.material("bot", (110, 116, 128), metal=0.4))
+        head = kit.box("bothead", 2.4, 2.2, 2.0, at=(0, 0, 5.1))
+        head.data.materials.append(kit.material("bot", (110, 116, 128), metal=0.4))
+        for o in (body, head):
+            o.matrix_world = base @ o.matrix_world
+        for name, box_, at, tilt in PLACE:
+            src = LOOKS["Nemesis"][name]
+            ob = copy(src)
+            kit.centre(ob)
+            if box_ is None:  # the tip rides the antenna's top
+                box_, at = (0.4, 0.4, 0.4), (1, 8.6, 0.8)
+            vs = ob.data.vertices
+            ext = [max(v.co[i] for v in vs) - min(v.co[i] for v in vs) for i in range(3)]
+            want = (box_[0], box_[2], box_[1])
+            for v in vs:
+                for i in range(3):
+                    v.co[i] *= want[i] / max(ext[i], 1e-6)
+            rgb, mat, _ = INFO[name]
+            ob.data.materials.append(kit.material("n_" + name, rgb, metal=0.5 if mat in ("Metal", "DiamondPlate") else 0.0,
+                                                  emit=2.0 if mat == "Neon" else 0.0))
+            ob.hide_render = False
+            M = mathutils.Matrix.Translation(rb(*at)) @ mathutils.Matrix.Rotation(math.radians(tilt), 4, "Y")
+            ob.matrix_world = base @ M
+    ground = kit.box("ground", 60, 30, 0.2, at=(0, 0, -0.9))
+    ground.data.materials.append(kit.material("g", (70, 74, 84)))
+    kit.camera((0, 26 if "--front" in sys.argv else -26, 9), (0, 0, 3), lens=40)
+    kit.render(os.path.join(kit.ROOT, "preview", "nemesis_armour.png"))
