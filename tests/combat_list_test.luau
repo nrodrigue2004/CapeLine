@@ -2299,6 +2299,105 @@ return function(T: any)
 		check(char:FindFirstChildOfClass("Highlight") == nil, "the glow ends with the charge")
 	end)
 
+	test(
+		"List combat: the aim preview draws a ground ring and scrolling chevrons (Everything Left 389)",
+		function()
+			local roblox = require("@lune/roblox")
+			local A = Config.Ui.aimArt
+			check(A ~= nil and A.ring > 0 and A.chevron > 0, "Config.Ui.aimArt ids (uploaded)")
+			for _, f in { "Ring.png", "Chevron.png" } do
+				check(fs.isFile("art/export/ui/aim/" .. f), f .. " drawn by art/ui/aim_ui.py")
+			end
+			check(
+				not string.find(fs.readFile("src/client/Fx/AimPreview.luau"), "PLACEHOLDER ART", 1, true),
+				"AimPreview is no longer placeholder art"
+			)
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local AimPreview = sim:require("Client.Fx.AimPreview")
+			local V = roblox.Vector3
+			local col = roblox.Color3.fromRGB(90, 200, 255)
+			local function draw(eff: any, level: number)
+				sim:run("draw", function()
+					AimPreview.draw(
+						eff,
+						V.new(0, 3, 0),
+						V.new(0, 0, 0),
+						V.new(0, 0, -20),
+						col,
+						level,
+						"Comic"
+					)
+				end)
+			end
+			local folder = sim.workspace:FindFirstChild("AimPreview")
+			draw({ shape = "nova", radius = 12, set = "Volt" }, 0)
+			folder = sim.workspace:FindFirstChild("AimPreview")
+			check(folder ~= nil, "the preview's folder")
+			local ring, strip
+			for _, p in folder:GetChildren() do
+				local art = p:FindFirstChild("AimArt")
+				if art and art.ClassName == "Decal" then
+					ring = p
+				elseif art and art.ClassName == "Texture" and not strip then
+					strip = p
+				end
+			end
+			check(ring ~= nil, "the ring wears its Decal")
+			local d = ring and ring:FindFirstChild("AimArt")
+			check(d ~= nil and d.Texture == "rbxassetid://" .. tostring(A.ring), "the ring picture")
+			check(
+				ring ~= nil and ring.Transparency == 1 and d.Transparency < 1,
+				"the picture shows, the part stays clear"
+			)
+			check(
+				ring ~= nil and math.abs(ring.Size.X - 24) < 0.01 and ring.Size.Y < 0.2,
+				"the ring is a flat 2r disc"
+			)
+			check(
+				d ~= nil and d.Color3 == col:Lerp(roblox.Color3.new(1, 1, 1), 0.15),
+				"tinted the power's colour"
+			)
+			-- a bolt: the chevron strip
+			draw({ shape = "bolt", range = 40, width = 2, set = "Volt" }, 0.5)
+			check(d.Transparency == 1, "the ring hides for a line")
+			local tex = strip and strip:FindFirstChild("AimArt")
+			local shown = 0
+			for _, p in folder:GetChildren() do
+				local t = p:FindFirstChild("AimArt")
+				if t and t.ClassName == "Texture" and t.Transparency < 1 then
+					shown += 1
+					check(t.Texture == "rbxassetid://" .. tostring(A.chevron), "the chevron picture")
+					check(t.StudsPerTileV == A.tile, "a chevron every tile")
+				end
+			end
+			check(shown == 1, "one strip for a line")
+			check(tex ~= nil, "the strips wear the chevron Texture")
+			-- a cone: five chevron rays
+			draw({ shape = "cone", range = 20, cone = 60, set = "Volt" }, 0)
+			shown = 0
+			for _, p in folder:GetChildren() do
+				local t = p:FindFirstChild("AimArt")
+				if t and t.ClassName == "Texture" and t.Transparency < 1 then
+					shown += 1
+					check(math.abs(p.Size.X - A.rayWidth) < 0.01, "a ray is rayWidth wide")
+				end
+			end
+			check(shown == 5, "five rays for a cone")
+			sim:run("hide", AimPreview.hide)
+			for _, p in folder:GetChildren() do
+				local t = p:FindFirstChild("AimArt")
+				check(t == nil or t.Transparency == 1, "hide clears every picture")
+			end
+		end
+	)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

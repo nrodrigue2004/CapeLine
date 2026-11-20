@@ -6,6 +6,18 @@ return {
 	-- see-through picture over the whole screen per LOOK (0: the drawn frame or lines alone)
 	-- the juice table's screen pictures (art/ui/juice_ui.py, Fx.JuiceFx; list-combat 2026-11-20): the stamp's worn
 	-- double frame (white, tinted), the level badge's gold medallion, and four confetti shapes in 64 x 64 cells
+	-- the aim preview's drawn ground pictures (art/ui/aim_ui.py, Fx.AimPreview; 0 = the neon parts): the ring's
+	-- Decal and the strips' chevron Texture, a chevron every `tile` studs scrolling `scroll` studs a second, cone
+	-- rays `rayWidth` wide, the pictures `clearer` more solid than the neon parts were, `turn` flips the strips
+	aimArt = {
+		ring = 71184909685713,
+		chevron = 76061579395131,
+		tile = 3,
+		scroll = 6,
+		rayWidth = 1.1,
+		clearer = 0.4,
+		turn = false,
+	},
 	juiceArt = { stamp = 130467031750054, badge = 138482713675163, confetti = 79631498004206 },
 	photoBackdrops = {
 		COMIC = 135372080682696,

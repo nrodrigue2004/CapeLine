@@ -7,9 +7,15 @@
 -- A charge grows it (ChargeRules.apply's size) and brightens it; at full charge it pulses white.
 -- While a skill charges (or a super is aimed) the path's own charge motes orbit the hand, closing in and
 -- growing as the charge fills, with the element's charge particles (overhaul plan step 6; Config.Fx.paths).
--- PLACEHOLDER ART: neon parts until the effects textures are uploaded.
+-- Art (Everything Left 389, 2026-11-20): the ring is a drawn ground marker (a double rim, ticks and four inward
+-- arrows) and the line and cone strips tile a glowing chevron that scrolls outward (art/ui/aim_ui.py,
+-- Config.Ui.aimArt), each a Decal or Texture tinted the power's colour on a see-through flat part; the neon parts
+-- come back only while an id is 0.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local CombatFx = require(script.Parent.CombatFx)
 local FxLib = require(script.Parent.FxLib)
@@ -25,6 +31,12 @@ local WHITE = Color3.new(1, 1, 1)
 local moteList: { CombatFx.Mote } = {}
 local moteSet: string? = nil
 local nextCharge = 0
+local ART = Config.Ui.aimArt
+local ringArt = ART and ART.ring and ART.ring > 0
+local chevArt = ART and ART.chevron and ART.chevron > 0
+-- the chevrons' picture top toward the aim (Config.Ui.aimArt.turn flips the strips if Studio shows them inward)
+local TURN = if ART and ART.turn then CFrame.Angles(0, math.pi, 0) else CFrame.identity
+AimPreview.art = { ring = ringArt, chevron = chevArt }
 
 local function dropMotes()
 	if #moteList > 0 then
@@ -56,14 +68,59 @@ local function make(shape: Enum.PartType?): Part
 	return p
 end
 
+-- the drawn picture on a flat part's top: a Decal (the ring) or a tiled Texture (the chevron strips)
+local function dress(p: Part, kind: string)
+	if kind == "ring" then
+		local d = Instance.new("Decal")
+		d.Name = "AimArt"
+		d.Face = Enum.NormalId.Top
+		d.Texture = "rbxassetid://" .. tostring(ART.ring)
+		d.Parent = p
+	else
+		local t = Instance.new("Texture")
+		t.Name = "AimArt"
+		t.Face = Enum.NormalId.Top
+		t.Texture = "rbxassetid://" .. tostring(ART.chevron)
+		t.StudsPerTileV = ART.tile
+		t.Parent = p
+	end
+end
+
 local function parts()
 	if not ring or not ring.Parent then
-		ring = make(Enum.PartType.Cylinder)
+		ring = make(if ringArt then nil else Enum.PartType.Cylinder)
+		if ringArt then
+			dress(ring :: Part, "ring")
+		end
 		strip = make()
+		if chevArt then
+			dress(strip :: Part, "chevron")
+		end
 		rays = {}
 		for i = 1, RAYS do
 			rays[i] = make()
+			if chevArt then
+				dress(rays[i], "chevron")
+			end
 		end
+	end
+end
+
+-- show a part: its picture tinted (the part itself stays clear), or the neon part
+local function show(p: Part, c: Color3, alpha: number, width: number?)
+	local art = p:FindFirstChild("AimArt")
+	if art and (art:IsA("Decal") or art:IsA("Texture")) then
+		p.Transparency = 1
+		art.Color3 = c
+		art.Transparency = math.max(0, alpha - ART.clearer)
+		if art:IsA("Texture") then
+			art.StudsPerTileU = width or 1
+			-- scroll outward along the aim
+			art.OffsetStudsV = (os.clock() * ART.scroll) % ART.tile
+		end
+	else
+		p.Color = c
+		p.Transparency = alpha
 	end
 end
 
@@ -88,14 +145,20 @@ function AimPreview.kind(shape: string?): string
 end
 
 local function hideAll()
-	if ring then
-		ring.Transparency = 1
+	local function off(p: Part?)
+		if not p then
+			return
+		end
+		p.Transparency = 1
+		local art = p:FindFirstChild("AimArt")
+		if art and (art:IsA("Decal") or art:IsA("Texture")) then
+			art.Transparency = 1
+		end
 	end
-	if strip then
-		strip.Transparency = 1
-	end
+	off(ring)
+	off(strip)
 	for _, r in rays do
-		r.Transparency = 1
+		off(r)
 	end
 end
 
@@ -130,18 +193,21 @@ function AimPreview.draw(
 			at = Vector3.new(at.X, point.Y + 0.2, at.Z)
 		end
 		local rg = ring :: Part
-		rg.Size = Vector3.new(0.15, r * 2, r * 2)
-		rg.CFrame = CFrame.new(at + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.rad(90))
-		rg.Color = c
-		rg.Transparency = alpha + 0.1
+		if ringArt then
+			rg.Size = Vector3.new(r * 2, 0.1, r * 2)
+			rg.CFrame = CFrame.new(at + Vector3.new(0, 0.12, 0))
+		else
+			rg.Size = Vector3.new(0.15, r * 2, r * 2)
+			rg.CFrame = CFrame.new(at + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.rad(90))
+		end
+		show(rg, c, alpha + 0.1)
 	elseif kind == "line" then
 		local len = math.min(range, dir.Magnitude)
 		local w = math.max(0.6, (eff.width or 1.5) * 0.5)
 		local st = strip :: Part
 		st.Size = Vector3.new(w, 0.15, len)
-		st.CFrame = CFrame.lookAt(origin + dir.Unit * len / 2, origin + dir.Unit * len)
-		st.Color = c
-		st.Transparency = alpha
+		st.CFrame = CFrame.lookAt(origin + dir.Unit * len / 2, origin + dir.Unit * len) * TURN
+		show(st, c, alpha, w)
 	elseif kind == "cone" then
 		local f = dir.Unit
 		local up = Vector3.new(0, 1, 0)
@@ -152,10 +218,10 @@ function AimPreview.draw(
 			local a = -half + (i - 1) / (RAYS - 1) * half * 2
 			local d = (f * math.cos(a) + right * math.sin(a)).Unit
 			local len = range
-			r.Size = Vector3.new(0.25, 0.1, len)
-			r.CFrame = CFrame.lookAt(origin + d * len / 2, origin + d * len)
-			r.Color = c
-			r.Transparency = alpha
+			local rw = if chevArt then ART.rayWidth else 0.25
+			r.Size = Vector3.new(rw, 0.1, len)
+			r.CFrame = CFrame.lookAt(origin + d * len / 2, origin + d * len) * TURN
+			show(r, c, alpha, rw)
 		end
 	end
 	-- the path's charge motes around the hand while it charges (a super's aim holds them half-gathered)
