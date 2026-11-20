@@ -161,4 +161,201 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+
+	test(
+		"First 30: after the prologue the next mission is on the HUD with START (no Journal hunt)",
+		function()
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local ProfileSchema = require("../src/shared/ProfileSchema")
+			local StoryPlan = require("../src/shared/StoryPlan")
+			local trees = UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath)))
+			local P = Config.Ui.phone
+			for _, d in
+				{
+					{
+						name = "Android 20:9",
+						w = 800,
+						h = 360,
+						top = 58,
+						left = 32,
+						right = 32,
+						bottom = 0,
+						touch = true,
+					},
+					{
+						name = "iPad",
+						w = 1024,
+						h = 768,
+						top = 58,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = true,
+					},
+					{
+						name = "iPhone SE",
+						w = 667,
+						h = 375,
+						top = 58,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = true,
+					},
+					{
+						name = "iPhone 14",
+						w = 844,
+						h = 390,
+						top = 58,
+						left = 47,
+						right = 47,
+						bottom = 0,
+						touch = true,
+					},
+					{
+						name = "PC 1080p",
+						w = 1920,
+						h = 1080,
+						top = 58,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = false,
+					},
+				}
+			do
+				local sim = UiSim.new(trees, d)
+				sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+				local Hud = sim:require("Client.Ui.Hud")
+				sim:run("Hud", Hud.init)
+				local StoryClient = sim:require("Client.Controllers.StoryClient")
+				local StoryHud = sim:require("Client.Ui.StoryHud")
+				sim:run("StoryClient", StoryClient.init)
+				sim:run("StoryHud", StoryHud.init)
+				local State = sim:require("Client.State")
+				local entered = nil
+				StoryClient.enter = function(num: number)
+					entered = num
+				end
+				local story = ProfileSchema.newCharacter().story
+				StoryPlan.clear(story, 1) -- the prologue is done
+				local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+				local function journal(level: number)
+					State.hero.level = level
+					sim:run("StoryState", function()
+						remotes:WaitForChild("StoryState").OnClientEvent:Fire({
+							side = "hero",
+							act = 1,
+							opening = 1,
+							missions = story.missions,
+							choices = story.choices,
+							pinned = 0,
+							perks = 0,
+							rep = { 0, 0, 0 },
+							states = {},
+							sq = {},
+						})
+					end)
+					sim:run("frame", function()
+						sim.service("RunService").RenderStepped:Fire(1 / 60)
+					end)
+				end
+				journal(Config.Story.opening.reward.level)
+				local panel = sim.playerGui:FindFirstChild("NextMission", true)
+				check(
+					panel ~= nil and panel.Visible,
+					d.name .. ": the next mission's card shows after the prologue"
+				)
+				if not panel then
+					continue
+				end
+				local start = panel:FindFirstChild("Start", true)
+				local texts = {}
+				for _, c in panel:GetDescendants() do
+					if c:IsA("TextLabel") then
+						table.insert(texts, c.Text)
+					end
+				end
+				local all = table.concat(texts, " | ")
+				check(
+					string.find(all, "MISSION 2: SAFEHOUSE", 1, true) ~= nil,
+					d.name .. ": it names Safehouse: " .. all
+				)
+				check(start ~= nil and start.Visible, d.name .. ": with START")
+				for _, issue in
+					sim:issues({
+						minTap = P.minTap,
+						minText = P.minText,
+						safe = true,
+						only = { StoryHud = true },
+					})
+				do
+					check(false, d.name .. ": " .. issue)
+				end
+				-- clear of every HUD button
+				local mine
+				local others = {}
+				for _, b in sim:boxes() do
+					if b.inst == panel then
+						mine = b
+					elseif
+						(b.inst:IsA("GuiButton") or b.inst.Name == "Status")
+						and not b.inst:IsDescendantOf(panel)
+					then
+						table.insert(others, b)
+					end
+				end
+				check(mine ~= nil, d.name .. ": the card has a box")
+				if mine then
+					for _, o in others do
+						local hit = mine.x < o.x + o.w
+							and o.x < mine.x + mine.w
+							and mine.y < o.y + o.h
+							and o.y < mine.y + mine.h
+						check(
+							not hit,
+							string.format(
+								"%s: the card (%d,%d %dx%d) covers %s (%d,%d %dx%d)",
+								d.name,
+								mine.x,
+								mine.y,
+								mine.w,
+								mine.h,
+								o.inst:GetFullName(),
+								o.x,
+								o.y,
+								o.w,
+								o.h
+							)
+						)
+					end
+				end
+				if start then
+					sim:tap(start)
+				end
+				check(entered == 2, d.name .. ": START enters mission 2 (" .. tostring(entered) .. ")")
+				-- Safehouse cleared at level 3: Framed needs level 4, so the card says how to get there, no START
+				StoryPlan.clear(story, 2)
+				journal(3)
+				check(
+					panel.Visible and start ~= nil and not start.Visible,
+					d.name .. ": a mission above the level shows no START"
+				)
+				local need = if d.touch and d.h < 500
+					then string.format(Config.Ui.nextMission.pillLevel, 3, Config.Story.missions[3].minLevel)
+					else string.format(Config.Ui.nextMission.level, Config.Story.missions[3].minLevel)
+				local seen = false
+				for _, c in panel:GetDescendants() do
+					if c:IsA("TextLabel") and c.Text == need then
+						seen = true
+					end
+				end
+				check(seen, d.name .. ": and the level it needs")
+				check(#sim.errors == 0, d.name .. ": no errors: " .. table.concat(sim.errors, " | "))
+			end
+		end
+	)
 end

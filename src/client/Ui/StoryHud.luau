@@ -80,6 +80,13 @@ local markerGui: BillboardGui
 local markerText: TextLabel
 -- fix-hud (nate, gaps7: "need a way to get rid of popups"): the trackers' X folds them until the next step
 local hiddenMission: string? = nil
+-- first-30: the next story mission's card (Config.Ui.nextMission) and the mission its X folded
+local nextPanel: Frame
+local nextTitle: TextLabel
+local nextText: TextLabel
+local nextStart: TextButton
+local nextNum: number? = nil
+local hiddenNext: number? = nil
 local hiddenQuest: string? = nil
 local areaPart: Part
 
@@ -972,6 +979,30 @@ local function frame()
 	else
 		questPanel.Visible = false
 	end
+	-- first-30: the next story mission, out in the city with nothing else on (no quest, card or busy screen)
+	local num, open = StoryHud.nextMission()
+	local busy = (Popups.busy ~= nil and Popups.busy()) or Popups.cardUp()
+	nextNum = if open then num else nil
+	if num and not questPanel.Visible and not tracker.Visible and not busy and hiddenNext ~= num then
+		local NM = U.nextMission
+		nextPanel.Visible = true
+		local m = S.missions[num]
+		if Kit.compact() and not open then
+			nextTitle.Text = string.format(NM.pillLevel, num, m.minLevel)
+		else
+			nextTitle.Text = string.format(
+				if Kit.compact() then NM.pillTitle else NM.title,
+				num,
+				string.upper(missionName(num))
+			)
+		end
+		nextText.Text = if open
+			then S.missions[num].blurb or ""
+			else string.format(NM.level, S.missions[num].minLevel)
+		nextStart.Visible = open
+	else
+		nextPanel.Visible = false
+	end
 	-- the prologue's words: subtitles, SPARK DETECTED, the title card
 	local t = if o.hold then 0 else StoryClient.beatTime()
 	-- (a device-started scene feeds its own lines: CinemaHud)
@@ -1009,6 +1040,32 @@ local function frame()
 		end
 	end
 	titleCard.Visible = showTitle
+end
+
+-- first-30: the story mission the Journal pins next and whether it can start now ("open"); nil when a side quest
+-- chain is pinned, the prologue is next or every mission that is out is done. Out in the city only: not in the
+-- prologue, a held ceremony or a mission.
+function StoryHud.nextMission(): (number?, boolean)
+	local j = StoryClient.journal
+	if
+		not j
+		or (j.pinned or 0) ~= 0
+		or StoryClient.inOpening()
+		or StoryClient.held()
+		or StoryClient.inMission()
+	then
+		return nil, false
+	end
+	local num = StoryPlan.nextMission(Config, j)
+	local m = num and S.missions[num]
+	if not num or not m or m.opening then
+		return nil, false
+	end
+	local st = StoryPlan.state(Config, j, State.hero.level or 1, num)
+	if st ~= "open" and st ~= "level" then
+		return nil, false
+	end
+	return num, st == "open"
 end
 
 function StoryHud.init()
@@ -1057,6 +1114,59 @@ function StoryHud.init()
 	questPanel, questTitle, questText, questFill = buildTracker("Quest", 136)
 	questTitle.Size = UDim2.new(1, -56, 0, 22) -- fix-hud: clear of the X
 	questText.Size = UDim2.new(1, -56, 0, 18)
+	-- first-30: the next mission's card in the quest tracker's slot, START where LEAVE sits on the mission's
+	nextPanel, nextTitle, nextText = buildTracker("NextMission", U.nextMission.y)
+	local nextBar = nextPanel:FindFirstChildWhichIsA("Frame")
+	if nextBar then
+		nextBar.Visible = false
+	end
+	nextText.TextWrapped = true
+	nextStart = Kit.button({
+		Text = U.nextMission.start,
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundColor3 = Kit.color.gold,
+		maxText = 16,
+	}, function()
+		if nextNum then
+			StoryClient.enter(nextNum)
+		end
+	end)
+	nextStart.Name = "Start"
+	nextStart.Parent = nextPanel
+	-- a phone's HUD has no room for the card under the top row: a one-line pill between the status panel and the
+	-- action buttons (Config.Ui.nextMission.pill), the blurb left out
+	local function nextLayout()
+		local NM = U.nextMission
+		if Kit.compact() then
+			local pill = NM.pill
+			nextPanel.AnchorPoint = Vector2.new(0, 0)
+			nextPanel.Position = UDim2.fromOffset(pill.x, pill.y)
+			nextPanel.Size = UDim2.fromOffset(pill.w, pill.h)
+			nextTitle.Size = UDim2.new(1, -86, 1, -8)
+			nextTitle.Position = UDim2.fromOffset(8, 4)
+			nextText.Visible = false
+			nextStart.Size = UDim2.fromOffset(70, pill.h)
+			nextStart.Position = UDim2.new(1, 0, 0.5, 0)
+		else
+			nextPanel.AnchorPoint = Vector2.new(0.5, 0)
+			nextPanel.Position = UDim2.new(0.5, 0, 0, NM.y)
+			nextPanel.Size = UDim2.new(0.6, 0, 0, 64)
+			nextTitle.Size = UDim2.new(1, -110, 0, 22)
+			nextTitle.Position = UDim2.fromOffset(8, 4)
+			nextText.Size = UDim2.new(1, -110, 0, 34)
+			nextText.Visible = true
+			nextStart.Size = UDim2.fromOffset(90, 44)
+			nextStart.Position = UDim2.new(1, -6, 0.5, 0)
+		end
+	end
+	nextLayout()
+	Kit.LayoutChanged:Connect(nextLayout)
+	GuideHud.keepClear(nextPanel)
+	Dismiss.attach(nextPanel, function()
+		local n = StoryHud.nextMission()
+		hiddenNext = n
+		nextPanel.Visible = false
+	end, { thin = true, tap = false, inset = 96 })
 	-- the guide line box keeps clear of the trackers and the choice card (lore step 6)
 	GuideHud.keepClear(tracker)
 	GuideHud.keepClear(questPanel)
