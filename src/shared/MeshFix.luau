@@ -26,6 +26,7 @@ local TURNS: { [string]: CFrame } = {
 for _, set in
 	{
 		"Activity",
+		"Alive", -- alive-world: safehouses, cranes, chimneys and roof gardens, 42 of 42 (2026-11-20)
 		"Arms",
 		"Backs",
 		"Belts",

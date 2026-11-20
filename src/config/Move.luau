@@ -89,11 +89,19 @@ return {
 	-- Each move's numbers are below (`moves`); every speed stays inside its pick's server cap (MoveRanks.check), and
 	-- knocks and stuns on heroes go through PvpRules' compression.
 	choices = { 3, 5 },
+	-- the buttons' names in a move's `how` (the MOBILITY tab's cards; InputController's bindings): PC, gamepad and
+	-- the touch buttons
+	moveKeys = {
+		mouse = { Leap = "Space", Fly = "F", Boost = "Shift", Down = "Ctrl" },
+		gamepad = { Leap = "A", Fly = "Y", Boost = "LT", Down = "B" },
+		touch = { Leap = "LEAP", Fly = "FLY", Boost = "BOOST", Down = "DOWN" },
+	},
 	moves = {
 		-- Flight rank 3
 		sonicDive = {
 			name = "Sonic Boom Dive",
 			text = "Dive from high up: land in a shockwave that knocks robots and cracks roofs",
+			how = "Fly up high, then hold {Down} to dive into the street or a roof", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- a dive (falling at `speed` or more after `drop` studs of fall) that hits the ground or a roof bursts
 			-- `radius` round the landing: robots take `coeff` x the hero's power and a `knock`; a roof takes `dmg`
 			drop = 40,
@@ -107,6 +115,7 @@ return {
 		slipstream = {
 			name = "Slipstream",
 			text = "Allies in your wake fly faster; boost through a hole you broke to refill stamina",
+			how = "Hold {Boost} while flying: allies right behind you go faster", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- an ally flying within `width` of the line `length` studs behind a boosting Slipstream hero cruises up
 			-- to `ally` x their cruise (never past their own boost, so inside their cap); a ram through a wall
 			-- while boosting gives back `refill` stamina
@@ -120,17 +129,23 @@ return {
 		phase = {
 			name = "Phase",
 			text = "Boost through buildings as a flicker, without breaking them",
+			how = "Hold {Boost} and fly straight into a building", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- boosting into a wall passes through as a ghost for up to `time` s (stamina `drain` a second on top),
 			-- every `cooldown` s after it ends; nothing breaks
 			time = 1.2,
 			drain = 18,
 			cooldown = 3,
 			clear = 3, -- the flicker holds on (up to 2 x time) while a building is within this many studs
+			-- a flicker that runs out still inside a building carries the hero out (never left in the walls): the
+			-- first open spot on along the travel line (every `step` studs up to `far`), else the nearest open side
+			-- (eight ways round and straight up, up to `side`), flown to at `speed` while still a ghost
+			exit = { step = 4, far = 60, side = 40, speed = 60 },
 		},
 		-- (nate's sheet called it Comet; Comet is an old-lore name the text checks refuse, so it shows as Blazing Ram)
 		blazeRam = {
 			name = "Blazing Ram",
 			text = "Rams leave a fire trail and blow walls outward, for more stamina",
+			how = "Hold {Boost} and fly into a wall", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- a ram's structure hit x `ram`, its pieces thrown outward x `throw`; each ram costs `stamina`; the fire
 			-- trail burns robots `trailCoeff` x power a second within `trailRadius` for `trailLife` s
 			ram = 1.6,
@@ -144,6 +159,7 @@ return {
 		tornadoRun = {
 			name = "Tornado Run",
 			text = "Run in a tight circle to raise a whirlwind that lifts robots and debris",
+			how = "Hold {Boost} and run round in a tight circle", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- `turns` full turns within `radius` of one middle at `speed` or more, inside `window` s, raise a whirlwind
 			-- there for `life` s: robots within `lift.radius` rise `lift.up` and are stunned `stun` s, taking `coeff`
 			turns = 1.5,
@@ -155,10 +171,15 @@ return {
 			stun = 1.5,
 			coeff = 0.6,
 			cooldown = 8,
+			slow = 0.1, -- this share of the samples may dip under `speed` (a stumble does not spoil the circle)
+			-- touch and gamepad (nate 2026-11-20: forgiving on phones): fewer turns, a wider ring, a slower run, more
+			-- dips allowed; the server's own check (MoveActService) already passes all of these
+			easy = { turns = 1.1, radius = 34, speed = 42, slow = 0.25, window = 6 },
 		},
 		afterimage = {
 			name = "Afterimage",
 			text = "Stop hard from top speed to leave a decoy that robots shoot at",
+			how = "Sprint with {Boost}, then let go of the stick to stop hard", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- slowing from `from` studs/s to under `to` within `within` s leaves a decoy where the hero stopped for
 			-- `life` s (robots in `taunt` studs shoot it), every `cooldown` s
 			from = 70,
@@ -172,6 +193,7 @@ return {
 		sonicWake = {
 			name = "Sonic Wake",
 			text = "Pass by at top speed to flip cars and shatter windows",
+			how = "Hold {Boost} to top speed and run past cars and walls", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- running at `speed` or more: cars within `radius` flip (VehicleService), building faces within `radius`
 			-- crack (a small structure hit, `dmg`, at most every `every` s a building)
 			speed = 95,
@@ -182,6 +204,7 @@ return {
 		blink = {
 			name = "Blink",
 			text = "A 30-stud dash in a blink, every 6 s",
+			how = "While running fast, let go of {Boost} and tap it again", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- Boost tapped while running: the hero covers `range` studs along the stick (stopping short of walls) in
 			-- `time` s (a server-granted move), every `cooldown` s
 			range = 30,
@@ -192,6 +215,7 @@ return {
 		impactLanding = {
 			name = "Impact Landing",
 			text = "Big landings stun robots and crack the street, more from higher",
+			how = "Land from a big leap or a high roof", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- a landing after `minFall` studs of fall: robots within radius (minFall: `radius[1]`, `fullFall`:
 			-- `radius[2]`) are stunned `stun` s and take `coeff`; the street gets a crater from `crater` fall up
 			minFall = 30,
@@ -206,6 +230,7 @@ return {
 		wallCrusher = {
 			name = "Wall Crusher",
 			text = "Climb grabs punch handholds; a kick-off shatters the panel",
+			how = "Leap at a wall to grab it, then pull the stick away and press {Leap}", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- each climb grab bites `bite` x the climb's bite damage; a kick-off hits the panel for `kick`
 			bite = 2.5,
 			kick = 1200,
@@ -216,6 +241,7 @@ return {
 		meteorStrike = {
 			name = "Meteor Strike",
 			text = "From the top of a leap, aim a pound that craters the ground",
+			how = "At the top of a leap, look at a spot and press {Down}", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- Down near the top of a leap (within `apex` of its peak speed) aims a pound at the camera's target up to
 			-- `range` away; it lands at `speed`, bursting `radius` (`coeff`, `knock`) and digging a crater (`dmg`)
 			apex = 18,
@@ -230,6 +256,7 @@ return {
 		moonJump = {
 			name = "Moon Jump",
 			text = "One extra leap in mid-air",
+			how = "Press {Leap} again in the air", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- Leap in the air once a leap: a fresh tapped leap (`share` of a full one's speed) from where the hero is
 			share = 0.7,
 		},
@@ -237,6 +264,7 @@ return {
 		kickChain = {
 			name = "Kick Chain",
 			text = "Each wall-kick in a row is faster, up to 5",
+			how = "Press {Leap} on a wall, then quickly again on the next one", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- each kick-off within `within` s of the last landing on a wall adds `step` to the next kick's speed, up to
 			-- `most` in a row
 			step = 0.07,
@@ -246,6 +274,7 @@ return {
 		ceilingDrop = {
 			name = "Ceiling Drop",
 			text = "Drop from a wall or ceiling onto a robot for a takedown",
+			how = "Crawl over a robot on a ceiling or wall and press {Down}", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- letting go of a wall or ceiling with a robot within `reach` below: the hero drops on it, `coeff` x power
 			-- (a takedown that floors a basic robot), stunning those within `radius`
 			reach = 40,
@@ -259,6 +288,7 @@ return {
 		shadowFlip = {
 			name = "Shadow Flip",
 			text = "A dodge flip leaves a clone that draws fire",
+			how = "Press {Down} to flip", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- each flip leaves a decoy where it started for `life` s (robots within `taunt` shoot it), every `cooldown` s
 			life = 3,
 			taunt = 50,
@@ -267,6 +297,7 @@ return {
 		slingshot = {
 			name = "Slingshot",
 			text = "Crouch on a wall, then launch about 120 studs",
+			how = "On a wall, hold {Down}, aim the camera away, then let go", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- hold Down on a wall for `charge` s, let go to launch away from it along the camera's look (a
 			-- server-granted move of `range` studs over `time` s, arcing `up` at the top)
 			charge = 0.5,
@@ -279,6 +310,7 @@ return {
 		doubleZip = {
 			name = "Double Zip",
 			text = "Fire two lines at once and shoot forward between them",
+			how = "Press {Leap} while swinging", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- Leap while swinging fires a second line `spread` degrees off the first; the hero shoots forward from
 			-- between them at `speed` (inside the zip cap), `range` studs
 			spread = 40,
@@ -289,6 +321,7 @@ return {
 		yank = {
 			name = "Yank",
 			text = "Pull a car, chunk or robot to you, then throw it",
+			how = "On the ground, aim at a robot, car or bin and press {Fly}", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- Fly on the ground (or swinging) at a robot, car or loose chunk within `range` pulls it to the hero over
 			-- `time` s; then it is carried and thrown like a picked-up prop (ImpactService throws)
 			range = 70,
@@ -301,6 +334,7 @@ return {
 		wreckingKick = {
 			name = "Wrecking Kick",
 			text = "Kick through walls mid-swing; let go fast to bowl robots over",
+			how = "Swing fast into a wall; let go at full speed to bowl robots over", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- swinging into a wall at `speed` or more kicks it out (a ram); a release at `bowl` or more knocks robots
 			-- within `radius` of the path for `knock`, `coeff`
 			speed = 55,
@@ -313,6 +347,7 @@ return {
 		skyHook = {
 			name = "Sky Hook",
 			text = "A full-strength line from the sky in open areas, every 10 s",
+			how = "Hold {Fly} in the air with no buildings near", -- the input in words ({Leap} etc.: Config.Move.moveKeys per device)
 			-- when no building is in reach, the line hangs from the sky at full swing strength (not the weak sky
 			-- line), every `cooldown` s
 			cooldown = 10,

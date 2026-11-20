@@ -41,6 +41,7 @@ local GuideClient = {}
 local G = Config.Story.guides
 local player = Players.LocalPlayer
 local radio = GuidePlan.radio()
+GuideClient.radio = radio -- (first-30) the rate state, for tests that step past the gap
 
 local function side(): string
 	return if State.hero.side == "villain" then "villain" else "hero"
@@ -126,6 +127,18 @@ local function onRepFacts(data: any)
 				end
 			end
 		end
+	end
+end
+
+-- first-30: a level-up's POWERS line waiting for the radio (GuidePlan.powerAt), tried every frame until `till`
+local powerLine: { key: string, line: string, till: number }? = nil
+local function powerStep(now: number)
+	local p = powerLine
+	if not p then
+		return
+	end
+	if now > p.till or say(p.key, p.line) then
+		powerLine = nil
 	end
 end
 
@@ -307,6 +320,12 @@ function GuideClient.init()
 			if n then
 				say("unlock" .. n, "unlock", n)
 			end
+			-- first-30: the new power slot or move training, once the radio is free (after the unlock line)
+			local power = GuidePlan.powerAt(Config, data.level)
+			if power then
+				powerLine =
+					{ key = "power" .. data.level, line = power, till = os.clock() + G.radio.powerWait }
+			end
 		end
 	end)
 	StoryClient.Broadcast:Connect(function(id)
@@ -325,6 +344,7 @@ function GuideClient.init()
 		if acc >= 1 then
 			acc = 0
 			idleStep(os.clock())
+			powerStep(os.clock())
 		end
 	end))
 end

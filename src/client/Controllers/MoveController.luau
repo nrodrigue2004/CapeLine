@@ -182,6 +182,7 @@ local ride: { kind: string, speed: number, untilT: number, dir: Vector3 }? = nil
 local phasing = false
 local phaseStart = -math.huge
 local phaseEnded = -math.huge
+local phaseOutUntil = 0 -- a flicker carrying the hero out of a building (Phase's exit) until then
 local phaseGroups: { [BasePart]: string } = {}
 local PHASE_GROUP = "TravelFlight" -- BeaconService.GROUP: collides with nothing (the street is held below)
 local overlap = OverlapParams.new()
@@ -985,6 +986,23 @@ function MoveController.labels(): { leap: string, fly: string?, boost: string?, 
 			out.leap = "ZIP" -- up the line and over the top
 		end
 	end
+	-- the mobility moves a button sets off right now, named on it (the HUD and touch buttons; the MOBILITY tab's
+	-- cards say the same in words), so Blink, Meteor Strike, Moon Jump and Double Zip are found without a manual
+	if pick == "speed" and not air and canUse("blink") and root then
+		local v = root.AssemblyLinearVelocity
+		if Vector3.new(v.X, 0, v.Z).Magnitude >= M.mobility.speed.hop.from then
+			out.boost = "BLINK" -- tap it again while running fast
+		end
+	elseif pick == "leap" and air then
+		if canUse("meteorStrike") and MoveActs.apex(MOVES.meteorStrike, vel.Y) then
+			out.down = "METEOR"
+		end
+		if out.leap ~= "BOUNCE" and activeMoves.moonJump and not moonUsed then
+			out.leap = "MOON"
+		end
+	elseif pick == "swing" and mode == "swing" and canUse("doubleZip") then
+		out.leap = "2 LINES"
+	end
 	return out
 end
 
@@ -1154,24 +1172,59 @@ local function startPhase(now: number, pos: Vector3, v: Vector3)
 	MoveController.act("phase", pos, v, nil)
 end
 
+-- is there building within r of a point? (the hero's own body left out)
+local function inBuilding(at: Vector3, r: number): boolean
+	for _, part in Workspace:GetPartBoundsInRadius(at, r, overlap) do
+		if buildingOf(part) then
+			return true
+		end
+	end
+	return false
+end
+
 local function phaseStep(pos: Vector3, now: number, dt: number)
 	local m = MOVES.phase
-	if MoveController.mode ~= "fly" then
+	overlap.FilterDescendantsInstances = rayParams.FilterDescendantsInstances
+	if now < phaseOutUntil then
+		return -- flying out to the open spot, still a ghost (a dash)
+	end
+	local inside = inBuilding(pos, m.clear)
+	local flying = MoveController.mode == "fly"
+	if not flying and not inside then
 		endPhase(now)
 		return
 	end
-	MoveController.stamina = math.max(0, MoveController.stamina - m.drain * dt)
-	overlap.FilterDescendantsInstances = rayParams.FilterDescendantsInstances
-	local inside = false
-	for _, part in Workspace:GetPartBoundsInRadius(pos, m.clear, overlap) do
-		if buildingOf(part) then
-			inside = true
-			break
-		end
+	if flying then
+		MoveController.stamina = math.max(0, MoveController.stamina - m.drain * dt)
 	end
-	if
-		not MoveActs.phaseHolds(m, phaseStart, now, inside) or (not inside and not MoveController.boosting)
-	then
+	local over = not MoveActs.phaseHolds(m, phaseStart, now, inside)
+	if inside and (over or not flying) then
+		-- out of time (or out of the flight) inside a building: carry the hero out along its travel, or to the
+		-- nearest open side, never left in the walls (MoveActs.phaseExit); with nothing open the flicker goes on
+		local r = root :: BasePart
+		local travel = if vel.Magnitude > 1 then vel else r.CFrame.LookVector
+		local x, y, z = MoveActs.phaseExit(
+			m,
+			pos.X,
+			pos.Y,
+			pos.Z,
+			travel.X,
+			travel.Y,
+			travel.Z,
+			function(bx, by, bz)
+				return inBuilding(Vector3.new(bx, by, bz), m.clear)
+			end
+		)
+		if x and y and z then
+			local to = Vector3.new(x, y, z)
+			local d = (to - pos).Magnitude
+			local t = math.max(0.05, d / m.exit.speed)
+			MoveController.dash(to - pos, d, t)
+			phaseOutUntil = now + t + 0.05
+		end
+		return
+	end
+	if over or (not inside and not MoveController.boosting) then
 		endPhase(now)
 		return
 	end
@@ -2230,6 +2283,7 @@ step = function(dt: number)
 		or mode == "pound"
 		or mode == "ride"
 		or (mode == "swing" and vel.Y > 0)
+		or phasing -- a ghost never lands (it would stand in a wall or drop through the street)
 	if onGround and now - airSince > 0.15 and not selfManaged then
 		if mode == "swing" then
 			dropLine()

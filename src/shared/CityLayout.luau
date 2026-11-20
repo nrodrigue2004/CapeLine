@@ -572,6 +572,7 @@ local function lotBlock(c: Ctx, rng: any, bx: number, bz: number, minX: number, 
 			if hasTank and t.rooftop.gardenChance then
 				-- Uptown: a roof garden, a planted bed you can land in
 				box(boxes, "prop", lcx, top + 0.6, lcz, sx * 0.6, 1.2, sz * 0.6, "leaf")
+				boxes[#boxes].look = "RoofGarden" -- (alive-world: planters, shrubs, flowers over the bed, Art.Alive)
 			elseif hasTank then
 				box(boxes, "prop", lcx + sx / 4, top + 6, lcz + sz / 4, 10, 12, 10, "brick", "cylinder")
 				if kit and kit.play then

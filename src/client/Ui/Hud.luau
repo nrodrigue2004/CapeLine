@@ -640,7 +640,8 @@ local function refreshInfo()
 		local need = Progress.xpToNext(Config, h.level)
 		renownFill.Size = UDim2.fromScale(math.clamp((h.xp or 0) / need, 0, 1), 1)
 		local at, what = Progress.nextUnlock(Config, h.level)
-		renownText.Text = string.format("RENOWN %d / %d", h.xp or 0, need)
+		what = what and string.split(what, ", ")[1] -- (first-30) the first of a level's unlocks fits the bar
+		renownText.Text = string.format("RENOWN %d/%d", h.xp or 0, need) -- (first-30: room for a mission name)
 			.. (if at and what then string.format("  NEXT LV %d: %s", at, what) else "")
 	end
 	local gadget = buttons.Gadget

@@ -3739,6 +3739,108 @@ return function(T: any)
 	)
 
 	test(
+		"List combat: a robot shot that meets a wall stops there in sparks and a scorch, the muzzle flashes",
+		function()
+			local roblox = require("@lune/roblox")
+			local sp = Config.Fx.shot.splash
+			check(
+				sp and sp.sparks > 0 and sp.tracerSparks >= sp.sparks and sp.scorch > 0,
+				"the splash is tuned"
+			)
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local FxLib = sim:require("Client.Fx.FxLib")
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			local emits: { [string]: number } = {}
+			local real = FxLib.emit
+			FxLib.emit = function(kind: string, ...)
+				emits[kind] = (emits[kind] or 0) + 1
+				return real(kind, ...)
+			end
+			-- a wall 30 studs ahead of the pellet
+			local ws = sim.service("Workspace")
+			local wall = UiSim.newInstance("Part")
+			ws._props.Raycast = function(_, origin, dir)
+				if dir.Z < 0 and origin.Z - 30 >= origin.Z + dir.Z then
+					return {
+						Position = V(origin.X, origin.Y, origin.Z - 30),
+						Normal = V(0, 0, 1),
+						Instance = wall,
+						Distance = 30,
+					}
+				end
+				return nil
+			end
+			sim:run("pellet", function()
+				CombatFx.enemyShot(V(0, 5, 0), V(0, 0, -60), nil)
+			end)
+			check((emits.glow or 0) >= 1 and (emits.spark or 0) >= 1, "the muzzle flashes")
+			check((emits.hitspark or 0) == 0, "nothing on the wall before the shot gets there")
+			sim:advance(0.6)
+			check(
+				(emits.hitspark or 0) == 1 and (emits.scorch or 0) == 1,
+				"sparks and a scorch where it hit, at 0.5 s"
+			)
+			-- the Sniper's round too
+			sim:run("sniper", function()
+				CombatFx.enemyShot(V(10, 5, 0), V(0, 0, -200), 1)
+			end)
+			sim:advance(0.3)
+			check(
+				(emits.hitspark or 0) == 2 and (emits.scorch or 0) == 2,
+				"a Sniper round sparks on the wall too"
+			)
+			-- a famous fake's path shot splashes in its own colour
+			sim:run("fake", function()
+				CombatFx.pathShot(
+					V(20, 5, 0),
+					V(0, 0, -60),
+					"Light",
+					"Comic",
+					roblox.Color3.fromRGB(255, 230, 120)
+				)
+			end)
+			sim:advance(0.6)
+			check(
+				(emits.hitspark or 0) == 3 and (emits.scorch or 0) == 3,
+				"a path shot stops on the wall too"
+			)
+			-- an Interceptor's net pins on the wall, holds, then goes
+			check((Config.Fx.shot.splash.netHold or 0) > 0, "the net's hold is tuned")
+			sim:run("net", function()
+				CombatFx.enemyShot(V(30, 5, 0), V(0, 0, -60), 2)
+			end)
+			sim:advance(0.6)
+			check(
+				(emits.hitspark or 0) == 4 and (emits.scorch or 0) == 4,
+				"a net sparks where it hits the wall"
+			)
+			check(
+				string.find(fs.readFile("src/client/Fx/CombatFx.luau"), "life + pinned", 1, true) ~= nil,
+				"the net holds on the wall before it goes"
+			)
+			-- in the open: no splash
+			ws._props.Raycast = function()
+				return nil
+			end
+			sim:run("open", function()
+				CombatFx.enemyShot(V(0, 5, 0), V(0, 0, -60), nil)
+			end)
+			sim:advance(2)
+			check((emits.scorch or 0) == 4, "a shot into the open fades as before")
+			FxLib.emit = real
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
 		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam, burning patches a flame ring, nets and claws Blender meshes",
 		function()
 			local roblox = require("@lune/roblox")

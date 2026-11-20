@@ -2502,7 +2502,10 @@ test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap (Stat
 	local CAP = Config.Stats.levelCap
 	local cap, capXp = Progress.addRenown(Config, CAP - 1, 0, 1e7)
 	check(cap == CAP and capXp == 0, "stops at the cap")
-	check(select(1, Progress.nextUnlock(Config, 1)) == 3, "next unlock after 1 is Flight at 3")
+	check(
+		select(1, Progress.nextUnlock(Config, 1)) == 3,
+		"next unlock after 1 is at 3 (Safehouse; first-30: no longer Flight)"
+	)
 	local at, what = Progress.nextUnlock(Config, 40)
 	check(at == CAP and what == Progress.CAP_UNLOCK, "after 40 the next unlock is the cap and Legacy")
 	check(Progress.nextUnlock(Config, CAP) == nil, "nothing after the cap")
@@ -23274,7 +23277,24 @@ end
 (require :: any)("./fix_respawn_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the living world's round 2 (shapes-2, 2026-11-19, own file): Art.Shapes, roofs, road pictures, water, lit
 -- windows, Uptown's palette; ONLY="Shapes"
-(require :: any)("./shapes_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./shapes_test")({ test = test, check = check, Config = Config, world = world });
+-- first-30 (2026-11-20, own file): the first 30 seconds and minutes; ONLY="First 30"
+(require :: any)("./first30_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+});
+-- the living world's round 3 (alive-world, 2026-11-20, own file): Art.Alive over the safehouses, cranes, chimneys and
+-- roof gardens; traffic scared off by fights, harbour gulls, chimney smoke; ONLY="Alive"
+(require :: any)("./alive_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+})
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)
