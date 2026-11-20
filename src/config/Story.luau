@@ -1911,6 +1911,12 @@ return {
 					hero = "Trouble on the radar! Somebody needs a hand. Go be a hero!",
 					villain = "Trouble on the radar. Messy, loud and profitable. Your kind of thing.",
 				},
+				-- first-30 (2026-11-20): the level the Contract Board opens at (GuidePlan.boardAt), once a session
+				boardOpen = {
+					who = "patch",
+					hero = "Level up! The Contract Board is open at every safehouse. Look for the S on your MAP!",
+					villain = "Level up! The Contract Board is open. Paying jobs at any safehouse, the S on your MAP.",
+				},
 				firstBoss = {
 					who = "patch",
 					hero = "Something HUGE just landed! Not one of Crane's, I think. Team up!",

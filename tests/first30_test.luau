@@ -1068,4 +1068,27 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+
+	test("First 30: Patch says where the Contract Board is on the level it opens", function()
+		local GuidePlan = require("../src/shared/GuidePlan")
+		local L = Config.Contracts.board.minLevel
+		check(GuidePlan.boardAt(Config, L) == "boardOpen", "the board's level has the line")
+		check(
+			GuidePlan.boardAt(Config, L - 1) == nil and GuidePlan.boardAt(Config, L + 1) == nil,
+			"only that level"
+		)
+		for _, side in { "hero", "villain" } do
+			local l = GuidePlan.worldLine(Config, "boardOpen", side)
+			check(
+				l ~= nil and string.find(l.text, "safehouse", 1, true) ~= nil,
+				side .. ": names the safehouse"
+			)
+			check(l ~= nil and string.find(l.text, "MAP", 1, true) ~= nil, side .. ": points at the MAP")
+		end
+		local R = { last = -1000, idleAt = -1000, once = {} }
+		local ctx = { on = true, busy = false }
+		check(GuidePlan.radioOk(Config, R, 0, "boardOpen", ctx), "said when the radio is free")
+		GuidePlan.radioMark(R, 0, "boardOpen")
+		check(not GuidePlan.radioOk(Config, R, 1000, "boardOpen", ctx), "once a session")
+	end)
 end

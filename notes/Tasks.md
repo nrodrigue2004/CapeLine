@@ -199,7 +199,7 @@ What nate does:
 - Wording: the level-up banner now names the real unlocks (Decisions 2026-11-20, first-30); the old spec Levels table text (Flight at 3, Frost at 6, Super Speed at 8, Super Leap at 12, Grapple Acrobat at 16) no longer matched the game. OK the new lines or give the words you want.
 - Round 2 DRAFT wording: Patch's side quest line ("A new side quest just opened! Look for the gold mark on your MAP." / "A new job just opened. Find the gold mark on your MAP."; guide lines are fixed text, so it cannot name the chain), the creator's "Pick how your Spark woke to go on" and "Pick an archetype and a path to go on", MoveTutor's NEW MOVE and TRY THIS MOVE tags, the intro film's THUD!, FWOOSH! and SHHRAK!.
 - Sounds: the intro film's arrivals reuse dash and land; a cape swish and a shadow-smoke hiss would fit the Vigil and the Syndicate better.
-- Hit feedback in Safehouse and Framed beyond the bridge rescue (robots, turrets) was not audited this round.
+- Round 3 DRAFT wording: the knockout words (KO!, SCRAPPED!, WRECKED!, BUSTED!) and Patch's Contract Board line.
 - The next-mission card's words ("NEXT: MISSION 2: SAFEHOUSE", START, "Reach level 4 to start. Help out around the city!") and Patch's three POWERS lines are DRAFT wording.
 
 ## Studio test list (needs nate's PC)
@@ -2440,6 +2440,10 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 96. Incident and event objects (ActivityProps punch): hit a dressed incident or event object (a billboard, the tram, a crate); each hit jolts its look and springs it back with a clank; its own break (fall, burst) plays as before.
 
 95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
+
+306. Contract Board radio (GuidePlan.boardAt, GuideClient, first-30): reach level 4 out in the city; after the Framed unlock line, within about 90 s Patch says "Level up! The Contract Board is open at every safehouse. Look for the S on your MAP!" (villain: its own line), once; never inside a mission.
+
+305. Robot knockout (Fx.KoFx, Config.Fx.robots.ko, first-30): in Safehouse and Framed, take down a robot yourself: on the killing blow your hero holds for a beat, the camera kicks harder than a normal hit, a low heavy thud lands, and a big gold KO!, SCRAPPED!, WRECKED! or BUSTED! pops over it; sweep several at once and only one word shows; another hero's kill adds none of this for you; an elite still gets the slow-mo finisher; with Reduce flashing on, no hold and no heavy shake.
 
 304. Intro film middle (IntroFilm arrive, first-30): play the intro film as a new account; Crane appears on the tower in a gold shimmer with a whoosh, his three heroes land one after another in white sparks and dust with landing thumps and a THUD!, Lodestar arrives in a blue glow with FWOOSH!, the Syndicate crook in plum smoke with SHHRAK!; the effects sit on the figures, not off to the side, and nothing stalls a phone.
 

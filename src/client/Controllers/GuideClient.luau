@@ -131,15 +131,16 @@ local function onRepFacts(data: any)
 	end
 end
 
--- first-30: a level-up's POWERS line waiting for the radio (GuidePlan.powerAt), tried every frame until `till`
-local powerLine: { key: string, line: string, till: number }? = nil
+-- first-30: a level-up's lines waiting for the radio (GuidePlan.powerAt's POWERS line, GuidePlan.boardAt's Contract
+-- Board line), first come first said, each tried every tick until its `till`
+local pending: { { key: string, line: string, till: number } } = {}
 local function powerStep(now: number)
-	local p = powerLine
+	local p = pending[1]
 	if not p then
 		return
 	end
 	if now > p.till or say(p.key, p.line) then
-		powerLine = nil
+		table.remove(pending, 1)
 	end
 end
 
@@ -354,8 +355,17 @@ function GuideClient.init()
 			-- first-30: the new power slot or move training, once the radio is free (after the unlock line)
 			local power = GuidePlan.powerAt(Config, data.level)
 			if power then
-				powerLine =
+				table.insert(
+					pending,
 					{ key = "power" .. data.level, line = power, till = os.clock() + G.radio.powerWait }
+				)
+			end
+			local board = GuidePlan.boardAt(Config, data.level)
+			if board then
+				table.insert(
+					pending,
+					{ key = board, line = board, till = os.clock() + G.radio.powerWait * 2 }
+				)
 			end
 		end
 	end)
