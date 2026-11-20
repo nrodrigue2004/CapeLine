@@ -864,4 +864,98 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+
+	test(
+		"First 30: the intro film's middle never goes quiet: Crane, his heroes, the Vigil and the Syndicate each arrive",
+		function()
+			local IntroFilm = require("../src/shared/IntroFilm")
+			local sp = world.spawns[1]
+			local st = IntroFilm.stage(Config, world, sp.x, sp.z) :: any
+			local fl = IntroFilm.film(Config, st)
+			-- no stretch of the film longer than 6 s without something landing (an event or a sound word)
+			local times = {}
+			for _, e in fl.events do
+				table.insert(times, e.t)
+			end
+			for _, w in fl.words do
+				table.insert(times, w.t)
+			end
+			table.sort(times)
+			local worst, at = 0, 0
+			for i = 2, #times do
+				if math.min(times[i], 37.5) - times[i - 1] > worst then -- (the quiet before the Spark is the beat)
+					worst, at = math.min(times[i], 37.5) - times[i - 1], times[i - 1]
+				end
+			end
+			check(worst <= 6, string.format("the longest quiet stretch is %.1f s from %.1f", worst, at))
+			if not T.placePath then
+				return
+			end
+			local sim, UiSim = newSim()
+			local AudioController = sim:require("Client.Controllers.AudioController")
+			local played = {}
+			AudioController.play = function(id: string)
+				table.insert(played, id)
+			end
+			local CinemaClient = sim:require("Client.Controllers.CinemaClient")
+			local IntroFilmFx = sim:require("Client.Fx.IntroFilm")
+			local now = 0
+			CinemaClient.time = function()
+				return now
+			end
+			local terrain
+			sim:run("film", function()
+				-- (the sim's place has no Terrain; the sound words hang off it)
+				terrain = sim.workspace:FindFirstChild("Terrain")
+				if not terrain then
+					terrain = UiSim.newInstance("Folder")
+					terrain.Name = "Terrain"
+					terrain.Parent = sim.workspace
+				end
+				sim.workspace._props.Terrain = terrain
+				IntroFilmFx.init()
+				local scene = IntroFilmFx.scene(st, { key = "intro" })
+				CinemaClient.current = scene
+			end)
+			check(
+				CinemaClient.current ~= nil and CinemaClient.current.follow ~= nil,
+				"the film is a follow scene"
+			)
+			local words = {}
+			for t = 19, 33, 0.25 do
+				now = t
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 4)
+				end)
+				for _, d in terrain:GetDescendants() do
+					if d:IsA("TextLabel") then
+						words[d.Text] = true
+					end
+				end
+			end
+			local dashes = 0
+			for _, id in played do
+				if id == "dash" then
+					dashes += 1
+				end
+			end
+			check(dashes == 3, "Crane and both sides whoosh (" .. table.concat(played, ",") .. ")")
+			check(
+				words["THUD!"] and words["FWOOSH!"] and words["SHHRAK!"],
+				"the sound words pop in the world ("
+					.. table.concat(
+						(function()
+							local seen = {}
+							for w in words do
+								table.insert(seen, w)
+							end
+							return seen
+						end)(),
+						","
+					)
+					.. ")"
+			)
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 end
