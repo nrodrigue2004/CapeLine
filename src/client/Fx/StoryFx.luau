@@ -535,6 +535,7 @@ end
 local player = Players.LocalPlayer
 local sceneKey: any = nil
 local lodestar: any = nil
+local lodestarPose: { [string]: { number } } = {}
 
 local function heroRoot(): BasePart?
 	local c = player.Character
@@ -555,6 +556,21 @@ local function lodestarStep(at: { number }?, face: Vector3?)
 	local pos = Vector3.new(at[1], at[2], at[3])
 	local d = if face then face - pos else Vector3.new(0, 0, 1)
 	NpcRig.place(lodestar, CFrame.new(pos) * CFrame.Angles(0, math.atan2(-d.X, -d.Z), 0))
+	-- (first-30 polish round 2, nate: cutscene characters stood stiff) Lodestar talks with his hands while the
+	-- beat plays and waits with arms folded otherwise, on whole-body clips (Shared.NpcAnim)
+	local clip = if face and StoryClient.missionScene() then "talk" else NpcAnim.crowd.waiting
+	local pose = NpcAnim.sample(clip, os.clock(), lodestarPose)
+	for joint in lodestar.motors do
+		local a = pose[joint]
+		local cf = CFrame.identity
+		if a then
+			cf = CFrame.Angles(math.rad(a[1]), math.rad(a[2]), math.rad(a[3]))
+			if (a[4] or 0) ~= 0 then
+				cf = CFrame.new(0, a[4], 0) * cf
+			end
+		end
+		NpcRig.turn(lodestar, joint, cf)
+	end
 end
 
 -- The beat's shot (lore step 7: played by the one cutscene player, CinemaClient): from beside and above the

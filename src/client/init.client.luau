@@ -2,6 +2,8 @@
 -- dependency order.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
@@ -124,6 +126,8 @@ local CinemaClient = require(Controllers.CinemaClient) -- lore step 7: the one c
 local CinemaHud = require(Ui.CinemaHud) -- lore step 7: letterbox, SKIP, comic pages, name cards, finisher screen
 local NewsHud = require(Ui.NewsHud) -- lore step 7: the big screens and the corner TV
 local FinisherFx = require(Fx.FinisherFx) -- lore step 7: slow-mo finishers
+local ImpactFrameFx = require(Fx.ImpactFrameFx) -- first-30: the big blows' black and white impact frames
+local KoFx = require(Fx.KoFx) -- first-30: the knockout blow
 
 State.init()
 QualityController.init()
@@ -141,6 +145,39 @@ DeepClient.init()
 StoryClient.init()
 PvpClient.init()
 AudioController.init()
+-- first-30 (nate 2026-11-20: "Music should change according to context"): what is going on, for Shared.MusicPlan
+do
+	local lastDealt = -math.huge
+	CombatClient.HitConfirm:Connect(function()
+		lastDealt = os.clock()
+	end)
+	AudioController.musicContext = function()
+		local now = os.clock()
+		local taken = CinemaClient.lastHit or 0
+		local last = math.max(lastDealt, if taken > 0 then taken else -math.huge)
+		local near: number? = nil
+		local char = Players.LocalPlayer.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root and now - last <= Config.Audio.musicContext.combatNear then
+			for _, p in EnemyRenderer.each() do
+				local d = (p - root.Position).Magnitude
+				if near == nil or d < near then
+					near = d
+				end
+			end
+		end
+		return {
+			menu = MainMenu.isOpen() or CreatorScreen.isOpen(),
+			opening = if StoryClient.inOpening() then StoryClient.openingStep() else nil,
+			scene = CinemaClient.playing(),
+			hq = HqClient.inside(),
+			underwater = DeepClient.underwater,
+			mission = StoryClient.inMission(),
+			hitAgo = if last > -math.huge then now - last else nil,
+			enemyNear = near,
+		}
+	end
+end
 JuiceFx.init()
 Juice.init()
 CombatFx.init()
@@ -225,6 +262,8 @@ CinemaHud.init()
 StoryHud.init()
 NewsHud.init()
 FinisherFx.init()
+ImpactFrameFx.init()
+KoFx.init() -- first-30: a robot you take down lands as the big blow
 GuideClient.init()
 MoveTutor.init()
 Journal.init()

@@ -61,6 +61,7 @@ local FxLib = require(script.Parent.FxLib)
 local PrologueMeshes = require(script.Parent.PrologueMeshes)
 local PowerMeshes = require(script.Parent.PowerMeshes)
 local PrologueArtKit = require(Shared:WaitForChild("PrologueArtKit"))
+local QteHud = require(script.Parent.Parent.Ui.QteHud)
 
 local PrologueFx = {}
 
@@ -1120,6 +1121,12 @@ local function spears(o: { [string]: any }, now: number)
 	if not from or not r or now < spearAt then
 		return
 	end
+	if QteHud.isOpen() then
+		-- (first-30 polish) a prompt waiting for its press (untimed) is a held breath: no stray spears pile up
+		-- while it waits; its own DODGE spear is the prompt's moment (PrologueFx.moment)
+		spearAt = now + O.chase.throwEvery * 0.5
+		return
+	end
 	spearAt = now + O.chase.throwEvery
 	-- telegraphed, and always a stride wide: the chase scares, it never hurts
 	local a = math.random() * math.pi * 2
@@ -1956,8 +1963,19 @@ local function frame(dt: number)
 				poseClip(n, if gasp then NpcAnim.crowd.scan else cheerOf(n), now)
 			end
 		end
+		-- (first-30 polish round 2) the stage keeps living under the sweep: Crane presents his scanner, his heroes
+		-- wait with arms folded (they stood frozen in their last wave before)
+		for name, n in stageNpcs do
+			poseClip(n, if name == "crane" then NpcAnim.crowd.crane else NpcAnim.crowd.waiting, now)
+		end
 	elseif scan then
 		endScan()
+	end
+	if step ~= "ceremony" and step ~= "scan" then
+		-- (round 2) Crane, left on the stage after his heroes go, never stands as a statue
+		for _, n in stageNpcs do
+			poseClip(n, NpcAnim.crowd.waiting, now)
+		end
 	end
 	-- the panic: the crowd runs off and fades away
 	-- (act1-choices) the panic holds still while the Ceremony's choice card is up

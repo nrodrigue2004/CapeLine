@@ -15,7 +15,9 @@
 --   (BREAK FREE) or a hold (SUIT UP), on the key, the pad button or the prompt itself (a tap or a held finger). A
 --   prompt shows Config's `lead` s before the move in front of it ends; while it waits the hero holds a pose in
 --   slow motion. A miss is a near miss (PrologueFx.moment: the spear lands a stride wide, the sign slips, the beam
---   presses down) and the prompt comes back; the 3rd miss does it by itself. The ceremony, the scan and the
+--   presses down) and the prompt comes back; the 3rd miss does it by itself. (first-30, nate 2026-11-20: with
+--   Config's qte.wait on, the default, a prompt waits for its press: no window, a wrong key is ignored, it pulses
+--   to nag, and the server's clocks hold while it waits.) The ceremony, the scan and the
 --   Ceremony's choice keep PrologueFx's own camera shots.
 -- * at the subway fight the hold ends: FIGHT!, the controls, the normal camera and the HUD come back.
 
@@ -167,6 +169,7 @@ local function shotSeg(): PrologueCine.Seg?
 end
 
 -- The directed camera (CinemaClient's follow): the segment's shot, cut in hard or eased over
+local pullDist: number? = nil -- the camera's eased distance from the hero when a wall pulls it in
 local function follow(dt: number): (Vector3, Vector3)
 	local f = feet()
 	local seg = shotSeg()
@@ -190,9 +193,14 @@ local function follow(dt: number): (Vector3, Vector3)
 		local char = player.Character
 		rayParams.FilterDescendantsInstances = if char then { char } else {}
 		local hit = Workspace:Raycast(wantLook, gap, rayParams)
-		if hit then
-			wantCam = hit.Position - gap.Unit * 1.5
-		end
+		-- (first-30 polish round 2) the pull-in is eased on its own: in fast when a wall comes between, out slowly
+		-- once it is gone, so a wall's edge flickering in and out of the ray never pumps the camera
+		local want = if hit then math.max(1, hit.Distance - 1.5) else gap.Magnitude
+		local d = pullDist or want
+		local rate = if want < d then 24 else 2.5
+		d += (want - d) * (1 - math.exp(-rate * math.max(dt, 1 / 240)))
+		pullDist = math.min(d, gap.Magnitude)
+		wantCam = wantLook + gap.Unit * (pullDist :: number)
 	end
 	if seg ~= camSeg then
 		if seg.cut or not camAt then
@@ -213,7 +221,7 @@ local function cameraOn(on: boolean)
 		if cur and cur.owner == "prologue" then
 			return -- PrologueFx's own camera beat (the Ceremony's choice) has the camera
 		end
-		camAt, lookAt, camSeg = nil, nil, nil
+		camAt, lookAt, camSeg, pullDist = nil, nil, nil, nil
 		CinemaClient.play({
 			owner = "qte",
 			key = "directed",
@@ -377,7 +385,7 @@ local function handoff()
 	AudioController.play("super", nil)
 end
 
-local function frame(_dt: number)
+local function frameInner(_dt: number)
 	local step = StoryClient.openingStep()
 	local o = StoryClient.opening
 	if step ~= lastStep then
@@ -485,6 +493,18 @@ local function frame(_dt: number)
 	end
 	if QtePlan.expired(Config, now - (c.shownAt :: number), c.misses, p.kind) then
 		resolve("miss")
+	end
+end
+
+-- first-30: the server holds the prologue's clocks while a prompt waits for its press (OpeningAct 8 up, 9 down;
+-- Config.Story.opening.qte.wait), so an untimed prompt is never moved on by a stuck timer
+local waitingSent = false
+local function frame(dt: number)
+	frameInner(dt)
+	local up = Q.wait == true and run ~= nil and run.shownAt ~= nil
+	if up ~= waitingSent then
+		waitingSent = up
+		Net.send("OpeningAct", if up then 8 else 9)
 	end
 end
 

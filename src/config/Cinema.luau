@@ -20,6 +20,27 @@
 -- * comic: comic-panel flashback pages (PLACEHOLDER ART: panels drawn from frames until the art pass).
 return {
 	length = { min = 5, max = 20 }, -- seconds a scene may run
+	-- (first-30 polish 2026-11-20) the side HUD screens a letterboxed scene hides while its bars are up (each comes
+	-- back as it was); never the subtitles (GuideHud, StoryHud), the prompts (Qte), the finisher or news screens
+	hideScreens = {
+		"Plates",
+		"Toasts",
+		"NemesisHud",
+		"BadgeHud",
+		"MentorHud",
+		"TaskForceHud",
+		"PvpHud",
+		"Squad",
+		"Daily",
+		"DailyTracker",
+		"BoardHud",
+		"ContestHud",
+		"HelpHud",
+		"MoveTutor",
+		"PassHud",
+		"WeaponRack",
+		"LoreCard",
+	},
 	skipDelay = 0.8, -- the SKIP button shows this long after a seen scene starts (no accidental taps)
 	letterbox = { size = 0.1, tween = 0.35 }, -- bar height (share of the screen) and slide time
 
@@ -1044,6 +1065,18 @@ return {
 		lean = { max = 0.06, rise = 9, fall = 4 }, -- radians of roll into a dash; blend in and out per second
 		push = { heavy = 0.05, finisher = 0.1, time = 0.28 }, -- FOV narrowed by this share (a gentle push in)
 		orbit = { super = 0.32, time = 0.9 }, -- radians a super swings the camera round the hero
+		-- (first-30 polish 2026-11-20) a cutscene's field of view, held for the whole scene (the gameplay FOV's
+		-- leap and boost widening no longer pumps the zoom mid-shot), and the seconds its end eases from the last
+		-- shot to the follow camera instead of snapping behind the hero
+		fov = 70,
+		blendOut = 0.6,
+		-- (round 2) every shot drifts a little: `push` of the way to its subject over the shot, a `sway` (studs)
+		-- breathing at `rate` Hz; a jump cut (the next shot starting within `dist` studs and `angle` degrees of
+		-- the last frame) eases across in `ease` s instead of cutting
+		drift = { push = 0.05, sway = 0.08, rate = 0.22, jumpCut = { dist = 10, angle = 30, ease = 0.4 } },
+		-- (round 2) a scene's shots get a soft depth of field: sharp within `radius` of the subject's distance, the
+		-- far city blurred by `far`, eased over `ease` s; never on the low preset
+		dof = { on = true, radius = 0.45, far = 0.35, ease = 0.4 },
 	},
 
 	finisher = {
@@ -1056,6 +1089,34 @@ return {
 		-- the impact words (original sound words, Comic style); picked by the event's seed
 		words = { "KRA-KOOM!", "FINISHED!", "SHATTER!", "KA-BLAM!", "DOWN YOU GO!", "LIGHTS OUT!" },
 		phaseWords = { "BREAK!", "CRACK!", "WHAM!" }, -- a phase's end (not the last blow)
+	},
+
+	-- Impact frames (first-30, nate 2026-11-20: "Do we have hit stop/freeze frames/flash frames. Remember that the
+	-- game being cinematic is also one of the most important things"): on the big blows the whole screen cuts
+	-- for 2 to 4 frames to stark black and white with ink lines bursting from the hit (Shared.ImpactFrames,
+	-- Fx.ImpactFrameFx). Comic: a blown-out white frame then an inked black one, thick tapered lines and the hit
+	-- star; Anime: a negative-style black frame first, many thin speed lines. The game holds still under them
+	-- (your own clip freezes). Reduce flashing: no frames, a gentle hit stop instead. Your own blows only, or a
+	-- finisher near you (FinisherFx).
+	impactFrames = {
+		on = true,
+		frame = 1 / 30, -- seconds a frame holds (two screen frames at 60 fps)
+		frames = { crit = 2, super = 3, finisher = 4 }, -- how many frames each kind cuts to
+		-- seconds since the last impact frames before this kind may cut again (a bigger kind never waits for a
+		-- smaller one): a hail of crits cuts once, never strobes
+		gap = { crit = 1.6, super = 0.5, finisher = 0 },
+		order = { crit = 1, super = 2, finisher = 3 },
+		-- the frames' looks by style, in order (each "white" or "black"), cycled when a kind has more frames
+		looks = {
+			Comic = { "white", "black", "white", "black" },
+			Anime = { "black", "white", "black", "white" },
+		},
+		lines = { Comic = 16, Anime = 30 }, -- ink lines bursting from the hit's point on screen
+		width = { Comic = { 6, 14 }, Anime = { 2, 5 } }, -- line thickness range (px)
+		inner = 0.06, -- the lines start this share of the screen's height from the point (the hit shows)
+		white = { saturation = -1, contrast = 1.6, brightness = 0.32 }, -- the white frame's ColorCorrection
+		black = { saturation = -1, contrast = 2.2, brightness = -0.42, cover = 0.45 }, -- cover: the black wash
+		gentle = 0.08, -- Reduce flashing: the hit stop held instead (seconds)
 	},
 
 	nameCard = {

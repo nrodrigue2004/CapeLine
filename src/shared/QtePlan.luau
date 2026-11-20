@@ -56,9 +56,29 @@ function QtePlan.prompts(Config: any, step: string, hop: number?): { Prompt }
 	return {}
 end
 
--- How long a prompt stays open: a press's window, a mash's or a hold's (each `ease` times longer after a miss)
+-- first-30 (nate 2026-11-20: "Qtes shouldn't be timed in prologue"): while the device says a prompt waits for
+-- its press (OpeningAct 8, `r.qteUp`), the server's prologue run holds its clocks: the beat's start (the stuck
+-- timer and the Spark's backstop count from it) and the whole prologue's start (its timeout), up to Config's
+-- qte.waitMax s in all, so an away player's prologue still ends. Returns true while it holds.
+function QtePlan.holdClocks(Config: any, r: any, dt: number): boolean
+	local Q = Config.Story.opening.qte
+	if not (Q.wait and r.qteUp and (r.qteWaited or 0) < Q.waitMax) then
+		return false
+	end
+	r.qteWaited = (r.qteWaited or 0) + dt
+	r.qteStep = (r.qteStep or 0) + dt
+	r.stepAt += dt
+	r.startedAt += dt
+	return true
+end
+
+-- How long a prompt stays open: a press's window, a mash's or a hold's (each `ease` times longer after a miss);
+-- forever when prompts wait for their press (Config's `wait`, first-30 2026-11-20)
 function QtePlan.window(Config: any, misses: number, kind: string?): number
 	local Q = Config.Story.opening.qte
+	if Q.wait then
+		return math.huge
+	end
 	local w = if kind == "mash" then Q.mash.window elseif kind == "hold" then Q.hold.window else Q.window
 	return if misses > 0 then w * Q.ease else w
 end
@@ -83,6 +103,9 @@ end
 -- `assist`-th miss does it by itself
 function QtePlan.worst(Config: any, kind: string?): number
 	local Q = Config.Story.opening.qte
+	if Q.wait then
+		return Q.lead -- a waiting prompt holds the server's clocks, so only its lead counts
+	end
 	local t = Q.lead
 	for k = 0, Q.assist - 1 do
 		t += QtePlan.window(Config, k, kind) + (if k < Q.assist - 1 then Q.retry else 0)
@@ -100,6 +123,9 @@ function QtePlan.judge(
 ): string?
 	if not QtePlan.KEYS[pressed] or t < 0 then
 		return nil
+	end
+	if Config.Story.opening.qte.wait and pressed ~= action then
+		return nil -- a waiting prompt ignores the wrong key (nothing is missed)
 	end
 	if t > QtePlan.window(Config, misses, kind) then
 		return "miss"

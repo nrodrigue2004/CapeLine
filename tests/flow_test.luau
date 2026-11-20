@@ -179,31 +179,50 @@ return function(T: any)
 		end
 		check(dodges >= 1, "Skylance's spears are dodged at least once")
 		check(QtePlan.prompts(Config, "descend", 0)[1].word == Q.words.drop, "the drop to the subway")
-		-- timing
-		local w = QtePlan.window(Config, 0)
+		-- first-30 (nate 2026-11-20: "Qtes shouldn't be timed in prologue"): with qte.wait on, the default, a
+		-- prompt waits for its press: a late press still hits, a wrong key is ignored, it never expires, and its
+		-- worst case is only its lead (the server's clocks hold while it waits)
+		check(Q.wait == true, "prologue prompts wait for their press by default")
+		check(QtePlan.window(Config, 0) == math.huge, "no window runs out")
+		check(QtePlan.judge(Config, "Leap", "Leap", 30, 0) == "hit", "a press 30 s late still hits")
 		check(
 			QtePlan.judge(Config, "Leap", "Leap", -0.1, 0) == nil,
 			"a press before the prompt shows is ignored"
 		)
-		check(QtePlan.judge(Config, "Leap", "Leap", 0.05, 0) == "hit", "a quick press hits")
-		check(QtePlan.judge(Config, "Leap", "Leap", w - 0.01, 0) == "hit", "a press at the window's end hits")
-		check(QtePlan.judge(Config, "Leap", "Leap", w + 0.01, 0) == "miss", "too late misses")
-		check(QtePlan.judge(Config, "Leap", "Block", 0.3, 0) == "miss", "the wrong prompt key misses")
-		check(QtePlan.judge(Config, "Leap", "Map", 0.3, 0) == nil, "other keys are ignored")
-		check(QtePlan.window(Config, 1) > w, "the window is longer after a miss")
 		check(
-			QtePlan.judge(Config, "Leap", "Leap", w + 0.01, 1) == "hit",
+			QtePlan.judge(Config, "Leap", "Block", 0.3, 0) == nil,
+			"the wrong prompt key is ignored, not a miss"
+		)
+		check(QtePlan.judge(Config, "Leap", "Map", 0.3, 0) == nil, "other keys are ignored")
+		check(not QtePlan.expired(Config, 600, 0), "a waiting prompt never expires")
+		check(QtePlan.worst(Config) == Q.lead, "a waiting prompt's worst case is its lead")
+		check(Q.waitMax >= 120 and Q.nag.after > 0 and Q.nag.every > 0, "a long wait cap and a nag")
+		-- the timed rules, kept for qte.wait = false
+		local Timed = { Story = { opening = { qte = setmetatable({ wait = false }, { __index = Q }) } } }
+		local w = QtePlan.window(Timed, 0)
+		check(
+			QtePlan.judge(Timed, "Leap", "Leap", -0.1, 0) == nil,
+			"a press before the prompt shows is ignored"
+		)
+		check(QtePlan.judge(Timed, "Leap", "Leap", 0.05, 0) == "hit", "a quick press hits")
+		check(QtePlan.judge(Timed, "Leap", "Leap", w - 0.01, 0) == "hit", "a press at the window's end hits")
+		check(QtePlan.judge(Timed, "Leap", "Leap", w + 0.01, 0) == "miss", "too late misses")
+		check(QtePlan.judge(Timed, "Leap", "Block", 0.3, 0) == "miss", "the wrong prompt key misses")
+		check(QtePlan.judge(Timed, "Leap", "Map", 0.3, 0) == nil, "other keys are ignored")
+		check(QtePlan.window(Timed, 1) > w, "the window is longer after a miss")
+		check(
+			QtePlan.judge(Timed, "Leap", "Leap", w + 0.01, 1) == "hit",
 			"so a slower press hits on the retry"
 		)
-		check(not QtePlan.expired(Config, w - 0.01, 0) and QtePlan.expired(Config, w + 0.01, 0), "it expires")
+		check(not QtePlan.expired(Timed, w - 0.01, 0) and QtePlan.expired(Timed, w + 0.01, 0), "it expires")
 		check(w >= 1.5, "a generous window for kids")
 		-- results: a hit goes on, a miss retries, the assist-th miss does it for you
-		local a = QtePlan.after(Config, "hit", 0)
+		local a = QtePlan.after(Timed, "hit", 0)
 		check(a.go == "next" and a.misses == 0, "a hit moves on")
 		local m = 0
 		local gone = false
 		for i = 1, Q.assist do
-			local r = QtePlan.after(Config, "miss", m)
+			local r = QtePlan.after(Timed, "miss", m)
 			if i < Q.assist then
 				check(r.go == "retry" and r.misses == i and r.wait > 0, "miss " .. i .. " retries")
 			else
@@ -217,7 +236,7 @@ return function(T: any)
 		local function worst(n: number): number
 			local per = Q.lead
 			for k = 0, Q.assist - 1 do
-				per += QtePlan.window(Config, k) + (if k < Q.assist - 1 then Q.retry else 0)
+				per += QtePlan.window(Timed, k) + (if k < Q.assist - 1 then Q.retry else 0)
 			end
 			return n * per
 		end

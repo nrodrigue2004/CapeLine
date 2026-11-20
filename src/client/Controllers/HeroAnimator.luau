@@ -376,7 +376,8 @@ function HeroAnimator.freeze(seconds: number)
 	if a then
 		local now = os.clock()
 		a.holdT = a.holdT or (now - a.start)
-		a.holdUntil = now + seconds
+		-- (first-30) the longer hold wins: an impact frame's cut never shortens the hit stop it lands with
+		a.holdUntil = math.max(a.holdUntil or 0, now + seconds)
 	end
 end
 

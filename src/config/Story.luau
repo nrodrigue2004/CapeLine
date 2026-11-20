@@ -1077,6 +1077,14 @@ return {
 				tunnel = true,
 			},
 			lead = 0.6,
+			-- (first-30, nate's playtest 2026-11-20: "Qtes shouldn't be timed in prologue") every prompt waits for
+			-- its press: no window runs out, a wrong key is ignored, nothing is missed. While a prompt waits the
+			-- server holds the beat's stuck clock and the whole prologue's timeout (OpeningAct 8 up, 9 down), up
+			-- to `waitMax` s in all (an away player's prologue still ends). After `nag.after` s the prompt pulses
+			-- every `nag.every` s and the key glows. `window`, `ease`, `retry` and `assist` apply only with wait off.
+			wait = true,
+			waitMax = 600,
+			nag = { after = 3, every = 1.6 },
 			window = 2.4,
 			ease = 1.5,
 			retry = 1.2,
@@ -2754,6 +2762,12 @@ return {
 					who = "patch",
 					hero = "Trouble on the radar! Somebody needs a hand. Go be a hero!",
 					villain = "Trouble on the radar. Messy, loud and profitable. Your kind of thing.",
+				},
+				-- first-30 (2026-11-20): the level the Contract Board opens at (GuidePlan.boardAt), once a session
+				boardOpen = {
+					who = "patch",
+					hero = "Level up! The Contract Board is open at every safehouse. Look for the S on your MAP!",
+					villain = "Level up! The Contract Board is open. Paying jobs at any safehouse, the S on your MAP.",
 				},
 				firstBoss = {
 					who = "patch",

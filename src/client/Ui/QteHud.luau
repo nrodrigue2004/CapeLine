@@ -1,7 +1,8 @@
 -- QteHud: the prologue's quick-time prompt on screen (fix-flow, nate's playtest 2026-11-19: the rooftop chase "should
 -- be a cutscene with QTE's"; the rules are Shared.QtePlan, the runner Fx.PrologueQte). One big round prompt low in
 -- the middle: the verb (JUMP! or DODGE!), the key or button for this device (SPACE, Q, A, LB, or TAP on a phone),
--- and a gold bar that runs out with the window. The prompt is itself a button, so a tap or a click counts on
+-- and a gold bar that runs out with the window (first-30, 2026-11-20: prompts wait for their press now, so there is
+-- no bar; an unanswered prompt pulses and its key flashes gold). The prompt is itself a button, so a tap or a click counts on
 -- every device. A hit pops NICE!; a miss shakes it and reads TRY AGAIN!; the help after the last miss reads GOT IT!
 -- prologue-cine (2026-11-20): the kinds of prompt: a press (as above), a mash (TAP FAST / MASH: a fill rises with each
 -- press) and a hold (HOLD: the fill rises while the key, the button or the prompt is held). A finger or the mouse
@@ -38,6 +39,9 @@ local action = "Leap"
 local shownAt = 0
 local window = 1
 local open = false
+local untimed = false -- first-30: a prompt that waits for its press (no bar; it pulses to nag)
+local nagAt = 0
+local NAG = Config.Story.opening.qte.nag
 
 -- The key or button that answers `act` on this device (kind: "press", "mash" or "hold")
 function QteHud.keyText(act: string, kind: string?): string
@@ -66,12 +70,15 @@ function QteHud.show(verb: string, act: string, seconds: number, kind: string?)
 	fill.Size = UDim2.fromScale(0, 1)
 	shownAt = os.clock()
 	window = math.max(0.1, seconds)
+	untimed = seconds == math.huge
+	nagAt = shownAt + NAG.after
 	open = true
 	word.Text = verb
 	key.Text = QteHud.keyText(act, kindNow)
 	note.Visible = false
 	prompt.Visible = true
-	barBack.Visible = true
+	barBack.Visible = not untimed
+	key.BackgroundColor3 = Kit.color.paper
 	bar.Size = UDim2.fromScale(1, 1)
 	prompt.Size = UDim2.fromScale(0.6, 0.6)
 	TweenService:Create(prompt, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Size = UDim2.fromScale(1, 1) })
@@ -121,12 +128,26 @@ function QteHud.hide()
 	note.Visible = false
 end
 
--- Each frame while a prompt is up: the bar runs out with the window
+-- Each frame while a prompt is up: the bar runs out with the window; an untimed prompt has no bar, and after
+-- Config's nag.after s it pulses every nag.every s with its key plate flashing gold
 function QteHud.frame()
-	if open then
-		local left = 1 - (os.clock() - shownAt) / window
-		bar.Size = UDim2.fromScale(math.clamp(left, 0, 1), 1)
+	if not open then
+		return
 	end
+	local now = os.clock()
+	if untimed then
+		if now >= nagAt then
+			nagAt = now + NAG.every
+			Kit.bounce(prompt)
+			key.BackgroundColor3 = Kit.color.gold
+			task.delay(NAG.every * 0.5, function()
+				key.BackgroundColor3 = Kit.color.paper
+			end)
+		end
+		return
+	end
+	local left = 1 - (now - shownAt) / window
+	bar.Size = UDim2.fromScale(math.clamp(left, 0, 1), 1)
 end
 
 -- The uishot sample: a DODGE prompt half way through its window

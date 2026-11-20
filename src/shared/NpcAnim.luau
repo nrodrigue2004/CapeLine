@@ -553,6 +553,7 @@ NpcAnim.crowd = {
 	stage = "stageWave",
 	crane = "present",
 	scan = "gasp",
+	waiting = "armsCrossed", -- (first-30 polish round 2) the stage between its moments: arms folded, weight shifting
 	blend = 0.25, -- seconds a crowd member crossfades from one clip to the next
 }
 

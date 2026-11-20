@@ -347,7 +347,7 @@ function GuidePlan.radio(): Radio
 	return { last = -math.huge, once = {}, idleAt = -math.huge }
 end
 
-local ONCE = { firstIncident = true, firstBoss = true, afterAct1 = true }
+local ONCE = { firstIncident = true, firstBoss = true, afterAct1 = true, boardOpen = true } -- (first-30) boardOpen
 -- lines that skip the gap (still off with the setting, and never in a mission or the prologue): lore step 9's
 -- Your double, a rare event aimed at this hero
 GuidePlan.URGENT = { double = true }
@@ -465,6 +465,12 @@ function GuidePlan.powerAt(Config: any, level: number): string?
 		return "powerBoth"
 	end
 	return if slot then "powerSlot" elseif rank then "powerRank" else nil
+end
+
+-- first-30: the level the Contract Board opens at (Config.Contracts.board.minLevel) gets Patch's "boardOpen" line:
+-- nothing told a new hero where the board is (a terminal at every safehouse, the S on the MAP)
+function GuidePlan.boardAt(Config: any, level: number): string?
+	return if level == Config.Contracts.board.minLevel then "boardOpen" else nil
 end
 
 -- The story mission the Journal pins (no side quest pinned) when it is open to play, or nil

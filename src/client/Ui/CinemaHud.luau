@@ -17,6 +17,7 @@
 
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
@@ -1320,11 +1321,40 @@ end
 -- Each frame
 ---------------------------------------------------------------------------
 
+-- (first-30 polish, nate 2026-11-20: the cutscenes "just aren't polished") a letterboxed scene is clean: the
+-- side HUD screens (Config.Cinema.hideScreens) step aside while the bars are up and come back as they were; the
+-- action buttons are Hud.setFocus's, the radar and world markers their own screens' (they check letterboxed())
+local hidden: { [ScreenGui]: boolean }? = nil
+local function hideHud(on: boolean)
+	if on and not hidden then
+		local h = {}
+		local pg = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
+		if pg then
+			for _, name in Config.Cinema.hideScreens do
+				local g = pg:FindFirstChild(name)
+				if g and g:IsA("ScreenGui") and g.Enabled then
+					h[g] = true
+					g.Enabled = false
+				end
+			end
+		end
+		hidden = h
+	elseif not on and hidden then
+		for g in hidden do
+			if g.Parent then
+				g.Enabled = true
+			end
+		end
+		hidden = nil
+	end
+end
+
 local lastScene: any = nil
 local function frame()
 	local now = os.clock()
 	local s = CinemaClient.current
 	setBars(CinemaClient.letterboxed())
+	hideHud(CinemaClient.letterboxed())
 	skip.Visible = s ~= nil and CinemaClient.skippable()
 	-- a controller cannot reach the button: B skips, and the button says so (onboarding check)
 	skip.Text = if InputController.device == "gamepad" then "SKIP (B)" else "SKIP"

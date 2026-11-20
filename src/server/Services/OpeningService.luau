@@ -55,6 +55,7 @@ local MissionRules = require(Shared:WaitForChild("MissionRules"))
 local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
 local FlowPlan = require(Shared:WaitForChild("FlowPlan"))
 local PrologueCine = require(Shared:WaitForChild("PrologueCine"))
+local QtePlan = require(Shared:WaitForChild("QtePlan"))
 local IntroFilm = require(Shared:WaitForChild("IntroFilm"))
 
 local BuildingService = require(script.Parent.BuildingService)
@@ -112,6 +113,11 @@ type Run = {
 	askAt: number?,
 	pickDone: number?,
 	paused: number,
+	-- first-30: a prologue prompt waiting for its press on the device (OpeningAct 8 / 9) holds the beat's stuck
+	-- clock, the Spark's own backstop and the whole prologue's timeout, up to Config's qte.waitMax s in all
+	qteUp: boolean?,
+	qteWaited: number?,
+	qteStep: number?, -- the seconds held in this beat (the suit's least time counts real time)
 }
 
 local runs: { [Player]: Run } = {}
@@ -524,6 +530,7 @@ setStep = function(r: Run, step: string)
 	end
 	r.step = step
 	r.stepAt = os.clock()
+	r.qteUp, r.qteStep = false, 0
 	holdRow(r, PrologueRow.holds(Config, step))
 	enter(r, step)
 	if runs[r.player] == r and r.step == step then
@@ -677,7 +684,14 @@ local function moveFake(r: Run, pos: Vector3, dt: number)
 	local cur = Vector3.new(e.x, goal.Y, e.z)
 	local d = goal - cur
 	local stepLen = math.min(d.Magnitude, 46 * dt)
-	EnemyService.place(id, if d.Magnitude > 0.1 then cur + d.Unit * stepLen else goal)
+	local nxt = if d.Magnitude > 0.1 then cur + d.Unit * stepLen else goal
+	-- (first-30 polish) a step out over a gap between roofs would drop him to the street and pop him back up
+	-- (EnemyService.place stands a walker on the ground below): he dashes across to the goal roof instead,
+	-- which the renderer's 10 Hz smoothing draws as one quick streak
+	if (r.step == "leap" or r.step == "chase") and CityBuilder.heightAt(nxt.X, nxt.Z) < goal.Y - 6 then
+		nxt = goal
+	end
+	EnemyService.place(id, nxt)
 end
 
 local function tunnelTick(r: Run, pos: Vector3)
@@ -707,6 +721,8 @@ local function step(r: Run, now: number, dt: number)
 		end
 		return
 	end
+	-- first-30: a prompt waiting for its press holds every clock of the prologue still (QtePlan.holdClocks)
+	QtePlan.holdClocks(Config, r, dt)
 	if now - r.startedAt > O.timeout and CODE[s] < CODE.title then
 		setStep(r, "title")
 		return
@@ -897,7 +913,10 @@ local function onAct(player: Player, act: number)
 		else
 			OpeningService.finish(player)
 		end
-	elseif act == 7 and r.step == "suit" and os.clock() - r.stepAt >= O.qte.suitMin then
+	elseif act == 8 or act == 9 then
+		-- first-30: a prompt went up on the device (8) or was answered (9); only on the prompt beats
+		r.qteUp = act == 8 and PrologueCine.directed(Config, r.step) and not r.hold
+	elseif act == 7 and r.step == "suit" and os.clock() - r.stepAt + (r.qteStep or 0) >= O.qte.suitMin then
 		-- prologue-cine: the suit's HOLD has snapped it on (the device's cue; the stuck timer still holds the beat)
 		setStep(r, "descend")
 	elseif act == 3 and r.hold then

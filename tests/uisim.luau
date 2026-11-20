@@ -558,6 +558,21 @@ for _, name in
 do
 	Methods[name] = Methods[name] or function() end
 end
+-- RunService:BindToRenderStep keeps its step on the active sim (sim.renderSteps), so a test can run the frame's
+-- bound steps in priority order (UiSim:renderFrame)
+function Methods:BindToRenderStep(name: string, priority: number, fn: (number) -> ())
+	local sim = UiSim.active
+	if sim then
+		sim.renderSteps = sim.renderSteps or {}
+		sim.renderSteps[name] = { priority, fn }
+	end
+end
+function Methods:UnbindFromRenderStep(name: string)
+	local sim = UiSim.active
+	if sim and sim.renderSteps then
+		sim.renderSteps[name] = nil
+	end
+end
 function Methods:GetState()
 	return Enum.HumanoidStateType.Running
 end
@@ -948,6 +963,17 @@ function UiSim:_env(script: any): { [string]: any }
 		return setmetatable({}, randomMt)
 	end
 	return {
+		-- sim.fakeClock = true (before requiring modules): os.clock follows sim:advance, for code timed on os.clock
+		os = if sim.fakeClock
+			then {
+				clock = function()
+					return sim.now
+				end,
+				time = os.time,
+				date = os.date,
+				difftime = os.difftime,
+			}
+			else os,
 		game = self.game,
 		workspace = self.workspace,
 		Workspace = self.workspace,
@@ -1111,6 +1137,30 @@ function UiSim:advance(seconds: number)
 		end)
 	end
 	self.now = stop
+end
+
+-- One rendered frame of `dt`: the clock moves on, then the bound render steps in priority order, then every
+-- RenderStepped handler
+function UiSim:renderFrame(dt: number)
+	self:advance(dt)
+	local list = {}
+	for name, b in self.renderSteps or {} do
+		table.insert(list, { name, b[1], b[2] })
+	end
+	table.sort(list, function(a, b)
+		return a[2] < b[2]
+	end)
+	for _, b in list do
+		self:run("BindToRenderStep " .. b[1], function()
+			b[3](dt)
+		end)
+	end
+	local RS = self.game:GetService("RunService")
+	for _, h in table.clone(RS.RenderStepped.handlers) do
+		self:run("RenderStepped", function()
+			h(dt)
+		end)
+	end
 end
 
 function UiSim:run(label: string, fn: () -> ()): (boolean, string?)

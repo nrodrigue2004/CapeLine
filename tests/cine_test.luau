@@ -294,7 +294,8 @@ return function(T: any)
 				"PrologueFx draws the " .. k .. " moment"
 			)
 		end
-		-- the rules of a mash and a hold
+		-- the rules of a mash and a hold (the timed rules: qte.wait = false; first-30 makes prompts wait)
+		local Config = { Story = { opening = { qte = setmetatable({ wait = false }, { __index = Q }) } } }
 		local mash = { action = "Basic", word = W.mash, kind = "mash" }
 		local n, done = 0, false
 		for _ = 1, Q.mash.count do
@@ -372,7 +373,7 @@ return function(T: any)
 				"the run is counted where the body is"
 			)
 			local remotes = require("../src/shared/Remotes")
-			check(remotes.OpeningAct.schema[1].max == 7, "OpeningAct takes 7")
+			check(remotes.OpeningAct.schema[1].max == 9, "OpeningAct takes 1-9 (8 and 9: a prompt waits)")
 			local fx = src("src/client/Fx/PrologueFx.luau")
 			local slow = string.match(fx, "local function slowLeap.-\nend\n") or ""
 			check(

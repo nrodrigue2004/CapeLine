@@ -36,6 +36,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local SoundPick = require(Shared:WaitForChild("SoundPick"))
 local LifePlan = require(Shared:WaitForChild("LifePlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
+local MusicPlan = require(Shared:WaitForChild("MusicPlan"))
 
 local WorldClient = require(script.Parent.WorldClient)
 local Kit = require(script.Parent.Parent.Ui.Kit)
@@ -183,6 +184,10 @@ end
 -- Play one juice action's sound. `at` is a world spot (3D) or nil (2D, on you). opts: pitch, volume
 -- a scene's own track while it plays (the intro film: Fx.IntroFilm), nil: the world picks
 AudioController.musicOverride = nil :: string?
+-- (first-30, context music) set at boot (init.client): what is going on now, for Shared.MusicPlan (the menu, the
+-- prologue's beat, a cutscene, an HQ, the deep, a mission, the last hit); the boss, the night and the override are
+-- filled in here
+AudioController.musicContext = nil :: (() -> MusicPlan.Context)?
 
 function AudioController.play(id: string, at: Vector3?, opts: { [string]: any }?)
 	AudioController.playSpec(A.sounds[id], at, opts, id)
@@ -425,8 +430,15 @@ local function nearBoss(): boolean
 end
 
 local function musicTick()
-	local want = AudioController.musicOverride
-		or (if nearBoss() then "boss" elseif WorldClient.isNight() then "patrolNight" else "patrolDay")
+	local ctx: MusicPlan.Context = if AudioController.musicContext then AudioController.musicContext() else {}
+	ctx.override = AudioController.musicOverride
+	ctx.boss = nearBoss()
+	ctx.night = WorldClient.isNight()
+	local want = MusicPlan.pick(Config, ctx)
+	if not A.music[want] or (not track(want) and want ~= "patrolDay" and want ~= "patrolNight") then
+		-- a loop without its upload yet: the patrol loop keeps playing
+		want = if ctx.night then "patrolNight" else "patrolDay"
+	end
 	local stinging = currentTrack == "victory" and os.clock() < victoryUntil
 	if not stinging then
 		switch(want)

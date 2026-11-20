@@ -25,6 +25,9 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 
 local State = require(script.Parent.Parent.State)
+local CameraController = require(script.Parent.CameraController)
+local QualityController = require(script.Parent.QualityController)
+local Lighting = game:GetService("Lighting")
 
 local CinemaClient = {}
 
@@ -59,6 +62,11 @@ local player = Players.LocalPlayer
 local camOn = false
 local anchored: BasePart? = nil
 local buf = table.create(6, 0)
+-- (first-30 polish round 2) the shot last drawn and its camera, for easing across jump cuts
+local lastShot: any = nil
+local lastCf: CFrame? = nil
+local easeFrom: CFrame? = nil
+local easeAt = 0
 local localSeen: { [number]: boolean } = {}
 local waiting: { scene: Scene, untilT: number }? = nil
 
@@ -82,7 +90,9 @@ local function setCamera(on: boolean, free: boolean?)
 		return
 	end
 	camOn = on
+	local CCam = Config.Cinema.camera
 	if on then
+		CameraController.fovOverride = CCam.fov
 		cam.CameraType = Enum.CameraType.Scriptable
 		local r = root()
 		if r and not free then
@@ -90,10 +100,14 @@ local function setCamera(on: boolean, free: boolean?)
 			anchored = r
 		end
 	else
+		CameraController.fovOverride = nil
+		local last = cam.CFrame
 		cam.CameraType = Enum.CameraType.Custom
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if hum then
 			cam.CameraSubject = hum
+			-- first-30 polish: ease from the last shot to the follow camera, no snap behind the hero
+			CameraController.blendFrom(last, CCam.blendOut)
 		end
 		if anchored then
 			anchored.Anchored = false
@@ -187,6 +201,7 @@ function CinemaClient.play(scene: Scene): (boolean, string?)
 		finish(false, wantsCam and (cur.free == true) == (scene.free == true))
 	end
 	waiting = nil
+	lastShot, lastCf, easeFrom = nil, nil, nil
 	scene.startedAt = os.clock()
 	CinemaClient.current = scene
 	setCamera(wantsCam, scene.free)
@@ -247,7 +262,50 @@ function CinemaClient.playScene(id: string): (boolean, string?)
 	})
 end
 
+-- (first-30 polish round 2) a filmic depth of field while a scene's shots play: the subject sharp, the far city
+-- softly blurred (Config.Cinema.camera.dof); never on the low preset; eased in and out
+local dof: DepthOfFieldEffect? = nil
+local dofK = 0
+local dofWant = false
+local function focusOn(distance: number, dt: number)
+	local D = Config.Cinema.camera.dof
+	dofWant = D.on and QualityController.name ~= "low"
+	if not dofWant then
+		return
+	end
+	if not dof then
+		local e = Instance.new("DepthOfFieldEffect")
+		e.Name = "CinemaFocus"
+		e.NearIntensity = 0
+		e.FarIntensity = 0
+		e.Enabled = false
+		e.Parent = Lighting
+		dof = e
+	end
+	local e = dof :: DepthOfFieldEffect
+	e.FocusDistance = math.clamp(distance, 4, 200)
+	e.InFocusRadius = math.clamp(distance * D.radius, 8, 60)
+	dofK = math.min(1, dofK + dt / D.ease)
+	e.FarIntensity = D.far * dofK
+	e.Enabled = true
+end
+
+local function focusOff(dt: number)
+	local e = dof
+	if not e or not e.Enabled then
+		return
+	end
+	dofK = math.max(0, dofK - dt / Config.Cinema.camera.dof.ease)
+	e.FarIntensity = Config.Cinema.camera.dof.far * dofK
+	if dofK <= 0 then
+		e.Enabled = false
+	end
+end
+
 local function step(dt: number)
+	if not (CinemaClient.current and camOn and #(CinemaClient.current :: Scene).shots > 0) then
+		focusOff(dt)
+	end
 	local w = waiting
 	if w and os.clock() > w.untilT then
 		waiting = nil
@@ -273,7 +331,51 @@ local function step(dt: number)
 	local shot, k = CinemaPlan.at(s.shots, t)
 	if shot and cam then
 		CinemaPlan.sample(shot, k, buf)
-		cam.CFrame = CFrame.lookAt(Vector3.new(buf[1], buf[2], buf[3]), Vector3.new(buf[4], buf[5], buf[6]))
+		local at = Vector3.new(buf[1], buf[2], buf[3])
+		local look = Vector3.new(buf[4], buf[5], buf[6])
+		-- (first-30 polish round 2) no shot is dead still: a slow push toward the subject over the shot and a
+		-- faint breathing sway, like a real camera operator (Config.Cinema.camera.drift)
+		local D = Config.Cinema.camera.drift
+		local toLook = look - at
+		if toLook.Magnitude > 1 then
+			at += toLook * (D.push * k)
+			local tt = os.clock() * D.rate * math.pi * 2
+			local right = toLook.Unit:Cross(Vector3.yAxis)
+			if right.Magnitude > 1e-3 then
+				at += right.Unit * (math.sin(tt) * D.sway) + Vector3.yAxis * (math.sin(tt * 0.7 + 1.3) * D.sway * 0.6)
+			end
+		end
+		if math.abs(toLook.Unit.Y) > 0.985 then
+			-- straight up or down: lookAt would spin; lean the look a hair off the vertical
+			look += Vector3.new(0.05 * toLook.Magnitude, 0, 0)
+		end
+		local cf = CFrame.lookAt(at, look)
+		-- a jump cut (the next shot starts close to where the last one ended, looking nearly the same way) reads
+		-- as a glitch: ease across it instead of cutting
+		if shot ~= lastShot then
+			local prev = lastCf
+			lastShot = shot
+			if
+				prev
+				and (prev.Position - cf.Position).Magnitude < D.jumpCut.dist
+				and prev.LookVector:Dot(cf.LookVector) > math.cos(math.rad(D.jumpCut.angle))
+			then
+				easeFrom, easeAt = prev, os.clock()
+			else
+				easeFrom = nil
+			end
+		end
+		if easeFrom then
+			local e = (os.clock() - easeAt) / D.jumpCut.ease
+			if e >= 1 then
+				easeFrom = nil
+			else
+				cf = (easeFrom :: CFrame):Lerp(cf, CinemaPlan.ease(e))
+			end
+		end
+		lastCf = cf
+		cam.CFrame = cf
+		focusOn((look - at).Magnitude, dt)
 	end
 end
 
