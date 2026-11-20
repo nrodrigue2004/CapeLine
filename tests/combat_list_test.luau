@@ -1211,6 +1211,50 @@ return function(T: any)
 		)
 	end)
 
+	test("List combat: vehicle lettering sits on the bodies' sides (Everything Left 271)", function()
+		local VehicleKit = require("../src/shared/VehicleKit")
+		local art = Config.VehicleArt
+		local n = 0
+		for look, L in VehicleKit.LETTERS do
+			n += 1
+			local row = art[look]
+			check(row ~= nil, look .. " is a vehicle look")
+			if not row then
+				continue
+			end
+			-- the look's outer box (every mesh but the wheels)
+			local lo, hi = { math.huge, math.huge, math.huge }, { -math.huge, -math.huge, -math.huge }
+			local body = 0
+			for name, m in row do
+				if not string.find(name, "Wheel") then
+					for a = 1, 3 do
+						lo[a] = math.min(lo[a], m.offset[a] - m.size[a] / 2)
+						hi[a] = math.max(hi[a], m.offset[a] + m.size[a] / 2)
+					end
+				end
+				if string.find(name, "Body$") then
+					body = m.size[1] / 2
+				end
+			end
+			check(L.x <= hi[1] + 0.05 and L.x >= body - 0.25, look .. ": the panel's faces lie on the sides")
+			check(
+				L.y - L.h / 2 >= lo[2] and L.y + L.h / 2 <= hi[2],
+				look .. ": the band is within the body's height"
+			)
+			check(
+				L.z - L.len / 2 >= lo[3] - 0.05 and L.z + L.len / 2 <= hi[3] + 0.05,
+				look .. ": the band is within its length"
+			)
+			check(string.upper(L.text) == L.text and #L.text <= 24, look .. ": fixed capital words")
+		end
+		check(n == 8, "8 lettered looks: " .. n)
+		local src = fs.readFile("src/server/Services/SetPieceMeshes.luau")
+		check(
+			string.find(src, "VehicleKit.LETTERS[place.look]", 1, true) ~= nil,
+			"SetPieceMeshes letters them"
+		)
+	end)
+
 	test("List combat: weapons wear baked texture sets (Everything Left 192)", function()
 		local roblox = require("@lune/roblox")
 		local model = roblox.deserializeModel(fs.readFile("art/models/Weapons.rbxm"))[1]

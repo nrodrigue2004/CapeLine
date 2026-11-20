@@ -44,6 +44,105 @@ VehicleKit.BODY = {
 	DockTruck = "DockTruckBody",
 } :: { [string]: string }
 
+-- The lettering on a look's two sides (list-combat 2026-11-20, Everything Left 271: "vehicles have no lettering or
+-- signs"): fixed words in comic sign lettering (Shared.SignKit) on a see-through panel whose left and right faces
+-- lie on the body's flat sides. Each: the words, ink and stroke colours, and the band from the look's foot (x the
+-- side's half width, y and z the band's middle, h its height, len its length; nose to -z), measured from
+-- art/blender/vehicles.py (below the windows, on the container, inside the show van's bulb frame).
+VehicleKit.LETTERS = {
+	CarTaxi = {
+		text = "TAXI",
+		ink = { 24, 22, 30 },
+		stroke = { 255, 255, 255 },
+		x = 3.12,
+		y = 2.45,
+		z = 0.6,
+		h = 0.9,
+		len = 4,
+	},
+	DockTruck = {
+		text = "HARBOR FREIGHT",
+		ink = { 255, 255, 255 },
+		stroke = { 24, 22, 30 },
+		x = 3.88,
+		y = 6.4,
+		z = 2.95,
+		h = 2.6,
+		len = 12,
+	},
+	FieldTripBus = {
+		text = "HALO ACADEMY",
+		ink = { 24, 22, 30 },
+		stroke = { 255, 236, 160 },
+		x = 3.42,
+		y = 3.0,
+		z = 0.8,
+		h = 1.4,
+		len = 10,
+	},
+	IceCreamTruck = {
+		text = "SCOOPS",
+		ink = { 230, 60, 120 },
+		stroke = { 24, 22, 30 },
+		x = 3.37,
+		y = 2.5,
+		z = 0.5,
+		h = 1.2,
+		len = 7,
+	},
+	NewsVan = {
+		text = "LIVE NEWS 9",
+		ink = { 214, 36, 52 },
+		stroke = { 255, 255, 255 },
+		x = 3.37,
+		y = 2.75,
+		z = 1,
+		h = 1.2,
+		len = 8,
+	},
+	FerryVan = {
+		text = "GULL POINT FERRY",
+		ink = { 26, 34, 78 },
+		stroke = { 255, 255, 255 },
+		x = 3.33,
+		y = 3.3,
+		z = 0,
+		h = 1.3,
+		len = 10,
+	},
+	ShowVan = {
+		text = "AMBROSE THE ASTONISHING",
+		ink = { 255, 206, 58 },
+		stroke = { 24, 22, 30 },
+		x = 3.26,
+		y = 4.9,
+		z = 1.24,
+		h = 2.2,
+		len = 6,
+	},
+	PartsTruck = {
+		text = "TESS PARTS",
+		ink = { 24, 22, 30 },
+		stroke = { 255, 255, 255 },
+		x = 3.22,
+		y = 3.05,
+		z = -4.2,
+		h = 0.9,
+		len = 3.6,
+	},
+} :: {
+	[string]: {
+		text: string,
+		ink: { number },
+		stroke: { number },
+		x: number,
+		y: number,
+		z: number,
+		h: number,
+		len: number,
+	},
+}
+
 -- Downtown's cars by id: one in five a taxi
 VehicleKit.DOWNTOWN = { "CarSedan", "CarHatch", "CarTaxi", "CarHatch", "CarSedan" }
 

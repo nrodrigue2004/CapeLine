@@ -15,6 +15,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local SetPieceKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SetPieceKit"))
 local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
+local SignKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SignKit"))
+local VehicleKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VehicleKit"))
 
 local SetPieceMeshes = {}
 
@@ -116,6 +118,29 @@ function SetPieceMeshes.add(parent: Instance, place: SetPieceKit.Place, cf: CFra
 			p.Parent = parent
 			table.insert(out, p)
 		end
+	end
+	-- a vehicle look's side lettering (Shared.VehicleKit.LETTERS): a see-through panel as wide as the body, the
+	-- words on its left and right faces; it rides with the meshes (returned with them, so a rig moves it too)
+	local L = VehicleKit.LETTERS[place.look]
+	if L and #out > 0 then
+		local panel = Instance.new("Part")
+		panel.Name = "Lettering"
+		panel.Size = Vector3.new(L.x * 2, L.h, L.len)
+		panel.CFrame = cf * CFrame.new(0, L.y, L.z)
+		panel.Transparency = 1
+		panel.Anchored = true
+		panel.CanCollide = false
+		panel.CanQuery = false
+		panel.CanTouch = false
+		panel.CastShadow = false
+		panel.Massless = true
+		SignKit.letter(panel, L.text, Color3.fromRGB(L.ink[1], L.ink[2], L.ink[3]), {
+			faces = { Enum.NormalId.Left, Enum.NormalId.Right },
+			stroke = 3,
+			strokeColor = Color3.fromRGB(L.stroke[1], L.stroke[2], L.stroke[3]),
+		})
+		panel.Parent = parent
+		table.insert(out, panel :: any)
 	end
 	return out
 end
