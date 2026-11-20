@@ -12,8 +12,8 @@
 -- Uniqueness (tests/fx_unique_test.luau): inside a path no two moves share a flair, no two share a hit, and no
 -- two moves that fly share a trail, so every move reads as its own even in the same colours.
 -- Weapon moves are not here: they keep their own visuals. PLACEHOLDER ART: part-built shapes plus the effects
--- library's sheets until the VFX pass; the two new sheets (rune, scorch) fall back to built-in images until
--- nate uploads them (Config.Fx.lib.textures, id 0).
+-- library's sheets until the VFX pass (the rune and scorch sheets are uploaded, Config.Fx.lib.textures; rings,
+-- hoops, stones, crystals and crescents are Art.Powers meshes since 2026-11-20).
 
 return {
 	-- what each recipe name costs at the high preset: part-built pieces (FxLib.pieces scales them per preset)

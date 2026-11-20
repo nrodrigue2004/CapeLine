@@ -3712,6 +3712,68 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: repair drones shine a textured energy beam and weld sparks", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local BuildingState = require("../src/shared/BuildingState")
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		-- the hero stands by the building (drones only draw near you)
+		local char = UiSim.newInstance("Model")
+		local hrp = UiSim.newInstance("Part")
+		hrp.Name = "HumanoidRootPart"
+		hrp.CFrame = roblox.CFrame.new(0, 3, 0)
+		hrp.Parent = char
+		char.Parent = sim.service("Workspace")
+		sim.service("Players").LocalPlayer.Character = char
+		local BuildingFx = sim:require("Client.Fx.BuildingFx")
+		sim:run("BuildingFx", BuildingFx.init)
+		local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+		local id = 4000
+		sim:run("snapshot", function()
+			remotes:WaitForChild("BuildingSnapshot").OnClientEvent:Fire({
+				s = buffer.create(0),
+				n = 0,
+				o = BuildingState.packBoxes({ { x = 10, z = 0, sx = 20, sz = 20, base = 0, top = 30 } }),
+				o1 = id,
+				dr = { { 1, id, 10 } },
+			})
+		end)
+		require("@lune/task").wait(2.2) -- the drone flies in for 2 s, then works
+		for _ = 1, 2 do
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(1 / 60)
+			end)
+		end
+		local drone = sim.service("Workspace"):FindFirstChild("RepairDrone", true)
+		check(drone ~= nil, "the repair drone flies in")
+		local ray = drone and drone:FindFirstChild("RepairRay", true)
+		check(ray ~= nil and ray:IsA("Beam"), "its beam is a textured Beam")
+		if ray then
+			check(
+				ray.Texture == "rbxassetid://" .. Config.Fx.energyBeam.texture,
+				"in the energy strip texture"
+			)
+			check(ray.Enabled, "shining while it works")
+			local len = math.abs(ray.Attachment0.Position.Y - ray.Attachment1.Position.Y)
+			check(len > 5, string.format("reaching down to the roof (%.1f)", len))
+			check(ray.Parent.Transparency == 1, "the old neon bar stays clear")
+		end
+		local sparks = false
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsA("ParticleEmitter") and string.find(d.Parent.Name, "^spark:") then
+				sparks = true
+			end
+		end
+		check(sparks, "weld sparks where it lands")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash

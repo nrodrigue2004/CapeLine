@@ -1159,7 +1159,8 @@ local function impact(center: Vector3, radius: number, kind: number)
 	smashStreet(center, radius)
 end
 
--- Repair drones: fly in over the building and hover while working (PLACEHOLDER ART)
+-- Repair drones: fly in over the building and hover while working: the Fix-It Drone's look, a textured energy beam
+-- down to the roof and weld sparks where it lands (2026-11-20; the part box before Art.Powers is imported)
 -- A heavy landing on this device only (the intro film's hero: Fx.IntroFilm): the crater, the cracks and the street
 -- things knocked loose, as a server ground hit draws them
 function BuildingFx.landing(center: Vector3, radius: number)
@@ -1235,6 +1236,33 @@ local function droneJob(droneId: number, bid: number, seconds: number)
 	local hoverY = rec.top + 10
 	local start = Vector3.new(rec.x + 120, hoverY + 60, rec.z + 40)
 	local beam = m:FindFirstChild("Beam") :: BasePart
+	-- the repair beam: the energy strip texture between the beam part's ends (the part itself stays clear)
+	local EB = Config.Fx.energyBeam
+	local ray: Beam? = nil
+	local a0 = Instance.new("Attachment")
+	a0.Parent = beam
+	local a1 = Instance.new("Attachment")
+	a1.Parent = beam
+	if EB and (EB.texture or 0) ~= 0 then
+		local b = Instance.new("Beam")
+		b.Name = "RepairRay"
+		b.Attachment0 = a0
+		b.Attachment1 = a1
+		b.FaceCamera = true
+		b.Width0, b.Width1 = 0.6, 1.4
+		b.Texture = "rbxassetid://" .. EB.texture
+		b.TextureMode = Enum.TextureMode.Wrap
+		b.TextureLength = EB.tile
+		b.TextureSpeed = -EB.speed -- flowing down to the roof
+		b.LightEmission = 1
+		b.Brightness = 2
+		b.Color = ColorSequence.new(DRONE_LIGHT)
+		b.Transparency = NumberSequence.new(0.15)
+		b.Enabled = false
+		b.Parent = beam
+		ray = b
+	end
+	local lastSpark = 0
 	local parts: { BasePart } = {}
 	local offsets: { CFrame } = {}
 	local root = (m.PrimaryPart :: BasePart).CFrame
@@ -1266,7 +1294,24 @@ local function droneJob(droneId: number, bid: number, seconds: number)
 		local len = if working then pos.Y - rec.top else 0.1
 		beam.Size = Vector3.new(0.4, math.max(len, 0.1), 0.4)
 		beam.CFrame = CFrame.new(pos - Vector3.new(0, len / 2 + 0.5, 0))
-		beam.Transparency = if working then 0.4 + math.sin(t * 10) * 0.15 else 1
+		a0.Position = Vector3.new(0, len / 2, 0)
+		a1.Position = Vector3.new(0, -len / 2, 0)
+		if ray then
+			ray.Enabled = working
+			beam.Transparency = 1
+		else
+			beam.Transparency = if working then 0.4 + math.sin(t * 10) * 0.15 else 1
+		end
+		if working and t - lastSpark > 0.3 then
+			lastSpark = t
+			FxLib.emit(
+				"spark",
+				DRONE_LIGHT,
+				Vector3.new(pos.X, rec.top + 0.3, pos.Z),
+				3,
+				Vector3.new(0, 1, 0)
+			)
+		end
 		if t > seconds + 3 then
 			if job.conn then
 				job.conn:Disconnect()
