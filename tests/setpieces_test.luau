@@ -79,7 +79,14 @@ return function(T: any)
 			check(tris <= 4000, look .. " is in the phone budget (" .. tris .. " tris)")
 			total += tris
 		end
-		check(looks == 53 and meshes == 155, "53 looks in 155 meshes (" .. looks .. ", " .. meshes .. ")")
+		check(
+			looks == 53 and meshes == 158,
+			"53 looks in 158 meshes (the farm truck's 4 road wheels, list-combat 2026-11-20) ("
+				.. looks
+				.. ", "
+				.. meshes
+				.. ")"
+		)
 		check(total <= 48000, "the whole set is in budget (" .. total .. " tris)")
 		check(fs.isFile("art/export/SetPieces.fbx"), "the meshes are exported for nate's import")
 		check(fs.isFile("art/preview/setpieces.png"), "and previewed")

@@ -37,6 +37,7 @@ kit.reset()
 
 from studs import *  # noqa: E402,F401,F403  (the colours and shape helpers)
 from studs import LOOKS, INFO  # noqa: E402
+WHEELS = {}  # road wheels: mesh name -> (radius, axle 0 front, steers) (the devices roll them, Fx.VehicleRig)
 
 # ================================================================ the Museum Gala (OpenNorth)
 # ---------------------------------------------------------------- the entrance arch (foot: the sign's middle)
@@ -538,11 +539,20 @@ mesh("FarmTruck", "FarmTruckBody", tk, (214, 52, 46))
 gw = [B(6.0, 1.7, 0.2, 0, 4.7, -3.6), B(0.2, 1.6, 2.6, -3.32, 4.7, -1.2), B(0.2, 1.6, 2.6, 3.32, 4.7, -1.2)]
 turn(gw[0], "x", -14, (0, 4.7, -3.6))
 mesh("FarmTruck", "FarmTruckGlass", gw, (150, 200, 232), "Glass", 0.3)
-fw = []
-for z in (-4.6, 4.4):
-    for x in (-3.0, 3.0):
-        fw.append(C(1.2, 1.0, x, 1.2, z, segs=14, axis="x"))
-mesh("FarmTruck", "FarmTruckWheels", fw, TYRE)
+# each road wheel its own mesh with a chunky tread, so the devices roll and steer it (Fx.VehicleRig; list-combat
+# 2026-11-20, Everything Left 395: "The farm truck's wheels don't roll (baked into its model)")
+for z, axle in ((-4.6, "F"), (4.4, "R")):
+    for x, side in ((-3.0, "L"), (3.0, "R")):
+        tyre = [C(1.12, 1.0, x, 1.2, z, segs=16, axis="x")]
+        for k in range(12):  # tread blocks round the tyre
+            a = 2 * math.pi * k / 12
+            blk = B(0.9, 0.22, 0.34, 0, 0, 0)
+            turn(blk, "x", math.degrees(a))
+            shift(blk, rb(x, 1.2 + math.cos(a) * 1.1, z + math.sin(a) * 1.1))
+            tyre.append(blk)
+        name = "FarmTruckWheel%s%s" % (axle, side)
+        mesh("FarmTruck", name, tyre, TYRE)
+        WHEELS[name] = (1.2, 0 if axle == "F" else 1, axle == "F")
 ft = [B(7.2, 0.7, 0.6, 0, 1.4, -7.1, bev=0.15), B(7.2, 0.6, 0.5, 0, 1.4, 7.25, bev=0.15), B(4.0, 1.4, 0.2, 0, 2.7, -7.05),
       C(0.45, 0.2, -2.6, 3.0, -7.05, segs=10, axis="z"), C(0.45, 0.2, 2.6, 3.0, -7.05, segs=10, axis="z")]
 for z in (-4.6, 4.4):
@@ -983,6 +993,9 @@ for look in sorted(LOOKS):
         total += t
         rgb, mat, alpha = INFO[name]
         extra = (", alpha = %g" % alpha) if alpha else ""
+        if name in WHEELS:
+            r, axle, steer = WHEELS[name]
+            extra += ", wheel = { r = %.3f, axle = %d, steer = %s }" % (r, axle, "true" if steer else "false")
         rows.append("\t\t%s = { size = { %.3f, %.3f, %.3f }, offset = { %.3f, %.3f, %.3f }, color = { %d, %d, %d }, mat = \"%s\"%s, tris = %d },"
                     % (name, max(size.x, 0.05), max(size.z, 0.05), max(size.y, 0.05), c.x, c.z, -c.y, rgb[0], rgb[1], rgb[2], mat,
                        extra, t))

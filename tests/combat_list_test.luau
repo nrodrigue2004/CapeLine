@@ -2084,6 +2084,30 @@ return function(T: any)
 		check(not string.find(fx, "PLACEHOLDER ART", 1, true), "no placeholder links")
 	end)
 
+	test("List combat: the farm truck's wheels roll and steer (Everything Left 395)", function()
+		local roblox = require("@lune/roblox")
+		local fit = Config.SetPieceArt.FarmTruck
+		local model = roblox.deserializeModel(fs.readFile("art/models/SetPieces.rbxm"))[1]
+		local wheels, steer = 0, 0
+		for name, f in fit do
+			check(model:FindFirstChild(name, true) ~= nil, name .. " is imported")
+			if f.wheel then
+				wheels += 1
+				check(f.wheel.r > 1 and f.wheel.r < 1.4, name .. " has its radius")
+				check(math.abs(f.offset[2] - f.wheel.r) < 0.05, name .. " sits on the road")
+				if f.wheel.steer then
+					steer += 1
+					check(f.wheel.axle == 0 and f.offset[3] < 0, name .. " steers at the front")
+				end
+			end
+		end
+		check(wheels == 4 and steer == 2, "four road wheels, the front pair steers")
+		check(fit.FarmTruckWheels == nil, "no baked wheel set left")
+		-- SetPieceMeshes hands the wheel to the devices (VehicleRig rolls anything with WheelR)
+		local spm = fs.readFile("src/server/Services/SetPieceMeshes.luau")
+		check(string.find(spm, 'p:SetAttribute("WheelR", w.r)', 1, true) ~= nil, "the wheel attribute")
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do
