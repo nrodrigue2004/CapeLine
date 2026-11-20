@@ -430,6 +430,21 @@ mesh("Heads", tint("HeadDrop"), [loft_z([(-0.5, 0.01, -0.01, 0.01), (-0.42, 0.28
                                         (0.8, 0.01, -0.01, 0.01)], segs=14, power=2.0)],
      (80, 170, 255), "Glass", alpha=0.2)
 
+# Light's lance: a long fluted spear of light with a diamond tip and two flanges (nose at -z)
+def hexring(r, z, n=6, rot=0.0):
+    return [(r * math.cos(2 * math.pi * i / n + rot), r * math.sin(2 * math.pi * i / n + rot), z) for i in range(n)]
+lance = [rings_mesh([hexring(0.01, -3.0), hexring(0.22, -2.3), hexring(0.09, -2.0), hexring(0.08, 2.6), hexring(0.01, 3.0)])]
+for zf in (-1.7, 1.9):
+    lance.append(TOR(0.16, 0.035, 0, 0, zf, axis="z", segs=16, csegs=5))
+mesh("Heads", tint("HeadLance"), lance, (255, 240, 170), "Neon", alpha=0.05)
+# Mind's psi ring: a ring face-on to its flight (in the x-y plane) with three teeth pointing in, like a sigil
+psi = [TOR(1.0, 0.09, 0, 0, 0, axis="z", segs=40, csegs=6)]
+for i in range(3):
+    a = 2 * math.pi * i / 3 + math.pi / 2
+    c, sn = math.cos(a), math.sin(a)
+    psi.append(T([(c * 0.98, sn * 0.98, 0), (c * 0.55, sn * 0.55, 0)], [0.22, 0.01], segs=4))
+mesh("Heads", tint("HeadPsiRing"), psi, (200, 140, 255), "Neon", alpha=0.1)
+
 # ================================================================ the Swordsman's slash (Everything Left 172, 2026-11-20): an anime sword crescent
 # with a white-hot cutting edge (anchor: the swing's centre; the arc lies flat in the x-z plane, radius 1, 140 degrees
 # round the front -z). CombatFx tilts it per combo step and stands it up for Heaven Splitter.

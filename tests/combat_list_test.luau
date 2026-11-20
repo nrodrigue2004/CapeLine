@@ -974,8 +974,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 66,
-			"66 meshes in 26 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 68,
+			"68 meshes in 26 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3018,7 +3018,9 @@ return function(T: any)
 		function()
 			local roblox = require("@lune/roblox")
 			local H = Config.PowerArt.Heads
-			for _, name in { "HeadSpike", "HeadFlame", "HeadRock", "HeadKunai", "HeadDrop" } do
+			for _, name in
+				{ "HeadSpike", "HeadFlame", "HeadRock", "HeadKunai", "HeadDrop", "HeadLance", "HeadPsiRing" }
+			do
 				check(
 					H ~= nil and H[name] ~= nil and H[name].tint == true,
 					name .. " in PowerArt, in the path colour"
@@ -3041,6 +3043,8 @@ return function(T: any)
 				Earth = "HeadRock",
 				Shadow = "HeadKunai",
 				Tide = "HeadDrop",
+				Light = "HeadLance",
+				Mind = "HeadPsiRing",
 			}
 			for set, name in want do
 				sim:run(set, function()
@@ -3063,7 +3067,9 @@ return function(T: any)
 					-- nose first along the flight (-z): the mesh's long side lies along the bolt
 					local look = found.CFrame.LookVector
 					check(
-						name == "HeadRock" or found.Size.Z >= math.max(found.Size.X, found.Size.Y) - 1e-3,
+						name == "HeadRock"
+							or name == "HeadPsiRing"
+							or found.Size.Z >= math.max(found.Size.X, found.Size.Y) - 1e-3,
 						name .. " is longest along its flight"
 					)
 					check(
@@ -3071,7 +3077,9 @@ return function(T: any)
 						name .. " flies level (" .. string.format("%.2f", look.Y) .. ")"
 					)
 					check(
-						name == "HeadKunai" or found.Color == roblox.Color3.fromRGB(200, 120, 255),
+						name == "HeadKunai"
+							or name == "HeadLance"
+							or found.Color == roblox.Color3.fromRGB(200, 120, 255),
 						name .. " in the path colour (the kunai in its dark accent)"
 					)
 				end

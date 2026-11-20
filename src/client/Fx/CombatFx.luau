@@ -1918,9 +1918,16 @@ HEAD.lens = function(from, to, style, color, accent, s) -- Pulse: a warped spher
 end
 HEAD.psiring = function(from, to, style, color, accent, s) -- Mind: a spinning ring, face-on to its flight
 	local t = flightTime(from, to, 230)
-	local r = PIECE.ring(2.6 * s, color)
-	r.Transparency = 0.1
-	fly(r, from, to, t, 0, nil, ACROSS)
+	-- the Blender psi ring (Art.Powers Heads, drawn face-on to its flight, teeth pointing in), else the part ring
+	local sigil = headMesh("HeadPsiRing", 2.6 * s, color)
+	if sigil then
+		sigil.Transparency = 0.1
+		fly(sigil, from, to, t, 6)
+	else
+		local r = PIECE.ring(2.6 * s, color)
+		r.Transparency = 0.1
+		fly(r, from, to, t, 0, nil, ACROSS)
+	end
 	local inner = PIECE.tri(1.4 * s, if anime(style) then WHITE else accent)
 	fly(inner, from, to, t, 10)
 end
@@ -1936,7 +1943,9 @@ HEAD.wisp = function(from, to, _style, color, accent, s) -- Spirit: a spirit fla
 end
 HEAD.lance = function(from, to, style, color, accent, s) -- Light: a long spear of light with a bright tip
 	local t = flightTime(from, to, 360)
-	local spear = part(Vector3.new(0.3, 0.3, 6) * s, CFrame.new(), if anime(style) then WHITE else accent)
+	-- the Blender lance (Art.Powers Heads: a fluted spear with a diamond tip and two flanges), else a bar
+	local spear = headMesh("HeadLance", 6 * s, if anime(style) then WHITE else accent)
+		or part(Vector3.new(0.3, 0.3, 6) * s, CFrame.new(), if anime(style) then WHITE else accent)
 	fly(spear, from, to, t)
 	local glow = part(Vector3.new(0.9, 0.9, 5) * s, CFrame.new(), color)
 	glow.Transparency = 0.5
