@@ -15,6 +15,7 @@ return {
 		{ file = "icons_5.png", id = 129510062390276 },
 		{ file = "icons_6.png", id = 109444681852120 },
 		{ file = "icons_7.png", id = 136418899105863 },
+		{ file = "icons_8.png", id = 115546856197191 },
 	},
 	-- every power (Config.Abilities.list), by ability id
 	ability = {
@@ -410,6 +411,29 @@ return {
 		Leap = { 6, 59 },
 		Boost = { 6, 60 },
 		Down = { 6, 61 },
+	},
+	-- the mobility rework's 20 moves (Config.Move.moves), rank 5's gold-ringed
+	mobmove = {
+		sonicDive = { 8, 0 },
+		slipstream = { 8, 1 },
+		phase = { 8, 2 },
+		blazeRam = { 8, 3 },
+		tornadoRun = { 8, 4 },
+		afterimage = { 8, 5 },
+		sonicWake = { 8, 6 },
+		blink = { 8, 7 },
+		impactLanding = { 8, 8 },
+		wallCrusher = { 8, 9 },
+		meteorStrike = { 8, 10 },
+		moonJump = { 8, 11 },
+		kickChain = { 8, 12 },
+		ceilingDrop = { 8, 13 },
+		shadowFlip = { 8, 14 },
+		slingshot = { 8, 15 },
+		doubleZip = { 8, 16 },
+		yank = { 8, 17 },
+		wreckingKick = { 8, 18 },
+		skyHook = { 8, 19 },
 	},
 	-- where a symbol sits on each shape backing: { centre x, centre y, size } as fractions of the cell
 	shapeInner = {

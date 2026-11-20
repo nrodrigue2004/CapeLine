@@ -40,6 +40,7 @@ export type Hero = {
 	classId: string, -- the archetype (Elemental, Rogue, Powerhouse, Mystic)
 	mobility: string, -- flight, speed, leap, acrobat, swing (Config.Move.mobility)
 	mobRanks: { number }, -- side-content: each pick's trained rank (Config.Move.mobilityOrder; Shared.MoveRanks)
+	mobMoves: { number }, -- the move picked at each pick's choice ranks (Shared.MoveRanks.slotOf; nate 2026-11-20)
 	dodgeUntil: number?, -- move-2: an Acrobat's flip makes attacks miss until then (MoveGuard's MoveFlip)
 	flipAt: number?, -- when its last flip was taken (the cooldown on the server's clock)
 	formToken: number?,
@@ -163,6 +164,7 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		fxStyle = "Comic",
 		mobility = "flight",
 		mobRanks = { 0, 0, 0, 0, 0 },
+		mobMoves = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 		styles = stylesFor("flight"),
 		loadout = loadout,
 		loadouts = { loadout, table.clone(loadout) },
@@ -368,6 +370,7 @@ function HeroService.sendState(hero: Hero)
 		startSet = hero.startSet,
 		mobility = hero.mobility,
 		mobRanks = hero.mobRanks,
+		mobMoves = hero.mobMoves,
 		power = HeroService.power(hero),
 		maxHealth = hero.maxHealth,
 		styles = hero.styles,
@@ -545,6 +548,30 @@ function HeroService.trainMobility(
 	hero.mobRanks = MoveRanks.withRank(Config.Move, hero.mobRanks, pick, rank)
 	HeroService.sendState(hero)
 	return true, nil, rank
+end
+
+-- The mobility upgrade rework (nate 2026-11-20): does this hero have move `id` on its current pick (trained to its
+-- rank and picked)? Every move's server path asks this first.
+function HeroService.hasMove(hero: Hero, id: string): boolean
+	return MoveRanks.active(Config.Move, hero.mobRanks, hero.mobMoves, hero.mobility)[id] == true
+end
+
+-- Pick (or swap) the move at the current pick's choice rank: MoveRanks.canChoose (trained; a swap needs canSwap)
+function HeroService.chooseMove(
+	hero: Hero,
+	rank: number,
+	option: number,
+	canSwap: boolean
+): (boolean, string?)
+	local pick = hero.mobility or "flight"
+	local ok, why =
+		MoveRanks.canChoose(Config.Move, hero.mobRanks, hero.mobMoves, pick, rank, option, canSwap)
+	if not ok then
+		return false, why
+	end
+	hero.mobMoves = MoveRanks.withChoice(Config.Move, hero.mobMoves, pick, rank, option)
+	HeroService.sendState(hero)
+	return true, nil
 end
 
 function HeroService.setMobility(hero: Hero, mobility: string)
@@ -742,6 +769,7 @@ function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 	hero.mobility = if Config.Move.mobility[char.mobility] then char.mobility else "flight"
 	hero.styles = stylesFor(hero.mobility)
 	hero.mobRanks = table.clone(char.mobRanks or { 0, 0, 0, 0, 0 })
+	hero.mobMoves = table.clone(char.mobMoves or { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })
 	hero.ranks = table.clone(char.ranks)
 	-- skills from outside the archetype (saves from before the archetypes) are dropped; their points return
 	local kept = 0
@@ -801,6 +829,7 @@ function HeroService.writeBack(hero: Hero, char: any)
 	char.startSet = hero.startSet
 	char.mobility = hero.mobility
 	char.mobRanks = table.clone(hero.mobRanks)
+	char.mobMoves = table.clone(hero.mobMoves)
 	char.fxStyle = hero.fxStyle
 	char.ranks = table.clone(hero.ranks)
 	char.mods = table.clone(hero.mods)

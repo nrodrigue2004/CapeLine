@@ -78,6 +78,10 @@ local Remotes: { [string]: RemoteDef } = {
 	-- MoveTrained answers { ok, reason, rank, pick }
 	MoveTrain = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
 	MoveTrained = { dir = "S2C" },
+	-- the mobility upgrade rework (nate 2026-11-20): pick option 1 or 2 at the current pick's choice rank (3 or 5);
+	-- the server checks the rank is trained and that a swap is at a safehouse; MoveChosen answers { ok, reason }
+	MoveChoose = { dir = "C2S", schema = { n(3, 5), n(1, 2) }, rate = 2, burst = 4 },
+	MoveChosen = { dir = "S2C" },
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },

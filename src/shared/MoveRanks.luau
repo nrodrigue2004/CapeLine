@@ -128,6 +128,102 @@ function MoveRanks.withRank(base: any, ranks: any, pick: string, rank: number): 
 	return out
 end
 
+-- The mobility upgrade rework (nate, 2026-11-20): ranks in base.choices (3 and 5) each open a choice of two moves
+-- (the row's `choice`). The picks are one number per pick and choice rank (0 none, 1 or 2): slot
+-- (pick's index - 1) * #choices + the rank's place in choices, saved as the profile character's mobMoves.
+function MoveRanks.slots(base: any): number
+	return #base.mobilityOrder * #(base.choices or {})
+end
+
+local function slotOf(base: any, pick: string, rank: number): number?
+	local i = table.find(base.mobilityOrder, pick)
+	local c = table.find(base.choices or {}, rank)
+	if not i or not c then
+		return nil
+	end
+	return (i - 1) * #base.choices + c
+end
+MoveRanks.slotOf = slotOf
+
+-- The two moves rank `rank` of `pick` offers, or nil
+function MoveRanks.options(base: any, pick: string, rank: number): { string }?
+	local m = base.mobility[pick]
+	local row = m and m.ranks and m.ranks[rank]
+	return row and row.choice
+end
+
+-- The option (0, 1 or 2) saved for pick and rank
+function MoveRanks.picked(base: any, moves: any, pick: string, rank: number): number
+	local slot = slotOf(base, pick, rank)
+	local v = if slot and type(moves) == "table" then moves[slot] else nil
+	return if v == 1 or v == 2 then v else 0
+end
+
+-- The move id the hero has at pick and rank (trained that far and picked), or nil
+function MoveRanks.moveOf(base: any, ranks: any, moves: any, pick: string?, rank: number): string?
+	if not pick or MoveRanks.rankOf(base, ranks, pick) < rank then
+		return nil
+	end
+	local opts = MoveRanks.options(base, pick, rank)
+	local k = MoveRanks.picked(base, moves, pick, rank)
+	return if opts and k > 0 then opts[k] else nil
+end
+
+-- Every move this hero has for its pick: { [id] = true }
+function MoveRanks.active(base: any, ranks: any, moves: any, pick: string?): { [string]: boolean }
+	local out = {}
+	for _, r in base.choices or {} do
+		local id = MoveRanks.moveOf(base, ranks, moves, pick, r)
+		if id then
+			out[id] = true
+		end
+	end
+	return out
+end
+
+-- May the hero set pick's rank `rank` to option `option`? The rank must be trained; the first pick is free
+-- anywhere, a swap needs a safehouse (`canSwap`). Returns ok and the reason ("rank", "option", "same", "safehouse")
+function MoveRanks.canChoose(
+	base: any,
+	ranks: any,
+	moves: any,
+	pick: string,
+	rank: number,
+	option: number,
+	canSwap: boolean
+): (boolean, string?)
+	local opts = MoveRanks.options(base, pick, rank)
+	if not opts or (option ~= 1 and option ~= 2) then
+		return false, "option"
+	end
+	if MoveRanks.rankOf(base, ranks, pick) < rank then
+		return false, "rank"
+	end
+	local now = MoveRanks.picked(base, moves, pick, rank)
+	if now == option then
+		return false, "same"
+	end
+	if now ~= 0 and not canSwap then
+		return false, "safehouse"
+	end
+	return true, nil
+end
+
+-- Write a pick into the moves list (a copy)
+function MoveRanks.withChoice(base: any, moves: any, pick: string, rank: number, option: number): { number }
+	local n = MoveRanks.slots(base)
+	local out = table.create(n, 0)
+	for i = 1, n do
+		local v = if type(moves) == "table" then moves[i] else nil
+		out[i] = if v == 1 or v == 2 then v else 0
+	end
+	local slot = slotOf(base, pick, rank)
+	if slot then
+		out[slot] = option
+	end
+	return out
+end
+
 -- The fastest a pick moves on its own at this rank (the number its server cap must cover), by feature
 function MoveRanks.speeds(cfg: any, pick: string): { [string]: number }
 	local m = cfg.mobility[pick]
@@ -190,6 +286,22 @@ function MoveRanks.check(base: any): { string }
 			local row = r > 0 and base.mobility[pick].ranks[r]
 			if row and (type(row.name) ~= "string" or type(row.text) ~= "string" or #row.text > 44) then
 				table.insert(bad, string.format("%s rank %d: name and text", pick, r))
+			end
+			-- a choice rank offers two known moves, and only a choice rank does
+			local isChoice = r > 0 and table.find(base.choices or {}, r) ~= nil
+			if row and isChoice ~= (row.choice ~= nil) then
+				table.insert(bad, string.format("%s rank %d: choice rows are ranks %s", pick, r, "3 and 5"))
+			end
+			if row and row.choice then
+				if #row.choice ~= 2 or row.choice[1] == row.choice[2] then
+					table.insert(bad, string.format("%s rank %d: two different moves", pick, r))
+				end
+				for _, id in row.choice do
+					local mv = base.moves and base.moves[id]
+					if not mv or type(mv.name) ~= "string" or type(mv.text) ~= "string" or #mv.text > 90 then
+						table.insert(bad, string.format("%s rank %d: move %s", pick, r, tostring(id)))
+					end
+				end
 			end
 			local ok, err = pcall(MoveRanks.config, base, pick, r)
 			if not ok then
