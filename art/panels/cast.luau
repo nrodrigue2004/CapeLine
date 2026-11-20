@@ -59,20 +59,57 @@ local OUTFIT = {
 	patch = { shirt = "Hoodie", shirtTint = { 40, 150, 170 }, pants = "Cargo", pantsTint = { 70, 70, 80 } },
 	crane = { shirt = "Blazer", shirtTint = { 245, 245, 240 }, pants = "Slacks", pantsTint = { 40, 40, 46 } },
 	insider = { shirt = "Hoodie", shirtTint = { 60, 40, 80 }, pants = "Joggers", pantsTint = { 30, 30, 36 } },
-	toymaker = { shirt = "Sweater", shirtTint = { 150, 60, 50 }, pants = "Chinos", pantsTint = { 90, 70, 50 } },
+	toymaker = {
+		shirt = "Sweater",
+		shirtTint = { 150, 60, 50 },
+		pants = "Chinos",
+		pantsTint = { 90, 70, 50 },
+	},
 	lark = { shirt = "Bomber", shirtTint = { 230, 120, 40 }, pants = "Jeans", pantsTint = { 60, 80, 130 } },
 	CaptainMeridian = { suit = { { 40, 70, 160 }, { 40, 70, 160 }, { 240, 200, 70 } } },
-	OldBeacon = { shirt = "LeatherJacket", shirtTint = { 90, 110, 80 }, pants = "Cargo", pantsTint = { 70, 60, 50 } },
-	TheMargrave = { shirt = "Blazer", shirtTint = { 50, 30, 70 }, pants = "Slacks", pantsTint = { 30, 24, 40 } },
+	OldBeacon = {
+		shirt = "LeatherJacket",
+		shirtTint = { 90, 110, 80 },
+		pants = "Cargo",
+		pantsTint = { 70, 60, 50 },
+	},
+	TheMargrave = {
+		shirt = "Blazer",
+		shirtTint = { 50, 30, 70 },
+		pants = "Slacks",
+		pantsTint = { 30, 24, 40 },
+	},
 	TheVelvetPaw = { suit = { { 120, 30, 60 }, { 40, 30, 40 }, { 40, 30, 40 } } },
 	copy = { suit = { { 150, 152, 162 }, { 120, 122, 132 }, { 90, 92, 100 } } },
 	-- missions lane (2026-11-20): Act 1's mission talks
-	driver = { shirt = "ButtonShirt", shirtTint = { 70, 110, 160 }, pants = "Slacks", pantsTint = { 40, 46, 60 } },
-	lookout = { shirt = "LeatherJacket", shirtTint = { 40, 36, 44 }, pants = "Jeans", pantsTint = { 50, 60, 90 } },
+	driver = {
+		shirt = "ButtonShirt",
+		shirtTint = { 70, 110, 160 },
+		pants = "Slacks",
+		pantsTint = { 40, 46, 60 },
+	},
+	lookout = {
+		shirt = "LeatherJacket",
+		shirtTint = { 40, 36, 44 },
+		pants = "Jeans",
+		pantsTint = { 50, 60, 90 },
+	},
 	grocer = { shirt = "Polo", shirtTint = { 200, 170, 90 }, pants = "Chinos", pantsTint = { 110, 90, 60 } },
 	fence = { shirt = "Bomber", shirtTint = { 90, 50, 120 }, pants = "Cargo", pantsTint = { 40, 40, 46 } },
-	producer = { shirt = "Turtleneck", shirtTint = { 30, 32, 40 }, pants = "Slacks", pantsTint = { 30, 30, 36 } },
+	producer = {
+		shirt = "Turtleneck",
+		shirtTint = { 30, 32, 40 },
+		pants = "Slacks",
+		pantsTint = { 30, 30, 36 },
+	},
 	stagehand = { shirt = "Hoodie", shirtTint = { 34, 34, 40 }, pants = "Cargo", pantsTint = { 46, 46, 52 } },
+	parent = { shirt = "Sweater", shirtTint = { 150, 120, 90 }, pants = "Chinos", pantsTint = { 80, 70, 60 } }, -- a worn cardigan
+	freed = {
+		shirt = "Tee",
+		shirtTint = { 150, 150, 154 },
+		pants = "Sweatpants",
+		pantsTint = { 110, 110, 116 },
+	}, -- prison grey
 }
 -- speakers whose clothes, look or face come from another config row (Shared.PeopleLooks.SPEAKERS)
 local PEOPLE = PeopleLooks.SPEAKERS
@@ -148,7 +185,8 @@ local keys = {}
 -- speakers added after the first sheets were packed go last, in this order, so every older portrait keeps its
 -- sheet cell (post.py cuts a kept portrait from its old cell): act1-choices (2026-11-19) the Chairman; the
 -- missions lane (2026-11-20) the people Act 1's missions talk to
-local LATE = { "chairman", "driver", "lookout", "grocer", "fence", "producer", "stagehand" }
+local LATE =
+	{ "chairman", "driver", "lookout", "grocer", "fence", "producer", "stagehand", "parent", "freed" }
 local late = {}
 for _, k in LATE do
 	late[k] = true
@@ -263,7 +301,16 @@ local function addVillain(name: string, title: string)
 	if fin then
 		local art = Config.FinaleArt[fin]
 		assert(art, "no Config.FinaleArt " .. fin)
-		table.insert(villains, { name = name, title = title, finale = fin, art = copy(art), color = copy(FINALE_COLOR[fin] or art.tint) })
+		table.insert(
+			villains,
+			{
+				name = name,
+				title = title,
+				finale = fin,
+				art = copy(art),
+				color = copy(FINALE_COLOR[fin] or art.tint),
+			}
+		)
 	else
 		local row = byKey[who]
 		assert(row, "no portrait row " .. who)
@@ -291,6 +338,17 @@ end)
 fs.writeDir("art/export/panels")
 fs.writeFile(
 	"art/export/panels/cast.json",
-	serde.encode("json", { portraits = portraits, aliases = aliases, panels = panels, villains = villains }, true)
+	serde.encode(
+		"json",
+		{ portraits = portraits, aliases = aliases, panels = panels, villains = villains },
+		true
+	)
 )
-print(#portraits .. " portraits, " .. #panels .. " panels, " .. #villains .. " villain cards -> art/export/panels/cast.json")
+print(
+	#portraits
+		.. " portraits, "
+		.. #panels
+		.. " panels, "
+		.. #villains
+		.. " villain cards -> art/export/panels/cast.json"
+)

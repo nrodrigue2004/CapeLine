@@ -5200,6 +5200,96 @@
         146
       ],
       "style": "person"
+    },
+    {
+      "bg": [
+        60,
+        40,
+        50
+      ],
+      "color": [
+        255,
+        200,
+        150
+      ],
+      "extras": {},
+      "face": {
+        "asset": 268603331,
+        "image": 629929484,
+        "name": "Bad News Face"
+      },
+      "hair": {
+        "asset": 7372442294.0,
+        "name": "Black Braid"
+      },
+      "key": "parent",
+      "name": "SPARK PARENT",
+      "outfit": {
+        "pants": "Chinos",
+        "pantsTint": [
+          80,
+          70,
+          60
+        ],
+        "shirt": "Sweater",
+        "shirtTint": [
+          150,
+          120,
+          90
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        140,
+        96,
+        70
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        20,
+        60,
+        50
+      ],
+      "color": [
+        160,
+        255,
+        200
+      ],
+      "extras": {},
+      "face": {
+        "asset": 416846300,
+        "image": 416829065,
+        "name": "Anime Surprise"
+      },
+      "hair": {
+        "asset": 5268665185.0,
+        "name": "Braided Ponytail Redhead"
+      },
+      "key": "freed",
+      "name": "FREED SPARK",
+      "outfit": {
+        "pants": "Sweatpants",
+        "pantsTint": [
+          110,
+          110,
+          116
+        ],
+        "shirt": "Tee",
+        "shirtTint": [
+          150,
+          150,
+          154
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        230,
+        190,
+        150
+      ],
+      "style": "person"
     }
   ],
   "villains": [
