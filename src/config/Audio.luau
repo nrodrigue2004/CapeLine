@@ -137,6 +137,7 @@ local Audio = {
 		hit = s("action_jump_land.mp3", 0.55, 0.8, { range = 90, vary = 0.08 }),
 		heavy = s("action_jump_land.mp3", 0.85, 0.55, { range = 140, vary = 0.06 }),
 		clank = s("clickfast.wav", 0.3, 0.75, { range = 80, vary = 0.12 }),
+		whoosh = s("swoosh.wav", 0.35, 0.9, { clip = "Martial_cast", range = 70, vary = 0.1 }), -- a robot's melee blow (list-combat)
 	},
 	sounds = {
 		leap = s("swoosh.wav", 0.6, 0.85, { range = 120 }),

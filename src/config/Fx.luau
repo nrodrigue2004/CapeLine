@@ -93,6 +93,20 @@ return {
 		-- a net pins flat on the wall for netHold s; a famous fake's path shot splashes in its own colour
 		splash = { sparks = 5, tracerSparks = 9, scorch = 1, muzzle = 2, netHold = 0.5 },
 	},
+	-- (list-combat 2026-11-20, combat effects polish: weak hit feedback) taking a hit: sparks spray off the hero's
+	-- chest away from the robot; on your own hero a red arrow on the screen points at who hit you (`arrow`: life s,
+	-- up to `pool` at once, its ring's share of the screen height), a thud (at most every `gap` s) and a shake;
+	-- a melee blow or a hit of `heavy` of your max health or more is heavy: more sparks, a harder shake and thud
+	-- (list-combat 2026-11-20) a blocked hit: a pale flash `flash` studs across, a glow and `sparks` glancing back
+	-- at the robot, with Config.Audio.impact.clank
+	block = { color = { 200, 235, 255 }, flash = 4, sparks = 6 },
+	hurt = {
+		heavy = 0.12,
+		gap = 0.08,
+		arrow = { life = 0.7, pool = 4, ring = 0.62, width = 0.3, color = { 255, 40, 40 } },
+		shake = { 0.12, 0.25 },
+		shakeHeavy = { 0.22, 0.6 },
+	},
 	-- the newer robots' effects (CombatFx): the Sniper's aim laser (it thickens and blinks for the locked last
 	-- part) and its tracer round, the Interceptor's net, the Grappler's hook on its cable, the Bomber's grenade
 	-- (its light blinks faster as it falls), its burning patch and blast, the Medic Unit's repair beam, the
@@ -104,8 +118,22 @@ return {
 		aim = { color = { 255, 40, 40 }, width = 0.1, lockWidth = 0.3, blink = 14, dot = 0.6 },
 		tracer = { color = { 255, 240, 210 }, glow = { 255, 80, 60 }, length = 14, width = 0.22 },
 		net = { color = { 190, 235, 255 }, size = 4.5, spin = 8 },
-		hook = { cable = 0.16, color = { 60, 60, 66 }, claw = { 200, 120, 50 }, hold = 1.6, reel = 0.2 },
-		lob = { gravity = 80, size = 0.7, blink = { 4, 16 } },
+		-- (list-combat 2026-11-20) the claw bites: biteSparks off a caught hero, wallSparks and a scorch on a wall;
+		-- the cable is `taut` times thicker while it holds
+		hook = {
+			cable = 0.16,
+			color = { 60, 60, 66 },
+			claw = { 200, 120, 50 },
+			hold = 1.6,
+			reel = 0.2,
+			biteSparks = 6,
+			wallSparks = 4,
+			taut = 1.5,
+		},
+		-- (list-combat 2026-11-20) any robot's melee blow: a hot streak `range` studs over `cone` degrees and a fist
+		-- flash, drawn within `near` studs of you, with Config.Audio.impact.whoosh
+		swing = { color = { 255, 150, 110 }, range = 5.5, cone = 100, near = 150 },
+		lob = { gravity = 80, size = 0.7, blink = { 4, 16 }, mesh = 1.5 }, -- mesh: the Blender grenade's scale on size
 		zone = { color = { 255, 110, 30 }, core = { 255, 200, 70 }, every = 0.2 },
 		mend = { color = { 80, 240, 140 }, width = 0.25, packet = 0.3 },
 		rally = { color = { 255, 205, 70 }, life = 0.7 },

@@ -504,6 +504,10 @@ end
 
 local IMPACT = Config.Audio.impact
 local lastThud = 0
+local HURT = Config.Fx.hurt
+local SWING_FX = Config.Fx.robots.swing
+local SWING_COLOR = Color3.fromRGB(SWING_FX.color[1], SWING_FX.color[2], SWING_FX.color[3])
+local lastHurt = 0
 
 local function drawHits(r: any, row: any, style: string, mine: boolean)
 	local hits = r.h or {}
@@ -814,23 +818,45 @@ local function onEvents(list: { any })
 				local e = ev[2]
 				CombatFx.hook(robotAt(e, "Claw", Vector3.new(0, 1, 0)), pos, vel, function()
 					return bit32.band(EnemyRenderer.extra(e), HOOKED) ~= 0
+				end, function(what: string, at: Vector3, who: Player?)
+					-- the claw's bite: a clank (a heavy one on a hero) and a jolt when it is you
+					AudioController.playSpec(if what == "hero" then IMPACT.heavy else IMPACT.clank, at)
+					if who == player then
+						CameraController.shake(HURT.shakeHeavy[1], HURT.shakeHeavy[2])
+					end
 				end)
 			else
 				CombatFx.enemyShot(pos, vel, ev[11])
 			end
 		elseif kind == HERO_HIT then
-			if ev[6] and ev[6] > 0 then
+			-- {2, userId, x,y,z, dmg, [rx,ry,rz, melee]}: the robot's spot when it is still there (list-combat)
+			local dmg = ev[6] or 0
+			local from = if ev[9] then Vector3.new(ev[7], ev[8], ev[9]) else nil
+			local mineHit = ev[2] == player.UserId
+			local heavy = ev[10] == 1 or (mineHit and dmg >= (State.hero.maxHealth or 400) * HURT.heavy)
+			if dmg > 0 then
 				HeroAnimator.hit(HeroAnimator.byUserId(ev[2]))
+				CombatFx.heroHit(Vector3.new(ev[3], ev[4], ev[5]) + CHEST, from, heavy)
 			end
-			if ev[2] == player.UserId then
-				if ev[6] and ev[6] > 0 then
+			if mineHit then
+				if dmg > 0 then
 					CinemaClient.hurt()
-					CombatFx.hurt()
-					CameraController.shake(0.12, 0.25)
+					CombatFx.hurt(from, heavy)
+					local sh = if heavy then HURT.shakeHeavy else HURT.shake
+					CameraController.shake(sh[1], sh[2])
+					local now = os.clock()
+					if now - lastHurt >= HURT.gap then
+						lastHurt = now
+						AudioController.playSpec(
+							if heavy then IMPACT.heavy else IMPACT.hit,
+							Vector3.new(ev[3], ev[4], ev[5])
+						)
+					end
 				else
 					local p = myChest()
 					if p then
-						CombatFx.blocked(p) -- shield or parry took it
+						CombatFx.blocked(p, from) -- shield or parry took it: sparks and a clank
+						AudioController.playSpec(IMPACT.clank, p)
 					end
 				end
 			end
@@ -869,9 +895,16 @@ local function onEvents(list: { any })
 			if set and f then
 				-- an evil twin's strike: its path's cut or blow in front of it
 				CombatFx.arc(Vector3.new(ev[3], ev[4], ev[5]), f, 7, 110, style, color, 1, true, false, set)
+			elseif f and near(Vector3.new(ev[3], ev[4], ev[5]), SWING_FX.near) then
+				-- any robot's blow (list-combat 2026-11-20): a quick hot streak and a fist flash where it lands,
+				-- and a whoosh, so a punch reads as a punch (Config.Fx.robots.swing)
+				local at = Vector3.new(ev[3], ev[4], ev[5])
+				CombatFx.arc(at, f, SWING_FX.range, SWING_FX.cone, style, SWING_COLOR, 1, false)
+				AudioController.playSpec(IMPACT.whoosh, at)
 			end
 		elseif kind == BLOCKED then
 			CombatFx.blocked(Vector3.new(ev[3], ev[4], ev[5]))
+			AudioController.playSpec(IMPACT.clank, Vector3.new(ev[3], ev[4], ev[5]))
 		elseif kind == AIM then
 			-- {8, e, x,y,z, heroUserId, time, lock}: a Sniper's laser on a hero (bots have no body to aim at)
 			local to = heroChest(ev[6])

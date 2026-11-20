@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 83,
-			"83 meshes in 35 looks (the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 86,
+			"86 meshes in 36 looks (the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3841,6 +3841,250 @@ return function(T: any)
 		end
 	)
 	test(
+		"List combat: taking a hit sparks off the hero, a red arrow points at the robot, a thud and a shake",
+		function()
+			local roblox = require("@lune/roblox")
+			local H = Config.Fx.hurt
+			check(H and H.heavy > 0 and H.arrow.pool >= 1 and H.arrow.life > 0, "the hurt feedback is tuned")
+			local enemy = fs.readFile("src/server/Services/EnemyService.luau")
+			check(
+				string.find(enemy, "table.insert(row, if ev.melee then 1 else 0)", 1, true) ~= nil,
+				"the server sends the robot's spot and the melee bit with each hero hit"
+			)
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local cam = sim.service("Workspace").CurrentCamera
+			cam.CFrame = roblox.CFrame.new(0, 5, 10) -- looking down -Z
+			local char = UiSim.newInstance("Model")
+			local root = UiSim.newInstance("Part")
+			root.Name = "HumanoidRootPart"
+			root.CFrame = roblox.CFrame.new(0, 3, 0)
+			root.Position = roblox.Vector3.new(0, 3, 0)
+			root.Parent = char
+			char.Parent = sim.workspace
+			sim.player.Character = char
+			local FxLib = sim:require("Client.Fx.FxLib")
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local Combat = sim:require("Client.Controllers.CombatClient")
+			sim:run("CombatClient", Combat.init)
+			local SimConfig = sim:require("Config")
+			local Audio = sim:require("Client.Controllers.AudioController")
+			local Camera = sim:require("Client.Controllers.CameraController")
+			local sparks, sounds, shakes = 0, {}, {}
+			local realEmit, realPlay, realShake = FxLib.emit, Audio.playSpec, Camera.shake
+			FxLib.emit = function(kind: string, ...)
+				if kind == "hitspark" then
+					sparks += 1
+				end
+				return realEmit(kind, ...)
+			end
+			Audio.playSpec = function(spec, ...)
+				table.insert(sounds, spec)
+				return realPlay(spec, ...)
+			end
+			Camera.shake = function(t, a)
+				table.insert(shakes, a)
+				return realShake(t, a)
+			end
+			local gui = sim.player:WaitForChild("PlayerGui")
+			local function arrow(i: number): any
+				return gui:FindFirstChild("HurtArrow" .. i, true)
+			end
+			check(arrow(1) ~= nil, "the hurt arrows are made")
+			local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+			local function hit(dmg: number, rx: number, rz: number, melee: number)
+				sim:run("hero hit", function()
+					remotes:WaitForChild("CombatEvents").OnClientEvent:Fire({
+						{ 2, sim.player.UserId, 0, 3, 0, dmg, rx, 3, rz, melee },
+					})
+				end)
+			end
+			-- a pellet from a robot on the right
+			hit(5, 40, 10, 0)
+			check(sparks == 1, "sparks off the hero's chest (" .. sparks .. ")")
+			local a1 = arrow(1)
+			check(
+				a1 and math.abs(a1.Rotation - 90) < 1,
+				"the arrow points right (" .. tostring(a1 and a1.Rotation) .. ")"
+			)
+			check(#sounds == 1 and sounds[1] == SimConfig.Audio.impact.hit, "a thud")
+			check(#shakes >= 1 and shakes[#shakes] == H.shake[2], "a light shake")
+			-- a punch from behind a moment later: heavy
+			require("@lune/task").wait(0.1) -- the thud's gap runs on the real clock
+			hit(4, 0, 40, 1)
+			local a2 = arrow(2)
+			check(a2 and math.abs(math.abs(a2.Rotation) - 180) < 1, "the second arrow points behind")
+			check(a1 and a2 and a2.Bar.Size.X.Scale > a1.Bar.Size.X.Scale, "a heavy hit's arrow is wider")
+			check(sounds[#sounds] == SimConfig.Audio.impact.heavy, "a heavy thud on a melee blow")
+			check(shakes[#shakes] == H.shakeHeavy[2], "a harder shake")
+			-- a big hit on another hero nearby: sparks only
+			local n = #sounds
+			sim:run("other", function()
+				remotes
+					:WaitForChild("CombatEvents").OnClientEvent
+					:Fire({ { 2, 999, 20, 3, 0, 60, 30, 3, 0, 0 } })
+			end)
+			check(sparks == 3 and #sounds == n, "another hero's hit sparks, with no thud for you")
+			-- an old event with no robot spot still works
+			require("@lune/task").wait(0.1) -- the thud's gap runs on the real clock
+			hit(5, nil :: any, nil :: any, nil :: any)
+			check(#sounds == n + 1, "a hit with no robot spot still thuds")
+			-- a hit your shield or parry took (0 damage): sparks glance off and it clanks, no hurt shake
+			local sp0, sh0 = sparks, #shakes
+			hit(0, 40, 10, 0)
+			check(sparks == sp0 + 1, "a blocked hit sparks")
+			check(sounds[#sounds] == SimConfig.Audio.impact.clank, "and clanks")
+			check(#shakes == sh0, "with no hurt shake")
+			-- a robot's punch (SWING) near you: a hot streak, a fist flash and a whoosh; far off, nothing
+			local Enemy = sim:require("Client.Controllers.EnemyRenderer")
+			local realFacing = Enemy.facing
+			Enemy.facing = function()
+				return roblox.Vector3.new(0, 0, -1)
+			end
+			local function parts(): number
+				local c = 0
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("BasePart") then
+						c += 1
+					end
+				end
+				return c
+			end
+			local p0, s0 = parts(), #sounds
+			sim:run("swing", function()
+				remotes:WaitForChild("CombatEvents").OnClientEvent:Fire({ { 6, 41, 4, 3, 0 } })
+			end)
+			check(parts() > p0 + 3, "a robot's punch draws its streak and flash (" .. (parts() - p0) .. ")")
+			check(#sounds == s0 + 1 and sounds[#sounds] == SimConfig.Audio.impact.whoosh, "and whooshes")
+			p0, s0 = parts(), #sounds
+			sim:run("far swing", function()
+				remotes:WaitForChild("CombatEvents").OnClientEvent:Fire({ { 6, 42, 4000, 3, 0 } })
+			end)
+			check(parts() == p0 and #sounds == s0, "a punch far away draws nothing")
+			Enemy.facing = realFacing
+			FxLib.emit, Audio.playSpec, Camera.shake = realEmit, realPlay, realShake
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
+		"List combat: a Grappler's claw bites a hero with sparks, a clank and a taut cable, and sparks on a wall",
+		function()
+			local roblox = require("@lune/roblox")
+			local hk = Config.Fx.robots.hook
+			check(hk.biteSparks > 0 and hk.wallSparks > 0 and hk.taut > 1, "the bite is tuned")
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local V = roblox.Vector3.new
+			local char = UiSim.newInstance("Model")
+			local root = UiSim.newInstance("Part")
+			root.Name = "HumanoidRootPart"
+			root.CFrame = roblox.CFrame.new(0, 5, 60)
+			root.Position = V(0, 5, 60)
+			root.Parent = char
+			char.Parent = sim.workspace
+			sim.player.Character = char
+			local FxLib = sim:require("Client.Fx.FxLib")
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local emits: { [string]: number } = {}
+			local real = FxLib.emit
+			FxLib.emit = function(kind: string, ...)
+				emits[kind] = (emits[kind] or 0) + 1
+				return real(kind, ...)
+			end
+			local bites = {}
+			local function frames(n: number)
+				for _ = 1, n do
+					sim:run("frame", function()
+						sim.service("RunService").RenderStepped:Fire(1 / 30)
+					end)
+				end
+			end
+			local function cable(): any
+				local best = nil
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("BasePart") and d.Material == roblox.Enum.Material.Metal and d.Size.Z > 3 then
+						best = d
+					end
+				end
+				return best
+			end
+			-- a claw shot at you from 20 studs
+			sim:run("hook", function()
+				CombatFx.hook(
+					function()
+						return V(0, 5, 80)
+					end,
+					V(0, 5, 80),
+					V(0, 0, -60),
+					function()
+						return true
+					end,
+					function(what, at, who)
+						table.insert(bites, { what, at, who })
+					end
+				)
+			end)
+			frames(12)
+			check(#bites == 1 and bites[1][1] == "hero" and bites[1][3] == sim.player, "it bites you, once")
+			check((emits.hitspark or 0) == 1, "sparks where it bites")
+			local c = cable()
+			check(c ~= nil and math.abs(c.Size.X - hk.cable * hk.taut) < 1e-3, "the cable goes taut")
+			-- a claw into a wall 15 studs off
+			root.Position = V(500, 5, 0)
+			root.CFrame = roblox.CFrame.new(500, 5, 0)
+			sim.service("Workspace")._props.Raycast = function(_, origin, dir)
+				if origin.X < -5 and dir.Z < 0 and origin.Z + dir.Z <= 65 then
+					return {
+						Position = V(origin.X, origin.Y, 65),
+						Normal = V(0, 0, 1),
+						Instance = root,
+						Distance = 1,
+					}
+				end
+				return nil
+			end
+			sim:run("hook 2", function()
+				CombatFx.hook(
+					function()
+						return V(-10, 5, 80)
+					end,
+					V(-10, 5, 80),
+					V(0, 0, -60),
+					function()
+						return true
+					end,
+					function(what, at, who)
+						table.insert(bites, { what, at, who })
+					end
+				)
+			end)
+			frames(12)
+			check(#bites == 2 and bites[2][1] == "wall" and bites[2][3] == nil, "it bites the wall")
+			check((emits.hitspark or 0) == 2 and (emits.scorch or 0) == 1, "sparks and a scorch on the wall")
+			local client = fs.readFile("src/client/Controllers/CombatClient.luau")
+			check(
+				string.find(client, 'if what == "hero" then IMPACT.heavy else IMPACT.clank', 1, true) ~= nil,
+				"the client clanks each bite"
+			)
+			FxLib.emit = real
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
 		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam, burning patches a flame ring, nets and claws Blender meshes",
 		function()
 			local roblox = require("@lune/roblox")
@@ -3956,6 +4200,33 @@ return function(T: any)
 				hubs == 1 and prongs == 3,
 				"the claw: a hub and three prongs (" .. hubs .. ", " .. prongs .. ")"
 			)
+			-- a Bomber's grenade: the banded Blender body, cap and blinking light, spinning on its arc, gone on landing
+			sim:run("lob", function()
+				CombatFx.lob(V(60, 5, 0), V(60, 0, -20), 0.6)
+			end)
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(0.2)
+			end)
+			local gp = {}
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and string.sub(d.Name, 1, 7) == "Grenade" then
+					gp[d.Name] = d
+				end
+			end
+			check(gp.GrenadeBody and gp.GrenadeCap and gp.GrenadeLight, "the grenade is the Blender grenade")
+			if gp.GrenadeBody then
+				local want = Config.PowerArt.Grenade.GrenadeBody.size[1]
+					* Config.Fx.robots.lob.size
+					* Config.Fx.robots.lob.mesh
+				check(math.abs(gp.GrenadeBody.Size.X - want) < 0.02, "at its size")
+				local at = gp.GrenadeBody.CFrame.Position
+				check(at.X > 55 and at.Y > 4, "on its arc")
+				check((gp.GrenadeLight.CFrame.Position - at).Magnitude < 1.2, "the light rides the cap")
+			end
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(0.5)
+			end)
+			check(gp.GrenadeBody == nil or gp.GrenadeBody.Parent == nil, "gone when it lands")
 			-- a Bomber's burning patch: Ember Ring's flame tongues round it
 			sim:run("zone", function()
 				CombatFx.zone(V(-30, 0, 0), 6, 1)

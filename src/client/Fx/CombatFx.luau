@@ -3859,13 +3859,22 @@ function CombatFx.slam(center: Vector3, radius: number)
 	ring(center + Vector3.new(0, 0.3, 0), radius, WARN, 0.25, 0.3)
 end
 
-function CombatFx.blocked(pos: Vector3)
-	local p = part(Vector3.one * 1.2, CFrame.new(pos), Color3.fromRGB(200, 235, 255), Enum.PartType.Ball)
-	fade(p, 0.15, { Size = Vector3.one * 3 })
+-- A shield or a parry took a hit (Config.Fx.block): a pale flash, a glow and sparks glancing off it, back
+-- toward `from` (the robot) when it is known
+function CombatFx.blocked(pos: Vector3, from: Vector3?)
+	local B = F.block
+	local c = rgb(B.color)
+	local p = part(Vector3.one * 1.2, CFrame.new(pos), c, Enum.PartType.Ball)
+	fade(p, 0.15, { Size = Vector3.one * B.flash })
+	local back = if from and (from - pos).Magnitude > 1e-3 then (from - pos).Unit else UP
+	FxLib.emit("hitspark", c, pos + back * 0.8, B.sparks, (back + UP * 0.4).Unit)
+	FxLib.emit("glow", c, pos, 1)
 end
 
 ---------------------------------------------------------------------------
--- The newer robots (Config.Enemies typeIds 10 to 18; numbers in Config.Fx.robots). PLACEHOLDER ART.
+-- The newer robots (Config.Enemies typeIds 10 to 18; numbers in Config.Fx.robots). The net, the claw, the grenade
+-- and the burning patch's flames are Blender meshes (Art.Powers); their part builds, used only before the import,
+-- are PLACEHOLDER ART. Shots, lasers and beams are light effects (FxLib particles and Trails), not models.
 ---------------------------------------------------------------------------
 
 local R = F.robots
@@ -4096,7 +4105,13 @@ end
 
 -- when the robot is gone). It flies until it catches a hero (then holds on while `out()` says the hook is
 -- still out, the robot's `hooked` bit), sticks where it hits the world, or runs out; then it reels back in.
-function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: () -> boolean)
+function CombatFx.hook(
+	from: () -> Vector3?,
+	pos: Vector3,
+	vel: Vector3,
+	out: () -> boolean,
+	onBite: ((kind: string, at: Vector3, who: Player?) -> ())?
+)
 	local speed = vel.Magnitude
 	if speed < 1 then
 		return
@@ -4169,6 +4184,12 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 					held = root
 					phase = "held"
 					t = 0
+					-- the claw bites: sparks back along the cable, a snap ring, the clank (onBite)
+					FxLib.emit("hitspark", clawColor, root.Position, hk.biteSparks, -vel.Unit)
+					ring(root.Position, 3, clawColor, 0.25)
+					if onBite then
+						onBite("hero", root.Position, p)
+					end
 					break
 				end
 			end
@@ -4177,6 +4198,12 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 				local cut = t >= 0.3 and not out() -- the cable was cut (the Grappler was stunned)
 				if hit and not cut then
 					tip, phase, stuckT = hit.Position, "stuck", 0.15
+					-- it bites into the wall: sparks off the face and a small scorch
+					FxLib.emit("hitspark", clawColor, tip + hit.Normal * 0.2, hk.wallSparks, hit.Normal)
+					FxLib.emit("scorch", SCORCH, tip + hit.Normal * 0.1, 1, hit.Normal)
+					if onBite then
+						onBite("wall", tip, nil)
+					end
 				elseif cut or t >= life then
 					tip, phase = nextTip, "reel"
 					reelFrom, reelT = tip, 0
@@ -4207,7 +4234,8 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 		local d = tip - a
 		local len = math.max(0.2, d.Magnitude)
 		local dir = if d.Magnitude > 1e-3 then d.Unit else vel.Unit
-		cable.Size = Vector3.new(hk.cable, hk.cable, len)
+		local thick = if phase == "held" then hk.cable * hk.taut else hk.cable -- taut on a catch
+		cable.Size = Vector3.new(thick, thick, len)
 		cable.CFrame = CFrame.lookAt(a + d / 2, tip)
 		local cf = CFrame.lookAt(tip, tip + dir)
 		local spread = if phase == "fly" then 30 else 10 -- the prongs close on what they catch
@@ -4349,9 +4377,33 @@ end
 -- blinking faster as it falls, and a red ring where it will land (the grenade's blast radius)
 function CombatFx.lob(from: Vector3, to: Vector3, flight: number)
 	local lb = R.lob
-	local ball = part(Vector3.one * lb.size, CFrame.new(from), Color3.fromRGB(70, 85, 45), Enum.PartType.Ball)
-	ball.Material = Enum.Material.Metal
-	local blink = part(Vector3.one * lb.size * 0.4, CFrame.new(from), WARN, Enum.PartType.Ball)
+	-- the Blender grenade (Art.Powers Grenade: a banded olive body, a steel cap and lever, a red light on top,
+	-- list-combat 2026-11-20) when imported, `mesh` x its 1-stud body; else a ball with a blinking bead
+	local pieces: { { p: BasePart, off: CFrame } } = {}
+	local ball: BasePart
+	local blink: BasePart
+	if PowerMeshes.ready("Grenade") then
+		local G = Config.PowerArt.Grenade
+		local k = lb.size * lb.mesh
+		local turn = MeshFix.turn("Powers")
+		for _, name in { "GrenadeBody", "GrenadeCap", "GrenadeLight" } do
+			local m = G[name]
+			local mp = powerMesh(
+				name,
+				Vector3.new(m.size[1], m.size[2], m.size[3]) * k,
+				if name == "GrenadeLight" then WARN else rgb(m.color)
+			) :: MeshPart
+			mp.Material = if name == "GrenadeLight" then Enum.Material.Neon else Enum.Material.Metal
+			local off = CFrame.new(Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k) * turn
+			mp.CFrame = CFrame.new(from) * off
+			table.insert(pieces, { p = mp, off = off })
+		end
+		ball, blink = pieces[1].p, pieces[3].p
+	else
+		ball = part(Vector3.one * lb.size, CFrame.new(from), Color3.fromRGB(70, 85, 45), Enum.PartType.Ball)
+		ball.Material = Enum.Material.Metal
+		blink = part(Vector3.one * lb.size * 0.4, CFrame.new(from), WARN, Enum.PartType.Ball)
+	end
 	local bomber = Config.Enemies.Bomber
 	local radius = if bomber and bomber.grenade then bomber.grenade.radius else 6
 	local landing = groundBelow(to, 10) + Vector3.new(0, 0.15, 0)
@@ -4371,8 +4423,14 @@ function CombatFx.lob(from: Vector3, to: Vector3, flight: number)
 		local k = math.clamp(t / math.max(flight, 0.05), 0, 1)
 		local at = from:Lerp(to, k) + Vector3.new(0, lift * k * (1 - k), 0)
 		local spin = CFrame.new(at) * CFrame.Angles(t * 12, t * 7, 0)
-		ball.CFrame = spin
-		blink.CFrame = spin * CFrame.new(0, lb.size * 0.45, 0)
+		if #pieces > 0 then
+			for _, pc in pieces do
+				pc.p.CFrame = spin * pc.off
+			end
+		else
+			ball.CFrame = spin
+			blink.CFrame = spin * CFrame.new(0, lb.size * 0.45, 0)
+		end
 		ph += dt * (lb.blink[1] + (lb.blink[2] - lb.blink[1]) * k)
 		blink.Transparency = if ph % 1 < 0.5 then 0 else 0.9
 		mark.Transparency = 0.45 + 0.25 * math.sin(t * 14)
@@ -4383,8 +4441,13 @@ function CombatFx.lob(from: Vector3, to: Vector3, flight: number)
 		end
 		if k >= 1 then
 			conn:Disconnect()
-			ball:Destroy()
-			blink:Destroy()
+			for _, pc in pieces do
+				pc.p:Destroy()
+			end
+			if #pieces == 0 then
+				ball:Destroy()
+				blink:Destroy()
+			end
 			fade(mark, 0.15)
 		end
 	end))
@@ -4651,14 +4714,42 @@ function CombatFx.burst(pos: Vector3, style: string, metal: Color3?)
 	CombatFx.impact(pos, true, style, false)
 end
 
--- The local hero got hit: a red edge on screen
+-- The local hero got hit: a red edge on screen, deeper on a heavy hit, and (when `from`, the robot, is known) a
+-- red arrow on a ring round the screen's middle pointing at it (Config.Fx.hurt.arrow), so you know where to turn
 local hurtFrame: Frame? = nil
-function CombatFx.hurt()
+local hurtArrows: { Frame } = {}
+local nextArrow = 0
+function CombatFx.hurt(from: Vector3?, heavy: boolean?)
 	if hurtFrame then
 		local f = hurtFrame :: Frame
-		f.BackgroundTransparency = 0.7
-		TweenService:Create(f, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
+		f.BackgroundTransparency = if heavy then 0.5 else 0.7
+		TweenService:Create(f, TweenInfo.new(if heavy then 0.5 else 0.35), { BackgroundTransparency = 1 })
+			:Play()
 	end
+	local cam = Workspace.CurrentCamera
+	if not from or not cam or #hurtArrows == 0 then
+		return
+	end
+	local rel = cam.CFrame:PointToObjectSpace(from)
+	if rel.X * rel.X + rel.Z * rel.Z < 1e-4 then
+		return
+	end
+	nextArrow = nextArrow % #hurtArrows + 1
+	local holder = hurtArrows[nextArrow]
+	holder.Rotation = math.deg(math.atan2(rel.X, -rel.Z)) -- 0 = ahead (the top of the screen), 90 = right
+	local bar = holder:FindFirstChild("Bar") :: Frame
+	local A = F.hurt.arrow
+	bar.BackgroundTransparency = if heavy then 0 else 0.2
+	bar.Size = UDim2.fromScale(A.width * (if heavy then 1.3 else 1), 0.045)
+	TweenService:Create(bar, TweenInfo.new(A.life, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		BackgroundTransparency = 1,
+	}):Play()
+end
+
+-- A hero took a robot's hit: sparks spray off the chest away from where it came from (bigger on a heavy hit)
+function CombatFx.heroHit(chest: Vector3, from: Vector3?, heavy: boolean)
+	local dir = if from then chest - from else UP
+	CombatFx.hitSparks(chest, dir, ENEMY, heavy)
 end
 
 ---------------------------------------------------------------------------
@@ -4917,6 +5008,38 @@ function CombatFx.init()
 	grad.Parent = hurt
 	hurt.Parent = gui
 	hurtFrame = hurt
+	-- the hurt arrows: a square ring round the middle, turned toward the robot, with a red bar at its top
+	local A = F.hurt.arrow
+	for i = 1, A.pool do
+		local holder = Instance.new("Frame")
+		holder.Name = "HurtArrow" .. i
+		holder.AnchorPoint = Vector2.new(0.5, 0.5)
+		holder.Position = UDim2.fromScale(0.5, 0.5)
+		holder.Size = UDim2.fromScale(A.ring, A.ring)
+		holder.SizeConstraint = Enum.SizeConstraint.RelativeYY
+		holder.BackgroundTransparency = 1
+		local bar = Instance.new("Frame")
+		bar.Name = "Bar"
+		bar.AnchorPoint = Vector2.new(0.5, 0)
+		bar.Position = UDim2.fromScale(0.5, 0)
+		bar.Size = UDim2.fromScale(A.width, 0.045)
+		bar.BackgroundColor3 = rgb(A.color)
+		bar.BackgroundTransparency = 1
+		bar.BorderSizePixel = 0
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = bar
+		local bg = Instance.new("UIGradient")
+		bg.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		bg.Parent = bar
+		bar.Parent = holder
+		holder.Parent = gui
+		table.insert(hurtArrows, holder)
+	end
 	-- the Sniper warning: a red edge on all four sides (two frames, side and top-and-bottom)
 	for _, rotation in { 0, 90 } do
 		local edge = Instance.new("Frame")
