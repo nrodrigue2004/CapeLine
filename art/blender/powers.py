@@ -553,6 +553,36 @@ mesh("Nemesis", "NemAntenna", ant, (70, 72, 80), "Metal")
 mesh("Nemesis", tint("NemAntennaTip"), [S(0.2, 0, 1.3, 0, segs=10, rings=6)], (255, 60, 60), "Neon")
 
 
+# ================================================================ Girder Swing's girder (Everything Left 178, 2026-11-20): a red steel I-beam
+# held in the right hand (anchor: the hand; the beam hangs down -y 11 long from just above it), riveted flanges, a dark
+# end plate at the grip and a torn, bent far end where it was ripped out of a building. CombatFx.heldGirder welds it.
+GL = 11.0
+IPOLY = [(-0.45, 0.53), (0.45, 0.53), (0.45, 0.37), (0.11, 0.37), (0.11, -0.37), (0.45, -0.37), (0.45, -0.53),
+         (-0.45, -0.53), (-0.45, -0.37), (-0.11, -0.37), (-0.11, 0.37), (-0.45, 0.37)]
+
+
+def girder_bend(t, x, z):
+    k = max(0.0, 0.16 - t) / 0.16  # the last 1.8 studs curl sideways and twist a little
+    a = k * k * 0.5
+    return x * math.cos(a) - z * math.sin(a) + k * k * 0.7, x * math.sin(a) + z * math.cos(a) + k * k * 0.25
+
+
+beam = extrude_up(IPOLY, 0.45 - GL, 0.45, fn=girder_bend, steps=14)
+for n, at in (((0.35, 0.25, -1.0), 10.15), ((-0.4, -0.15, -1.0), 10.3)):  # the ripped end: two slanted cuts
+    shift(beam, (0, 0, at))
+    kit.cut(beam, Vector(n).normalized(), keep_positive=False)
+    shift(beam, (0, 0, -at))
+mesh("Girder", "GirderBeam", [beam], (204, 84, 52), "Metal", shade=False)
+rivets = []
+for side in (-1, 1):
+    for x in (-0.27, 0.27):
+        y = 0.1
+        while y > 1.6 - GL:
+            rivets.append(C(0.07, 0.06, x, y, side * 0.56, segs=6, axis="z"))
+            y -= 1.15
+rivets.append(B(0.95, 0.12, 1.08, 0, 0.51, 0))  # the end plate at the grip
+mesh("Girder", "GirderRivets", rivets, (120, 48, 30), "Metal")
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -615,7 +645,7 @@ if "--preview" in sys.argv:
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
-             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2)}
+             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),

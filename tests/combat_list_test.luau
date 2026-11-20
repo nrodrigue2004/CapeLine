@@ -389,6 +389,20 @@ return function(T: any)
 		)
 		check(Config.City.kit.props.Barrel ~= nil and Config.StreetArt.Barrel ~= nil, "Barrel is a kit prop")
 		check(Config.Abilities.list.GirderSwing ~= nil, "Girder Swing exists")
+		-- the held girder in its Blender look (Art.Powers Girder) once imported, the parts before
+		local G = Config.PowerArt.Girder
+		check(
+			G ~= nil and G.GirderBeam ~= nil and G.GirderRivets ~= nil,
+			"the girder's meshes are in the fit table"
+		)
+		check(
+			G.GirderBeam.size[2] > 9 and G.GirderBeam.offset[2] < -4,
+			"the beam hangs down from the hand, about 11 long"
+		)
+		check(
+			string.find(cf, 'PowerMeshes.pieces("Girder", hand.CFrame)', 1, true) ~= nil,
+			"heldGirder draws the Blender girder at the hand"
+		)
 		-- 173: Bullet Time's own screen for its whole field, on the caster's screen only
 		check(Config.FxMoves.moves.BulletTime.screen == "slowmo", "Bullet Time has its screen")
 		check(Config.Abilities.list.BulletTime.duration > 0, "it lasts the field's time")
@@ -974,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 68,
-			"68 meshes in 26 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 70,
+			"70 meshes in 27 looks (178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3183,6 +3197,59 @@ return function(T: any)
 			string.find(src, 'FxLib.emit("hitstar", color:Lerp(WHITE, 0.35), center, 1', 1, true) ~= nil,
 			"a Comic nova pops a big hit star too"
 		)
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
+	test("List combat: Girder Swing swings the Blender girder (Everything Left 178)", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local char = UiSim.newInstance("Model")
+		local rh = UiSim.newInstance("Part")
+		rh.Name = "RightHand"
+		rh.Size = roblox.Vector3.new(1, 0.3, 1)
+		rh.CFrame = roblox.CFrame.new(3, 4, 0)
+		rh.Parent = char
+		char.Parent = sim.service("Workspace")
+		local me = sim.service("Players").LocalPlayer
+		me.Character = char
+		local hand = char:FindFirstChild("RightHand")
+		check(hand ~= nil, "the test body has a right hand")
+		sim:run("girder", function()
+			CombatFx.heldGirder(me.UserId)
+		end)
+		local held = nil
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d.Name == "HeldGirder" then
+				held = d
+			end
+		end
+		check(held ~= nil, "the girder is drawn")
+		if held and hand then
+			local beam = held:FindFirstChild("GirderBeam")
+			check(beam ~= nil and beam:IsA("MeshPart"), "as the Blender beam")
+			check(held:FindFirstChild("GirderRivets") ~= nil, "with its rivets and grip plate")
+			for _, b in held:GetChildren() do
+				local w = b:FindFirstChildWhichIsA("WeldConstraint")
+				check(
+					w ~= nil and w.Part0 == hand and b.Anchored == false,
+					b.Name .. " is welded to the hand"
+				)
+			end
+			if beam then
+				-- it hangs below the hand, about 5 studs down to its middle
+				local rel = hand.CFrame:PointToObjectSpace(beam.CFrame.Position)
+				check(rel.Y < -4 and rel.Y > -6, string.format("the beam hangs from the hand (%.2f)", rel.Y))
+			end
+		end
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 

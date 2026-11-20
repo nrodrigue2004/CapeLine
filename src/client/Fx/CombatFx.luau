@@ -3307,7 +3307,8 @@ sig.dropMotes = dropMotes
 
 -- item 178: Girder Swing's girder in the caster's right hand for the swing: a steel I-beam (web and two flanges,
 -- with a darker end plate) along the hand's grip line, welded to the hand so the clip swings it, then gone with
--- a shrink. PLACEHOLDER ART: Roblox parts until a girder mesh. Looks only; the hit is the server's arc.
+-- a shrink. The Blender girder (Art.Powers Girder: riveted flanges, a torn bent far end, 2026-11-20) once it is
+-- imported; else the parts (PLACEHOLDER ART). Looks only; the hit is the server's arc.
 local GIRDER =
 	{ length = 11, color = Color3.fromRGB(204, 84, 52), dark = Color3.fromRGB(120, 48, 30), hold = 0.95 }
 function CombatFx.heldGirder(userId: number?)
@@ -3320,14 +3321,19 @@ function CombatFx.heldGirder(userId: number?)
 	local m = Instance.new("Model")
 	m.Name = "HeldGirder"
 	local grip = hand.CFrame * CFrame.new(0, -0.15 - L / 2 + 0.6, 0)
-	local pieces = {
-		{ Vector3.new(0.22, L, 0.9), CFrame.identity, GIRDER.color }, -- web
-		{ Vector3.new(0.9, L, 0.16), CFrame.new(0, 0, 0.45), GIRDER.color }, -- flanges
-		{ Vector3.new(0.9, L, 0.16), CFrame.new(0, 0, -0.45), GIRDER.color },
-		{ Vector3.new(0.95, 0.12, 1.06), CFrame.new(0, -L / 2, 0), GIRDER.dark }, -- the far end's plate
-	}
+	local meshes = PowerMeshes.ready("Girder")
+	local pieces = if meshes
+		then PowerMeshes.pieces("Girder", hand.CFrame)
+		else {
+			{ Vector3.new(0.22, L, 0.9), CFrame.identity, GIRDER.color }, -- web
+			{ Vector3.new(0.9, L, 0.16), CFrame.new(0, 0, 0.45), GIRDER.color }, -- flanges
+			{ Vector3.new(0.9, L, 0.16), CFrame.new(0, 0, -0.45), GIRDER.color },
+			{ Vector3.new(0.95, 0.12, 1.06), CFrame.new(0, -L / 2, 0), GIRDER.dark }, -- the far end's plate
+		}
 	for _, pc in pieces do
-		local b = part(pc[1], grip * pc[2], pc[3])
+		local b: BasePart = if meshes
+			then PowerMeshes.make(pc, nil) or part(pc[1], pc[2], pc[3])
+			else part(pc[1], grip * pc[2], pc[3])
 		b.Material = Enum.Material.Metal
 		b.Anchored = false
 		b.Massless = true
