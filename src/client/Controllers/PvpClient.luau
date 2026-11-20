@@ -20,6 +20,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local PvpRules = require(Shared:WaitForChild("PvpRules"))
 
 local State = require(script.Parent.Parent.State)
+local PhaseClient = require(script.Parent.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local PvpClient = {}
 
@@ -129,7 +130,13 @@ function PvpClient.targets(): { { player: Player, id: number, pos: Vector3 } }
 	end
 	for _, p in Players:GetPlayers() do
 		local id = p:GetAttribute("PvpId")
-		if p ~= player and id and p:GetAttribute("Pvp") and not p:GetAttribute("Downed") then
+		if
+			p ~= player
+			and id
+			and p:GetAttribute("Pvp")
+			and not p:GetAttribute("Downed")
+			and PhaseClient.seesPlayer(p) -- ("Hide you fully", nate 2026-11-20)
+		then
 			local char = p.Character
 			local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if root then

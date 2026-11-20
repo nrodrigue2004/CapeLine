@@ -24,6 +24,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local PvpRules = require(Shared:WaitForChild("PvpRules"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules")) -- "Hide you fully" (nate, 2026-11-20)
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 
 local DataService = require(script.Parent.DataService)
@@ -97,7 +98,14 @@ local function ping(hero: any, kind: number, pos: Vector3, downed: boolean?)
 		local other = HeroService.get(p)
 		local op = other and HeroService.position(other)
 		local mate = table.find(mates, p) ~= nil
-		if other and other ~= hero and op and (mate or (op - pos).Magnitude <= D.pingRange) then
+		-- (never across phases: a private mission run's pings are its party's, "Hide you fully" 2026-11-20)
+		if
+			other
+			and other ~= hero
+			and op
+			and PhaseRules.sees(hero.phase, other.phase)
+			and (mate or (op - pos).Magnitude <= D.pingRange)
+		then
 			Net.fire("PingShow", p, {
 				kind = kind,
 				x = pos.X,

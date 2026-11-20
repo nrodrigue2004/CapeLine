@@ -19,6 +19,7 @@ local TravelStyleRules = require(Shared:WaitForChild("TravelStyleRules"))
 
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local Juice = require(script.Parent.Juice)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local TravelStyleFx = {}
 
@@ -194,7 +195,8 @@ local function step()
 		end
 		local v = r.root.AssemblyLinearVelocity
 		local speed = v.Magnitude
-		local moving = speed >= TS.showAt
+		-- (a hero in another phase draws nothing here: "Hide you fully", nate 2026-11-20)
+		local moving = speed >= TS.showAt and PhaseClient.seesPlayer(player)
 		r.trail.Enabled = moving
 		r.motes.Rate = if moving then 12 else 0
 		-- other heroes' take-offs and landings come from their speed; yours from MoveController below

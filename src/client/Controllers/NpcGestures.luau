@@ -18,6 +18,7 @@ local NpcAnim = require(Shared:WaitForChild("NpcAnim"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local RigJoints = require(Shared:WaitForChild("RigJoints"))
 local QualityController = require(script.Parent.QualityController)
+local PhaseClient = require(script.Parent.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local NpcGestures = {}
 
@@ -81,7 +82,7 @@ local function heroDistance(pos: Vector3): number
 	for _, pl in Players:GetPlayers() do
 		local ch = pl.Character
 		local r = ch and ch.PrimaryPart
-		if r then
+		if r and PhaseClient.seesPlayer(pl) then
 			best = math.min(best, (r.Position - pos).Magnitude)
 		end
 	end

@@ -8498,6 +8498,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./pockets_test")({ test = test, check = check, Config = Config }); -- the pocket kit pass (2026-11-19)
 (require :: any)("./gap_review_test")({ test = test, check = check, Config = Config }); -- the gap review (2026-11-19)
 (require :: any)("./phase_test")({ test = test, check = check, Config = Config }); -- missions lane: private runs on the map (2026-11-20)
+(require :: any)("./mapsites_test")({ test = test, check = check, Config = Config, world = world }); -- missions lane: missions on the map (2026-11-20)
 -- WP12: visit a friend's HQ on the same server (own file, merges easily)
 (require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
 (require :: any)("./sounds_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }) -- the sounds pass (2026-11-19)

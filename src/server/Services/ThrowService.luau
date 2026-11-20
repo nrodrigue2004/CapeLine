@@ -40,6 +40,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules")) -- "Hide you fully" (nate, 2026-11-20)
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
@@ -811,7 +812,13 @@ local function swing(hero: any, aim: Vector3)
 	-- floated one whirls round the hero (CarryPose.whirl); the server's hits above do not wait for it
 	for _, p in Players:GetPlayers() do
 		local r = p.Character and p.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if r and (r.Position - center).Magnitude <= 150 then
+		local other = HeroService.get(p)
+		-- (never across phases: "Hide you fully", nate 2026-11-20)
+		if
+			r
+			and (r.Position - center).Magnitude <= 150
+			and PhaseRules.sees(hero.phase, other and other.phase)
+		then
 			Net.fire("SwingFx", p, {
 				u = if hero.player then hero.player.UserId else 0,
 				x = center.X,
@@ -1232,7 +1239,9 @@ function ThrowService.init()
 	CombatService.titanLift = titanLift
 	Net.on("WorldGrab", function(player: Player, id: number)
 		local hero = HeroService.get(player)
-		if hero then
+		-- a street thing is the open world's: a hero in a private mission run on the map never lifts one (everyone
+		-- else would see it float; "Hide you fully", nate 2026-11-20). Setting one down (id 0) is always fine.
+		if hero and (id == 0 or not hero.phase) then
 			grab(hero, id)
 		end
 	end)

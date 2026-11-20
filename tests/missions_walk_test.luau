@@ -17,6 +17,7 @@ return function(T: any)
 	-- one fresh copy of the services for each run (their state is module-local)
 	-- the place is read once (a fresh copy per walk ran out of memory); each walk gets fresh modules
 	local placeGame: any = nil
+	local sharedWorld: any = nil
 	local function boot(): any
 		if not placeGame then
 			placeGame = roblox.deserializePlace(fs.readFile(placePath))
@@ -187,6 +188,7 @@ return function(T: any)
 		end
 		Enemy.tune = function() end
 		Enemy.usePocket = function() end
+		Enemy.useSite = function() end -- (on-map sites' own heights, Shared.MapSites)
 		Enemy.setPocketHeight = function() end
 		Enemy.target = function() end
 		-- (the phasing layer: a run's robots carry its phase, PhaseService)
@@ -233,6 +235,11 @@ return function(T: any)
 					end
 				end
 				table.clear(things)
+			end,
+			model = function(name)
+				local m = roblox.Instance.new("Model")
+				m.Name = name
+				return m
 			end,
 			heroesIn = function(pos, r)
 				local out = {}
@@ -417,6 +424,12 @@ return function(T: any)
 		end
 		W.Config = load(RS:FindFirstChild("Config"))
 		local shared = RS:FindFirstChild("Shared")
+		-- the real city (missions on the map, Config.MapSites): built once from the place's own WorldMap (plain data)
+		if not sharedWorld then
+			sharedWorld = load(shared:FindFirstChild("WorldMap")).build(W.Config, 202647)
+		end
+		stubs.CityBuilder.world = sharedWorld
+		W.world = sharedWorld
 		W.Remotes = load(shared:FindFirstChild("Remotes"))
 		W.NetSchema = load(shared:FindFirstChild("NetSchema"))
 		W.StoryPlan = load(shared:FindFirstChild("StoryPlan"))
@@ -512,6 +525,8 @@ return function(T: any)
 			return out
 		end
 		local run = W.Mission.runOf(player)
+		-- (missions on the map, Config.MapSites: where the run plays, and the highest the hero stood during it)
+		out.layouts, out.topY = {}, -math.huge
 		local limit = W.clock + m.minutes * 60
 		local lastStage, stageAt = 0, W.clock
 		local hero = W.heroes[player]
@@ -520,6 +535,10 @@ return function(T: any)
 			run = W.Mission.runOf(player)
 			if not run then
 				break
+			end
+			out.layouts[run.layout] = true
+			if hero.pos and hero.scene then
+				out.topY = math.max(out.topY, hero.pos.Y)
 			end
 			if run.done then
 				-- the result card shows, then the trip home
@@ -679,6 +698,22 @@ return function(T: any)
 							check(r.stuck == nil, name .. ": " .. tostring(r.stuck))
 							check(r.finished, name .. ": the result card comes")
 							check(r.home, name .. ": the hero goes home")
+							-- nate's "Mix" (2026-11-20): a story mission whose layout is on (Config.MapSites) plays at its
+							-- map site, its party never up at the pockets
+							if Config.MapSites.on[m.layout] then
+								local site = nil
+								for l in r.layouts or {} do
+									site = site or (l.onMap and l.site)
+								end
+								check(
+									site == m.layout,
+									name .. ": plays on the map (" .. tostring(site) .. ")"
+								)
+								check(
+									r.topY < S.pockets.y - 500,
+									name .. ": the party stays on the map (" .. tostring(r.topY) .. ")"
+								)
+							end
 							if own then
 								check(
 									r.choice == o,

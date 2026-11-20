@@ -32,8 +32,9 @@ function HeightMap.new(mapSize: number, cell: number, sea: number): HeightMap
 end
 
 -- Raise the cells under a box to its top
+-- (a box marked nomap stays out: Crane Tower's ledges and deck, whose heights come from Shared.MapSites.topAt)
 function HeightMap.stamp(hm: HeightMap, b: BoxKit.Box)
-	if not BoxKit.solid(b) then
+	if not BoxKit.solid(b) or (b :: any).nomap then
 		return
 	end
 	local fx, fz = BoxKit.footprint(b)

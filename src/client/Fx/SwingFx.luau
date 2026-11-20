@@ -21,6 +21,7 @@ local FrameProf = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local AudioController = require(script.Parent.Parent.Controllers.AudioController)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local SwingFx = {}
 
@@ -155,7 +156,7 @@ local function step(_dt: number)
 	for _, p in Players:GetPlayers() do
 		if p ~= me then
 			local at = p:GetAttribute("SwingAt")
-			local from = if typeof(at) == "Vector3" then handOf(p) else nil
+			local from = if typeof(at) == "Vector3" and PhaseClient.seesPlayer(p) then handOf(p) else nil
 			if
 				from
 				and typeof(at) == "Vector3"

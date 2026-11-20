@@ -22,6 +22,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules")) -- "Hide you fully" (nate, 2026-11-20)
 local MoveActs = require(Shared:WaitForChild("MoveActs"))
 local Status = require(Shared:WaitForChild("Status"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
@@ -95,7 +96,9 @@ local function show(hero: any, num: number, at: Vector3, dir: Vector3, extra: nu
 	MoveActService.acts += 1
 	local by = hero.player and hero.player.UserId or 0
 	for _, p in Players:GetPlayers() do
-		if p ~= hero.player then
+		-- (never across phases: a private mission run's moves are its party's, "Hide you fully" 2026-11-20)
+		local other = HeroService.get(p)
+		if p ~= hero.player and PhaseRules.sees(hero.phase, other and other.phase) then
 			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if root and (root.Position - at).Magnitude <= FX_RANGE then
 				Net.fire("MoveActFx", p, num, at, dir, by, extra or 0)

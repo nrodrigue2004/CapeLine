@@ -18,6 +18,7 @@ local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
+local MapSites = require(Shared:WaitForChild("MapSites"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
@@ -699,6 +700,51 @@ function EnemyService.usePocket(index: number, layout: PocketLayout.Layout?)
 	pocketLayouts[index] = layout
 end
 
+-- Story missions on the map (Shared.MapSites, missions lane 2026-11-20): each permanent piece's boxes kept out of
+-- the city's height map (Crane Tower's ledges and deck) always, and a running site's own set pieces while it runs
+-- (by pocket index): robots over them stand on the highest top at or under their feet, robots under them on the city.
+type SiteHeights = { x0: number, x1: number, z0: number, z1: number, boxes: { any } }
+local siteHeights: { [any]: SiteHeights } = {}
+do
+	local by: { [string]: SiteHeights } = {}
+	for _, b in MapSites.permanent(Config).boxes do
+		if (b :: any).nomap then
+			local name = (b :: any).site
+			local e = by[name]
+				or { x0 = math.huge, x1 = -math.huge, z0 = math.huge, z1 = -math.huge, boxes = {} }
+			by[name] = e
+			table.insert(e.boxes, b)
+			local r = math.max(b.sx, b.sz) / 2
+			e.x0, e.x1 = math.min(e.x0, b.cx - r), math.max(e.x1, b.cx + r)
+			e.z0, e.z1 = math.min(e.z0, b.cz - r), math.max(e.z1, b.cz + r)
+		end
+	end
+	for name, e in by do
+		siteHeights["permanent:" .. name] = e
+	end
+end
+function EnemyService.useSite(index: number, layout: PocketLayout.Layout?)
+	local L: any = layout
+	if L and L.bounds and #L.boxes > 0 then
+		local b = L.bounds
+		siteHeights[index] = { x0 = b[1], x1 = b[2], z0 = b[3], z1 = b[4], boxes = L.boxes }
+	else
+		siteHeights[index] = nil
+	end
+end
+local function siteHeight(x: number, z: number, y: number?): number?
+	local best: number? = nil
+	for _, e in siteHeights do
+		if x >= e.x0 and x <= e.x1 and z >= e.z0 and z <= e.z1 then
+			local t = MapSites.topAt(e.boxes, x, z, y)
+			if t and (not best or t > best) then
+				best = t
+			end
+		end
+	end
+	return best
+end
+
 local function pocketAt(x: number, z: number, y: number?): PocketLayout.Layout?
 	if not y or y < POCKET_Y then
 		return nil
@@ -730,7 +776,9 @@ function EnemyService.init(heightAt: (number, number) -> number)
 					return f
 				end
 			end
-			return heightAt(x, z)
+			local h = heightAt(x, z)
+			local t = siteHeight(x, z, y)
+			return if t and t > h then t else h
 		end,
 		water = function(x, y, z)
 			return DeepLayout.underwater(Config, x, y, z)

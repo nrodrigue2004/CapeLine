@@ -47,6 +47,7 @@ local CitizenRenderer = require(script.Parent.Parent.Controllers.CitizenRenderer
 local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local BuildingFx = require(script.Parent.BuildingFx)
 local DebrisBudget = require(script.Parent.DebrisBudget)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local L = Config.Life
 local T = L.traffic
@@ -119,7 +120,7 @@ local function heroes(): { { pos: Vector3, vel: Vector3, air: boolean } }
 	for _, p in Players:GetPlayers() do
 		local ch = p.Character
 		local root = ch and ch:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if root then
+		if root and PhaseClient.seesPlayer(p) then
 			local hum = ch and ch:FindFirstChildOfClass("Humanoid")
 			local air = hum ~= nil and hum.FloorMaterial == Enum.Material.Air
 			table.insert(out, { pos = root.Position, vel = root.AssemblyLinearVelocity, air = air })

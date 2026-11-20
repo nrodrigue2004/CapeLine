@@ -15,6 +15,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Kit = require(script.Parent.Kit)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local SquadClient = require(script.Parent.Parent.Controllers.SquadClient)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local Plates = {}
 
@@ -77,6 +78,8 @@ local function refresh(p: Player)
 	if not pl then
 		return
 	end
+	-- a hero in another phase (a private mission run's, or the open world's seen from inside one) has no plate here
+	pl.bb.Enabled = PhaseClient.seesPlayer(p)
 	local bits = {}
 	local rank = PvpClient.fameRank(p)
 	local side = p:GetAttribute("PvpSide") or p:GetAttribute("Side")
@@ -233,6 +236,7 @@ local function watch(p: Player)
 			"Squad",
 			"SquadSlot",
 			"Sidekick",
+			"Phase",
 		}
 	do
 		p:GetAttributeChangedSignal(attr):Connect(function()
@@ -356,6 +360,11 @@ function Plates.init()
 		end
 		if menuFor == p then
 			closeMenu()
+		end
+	end)
+	player:GetAttributeChangedSignal("Phase"):Connect(function()
+		for p in plates do
+			refresh(p)
 		end
 	end)
 	PvpClient.MutesChanged:Connect(function()

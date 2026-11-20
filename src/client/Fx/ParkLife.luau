@@ -33,6 +33,7 @@ local QualityController = require(Controllers.QualityController)
 local CitizenRenderer = require(Controllers.CitizenRenderer)
 local AudioController = require(Controllers.AudioController)
 local BuildingFx = require(script.Parent.BuildingFx)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local ParkLife = {}
 
@@ -57,7 +58,7 @@ local function heroes(): { Vector3 }
 	for _, p in Players:GetPlayers() do
 		local ch = p.Character
 		local root = ch and ch:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if root then
+		if root and PhaseClient.seesPlayer(p) then
 			table.insert(out, root.Position)
 		end
 	end

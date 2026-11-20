@@ -39,6 +39,7 @@ local LocoMath = require(Shared:WaitForChild("LocoMath"))
 local QualityController = require(script.Parent.QualityController)
 local NpcLoco = require(script.Parent.NpcLoco)
 local LifePlan = require(Shared:WaitForChild("LifePlan")) -- the living world: point, photo, cheer
+local PhaseClient = require(script.Parent.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local CitizenRenderer = {}
 CitizenRenderer.hidden = false -- PrologueFx: true while the hero is in the prologue
@@ -348,7 +349,8 @@ local function scanReactors(now: number)
 	for _, p in Players:GetPlayers() do
 		local ch = p.Character
 		local root = ch and ch:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if root then
+		-- (citizens never react to a hero this device cannot see: "Hide you fully", nate 2026-11-20)
+		if root and PhaseClient.seesPlayer(p) then
 			local hum = ch and ch:FindFirstChildOfClass("Humanoid")
 			table.insert(watched, {
 				pos = root.Position,
@@ -361,7 +363,7 @@ local function scanReactors(now: number)
 		local tier = p:GetAttribute("RepTier")
 		local ch = p.Character
 		local root = ch and ch.PrimaryPart
-		if type(tier) == "number" and tier >= R.minTier and root then
+		if type(tier) == "number" and tier >= R.minTier and root and PhaseClient.seesPlayer(p) then
 			local side = p:GetAttribute("Side")
 			table.insert(reactors, {
 				pos = root.Position,

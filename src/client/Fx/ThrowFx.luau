@@ -25,6 +25,7 @@ local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local Juice = require(script.Parent.Juice)
 local FxLib = require(script.Parent.FxLib)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local ThrowFx = {}
 
@@ -294,7 +295,7 @@ local function step()
 		if kind ~= carrying[p] then
 			carrying[p] = kind
 			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if kind and root then
+			if kind and root and PhaseClient.seesPlayer(p) then
 				ThrowFx.grab(root.Position)
 				Juice.fire("grab", root.Position, { mine = p == player })
 			end
