@@ -700,6 +700,9 @@ local backpack = {
 	),
 	wings = wingPair("white", { mat = Enum.Material.Fabric }),
 	bat = wingPair("dark"),
+	-- the fallback parts before Art.Backs' meshes load (backs.py angel and devil)
+	angel = wingPair("white", { mat = Enum.Material.Fabric }),
+	devil = wingPair("dark", { mat = Enum.Material.Leather }),
 	ring = {
 		S(
 			"torso",
@@ -1242,6 +1245,53 @@ top(
 		both(S("torso", V(0.12, 0.9, 0.05), CF(-0.32, 0.35, TZ - 0.03) * rz(-15), "gold", GOLD)),
 		S("torso", V(0.16, 0.16, 0.05), CF(0.55, 0.45, TZ - 0.04), "gold", { shape = "Ball", neon = true }),
 		S("waist", V(2.1, 0.22, 1.1), CF(0, 0.12, 0), "gold", GOLD)
+	)
+)
+-- anime outfits (nate's playtest 4, 2026-11-20: "more anime outfits"; the drawn overlays in art/clothes/suits.py
+-- carry the look on Roblox's body, these parts are the fallback before the images load)
+top(
+	"blazer",
+	{ "p", "p", "s" },
+	cat(
+		S("torso", V(0.36, 0.7, 0.04), CF(0, 0.45, TZ), "white"),
+		S("torso", V(0.1, 0.5, 0.05), CF(0, 0.45, TZ - 0.02), "dark")
+	)
+)
+top("sailor", { "white", "white", "s" }, {
+	S("torso", V(1.6, 0.5, 0.04), CF(0, 0.55, -TZ), "s", FABRIC),
+	S("torso", V(0.3, 0.2, 0.05), CF(0, 0.3, TZ), "s", FABRIC),
+})
+top(
+	"pilot",
+	{ "p", "s", "p" },
+	cat(
+		S("torso", V(1.2, 0.12, 1.1), CF(0, 0.76, 0), "a"),
+		both(S("llarm", V(1.08, 0.4, 1.08), CF(0, -0.2, 0), "a"), "llarm", "rlarm")
+	)
+)
+top(
+	"haori",
+	{ "p", "p", "s" },
+	cat(
+		both(S("torso", V(0.16, 1.9, 0.05), CF(-0.42, 0.05, TZ), "s", FABRIC)),
+		both(S("llarm", V(1.3, 0.8, 1.4), CF(-0.1, -0.1, 0.1), "s", FABRIC), "llarm", "rlarm")
+	)
+)
+top(
+	"gakuran",
+	{ "p", "p", "p" },
+	cat(
+		S("torso", V(1.1, 0.16, 1.06), CF(0, 0.8, 0), "p"),
+		S("torso", V(0.08, 0.08, 0.04), CF(0.1, 0.4, TZ), "gold", { shape = "Ball" }),
+		S("torso", V(0.08, 0.08, 0.04), CF(0.1, 0.1, TZ), "gold", { shape = "Ball" })
+	)
+)
+top(
+	"officer",
+	{ "p", "p", "s" },
+	cat(
+		both(S("torso", V(0.5, 0.08, 1.04), CF(-0.75, 0.82, 0), "a")),
+		S("torso", V(0.14, 2.1, 0.04), CF(0, 0, TZ) * rz(40), "a", FABRIC)
 	)
 )
 top(

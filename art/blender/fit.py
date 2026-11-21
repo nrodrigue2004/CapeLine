@@ -234,12 +234,20 @@ def figure(items, W, hair=None):
         col = SKIN if name in ("Head", "LeftHand", "RightHand") else (
             LEGS if "Leg" in name or "Foot" in name or name == "LowerTorso" else SUIT)
         items.append(([W[name] @ Vector(v) for v in vs], fs, col))
-    # a face mark (two eyes and a mouth), so front and back read at a glance
+    # the face: a real Roblox catalog face (FACE_RUNS, 2026-11-21) projected flat across the head box's front the
+    # way Roblox draws a Decal on a MeshPart, so masks are judged against the eyes heroes really have; else a mark
     Mh = W["Head"]
-    for x, y, w, h in ((-0.2, 0.1, 0.1, 0.16), (0.2, 0.1, 0.1, 0.16), (0, -0.2, 0.34, 0.05)):
-        z = -0.601
-        q = [(x - w / 2, y - h / 2, z), (x + w / 2, y - h / 2, z), (x + w / 2, y + h / 2, z), (x - w / 2, y + h / 2, z)]
-        items.append(([Mh @ Vector(p) for p in q], [(0, 1, 2, 3)], (25, 25, 30)))
+    if FACE_RUNS:
+        for x0, x1, y0, y1, col in FACE_RUNS:
+            z = -0.602
+            q = [(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)]
+            items.append(([Mh @ Vector(p) for p in q], [(0, 1, 2, 3)], col))
+    else:
+        for x, y, w, h in ((-0.2, 0.1, 0.1, 0.16), (0.2, 0.1, 0.1, 0.16), (0, -0.2, 0.34, 0.05)):
+            z = -0.601
+            q = [(x - w / 2, y - h / 2, z), (x + w / 2, y - h / 2, z), (x + w / 2, y + h / 2, z),
+                 (x - w / 2, y + h / 2, z)]
+            items.append(([Mh @ Vector(p) for p in q], [(0, 1, 2, 3)], (25, 25, 30)))
     if hair:
         items.append(([Mh @ v for v in hair[0]], hair[1], ROLE["hair"]))
 
@@ -416,6 +424,38 @@ def weapon_sheet(ws, tag):
                 ["%d %s" % (w["id"], w["name"]) for w in ws], passes)
 
 
+def load_face():
+    """Runs of opaque pixels of a catalog face image (FIT_FACE = its image id, default Smile) in head-box studs."""
+    path = os.environ.get("FIT_FACE_PNG") or os.path.join(BUILD, "catalog", "face_%s.png" % os.environ.get(
+        "FIT_FACE", "144080495"))
+    if not os.path.exists(path):
+        return []
+    from PIL import Image
+    im = Image.open(path).convert("RGBA").resize((64, 64))
+    px = im.load()
+    sx, sy = RIG["Head"]["size"][0], RIG["Head"]["size"][1]
+    out = []
+    for j in range(64):
+        i = 0
+        while i < 64:
+            if px[i, j][3] < 128:
+                i += 1
+                continue
+            k = i
+            cs = []
+            while k < 64 and px[k, j][3] >= 128:
+                cs.append(px[k, j][:3])
+                k += 1
+            col = tuple(sum(c[n] for c in cs) // len(cs) for n in range(3))
+            # image left is the viewer's left on the front face: Roblox +x
+            x0, x1 = sx / 2 - i / 64 * sx, sx / 2 - k / 64 * sx
+            y1, y0 = sy / 2 - j / 64 * sy, sy / 2 - (j + 1) / 64 * sy
+            out.append((min(x0, x1), max(x0, x1), y0, y1, col))
+            i = k
+    return out
+
+
+FACE_RUNS = load_face()
 HAIR = load_hair()
 print("fit.py: catalog hair", HAIR[2] if HAIR else "none (run art/panels/catalog.py)")
 want = set(ARGS) if ARGS and "all" not in ARGS else None

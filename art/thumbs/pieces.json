@@ -2171,6 +2171,18 @@
       "tab": "backpack"
     },
     {
+      "key": "backpack/angel",
+      "kit": "angel",
+      "name": "Angel Wings",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/devil",
+      "kit": "devil",
+      "name": "Devil Wings",
+      "tab": "backpack"
+    },
+    {
       "key": "shirt/Tee",
       "kit": "Tee",
       "name": "Tee",
@@ -2754,6 +2766,42 @@
       "key": "suit/nightTux",
       "kit": "nightTux",
       "name": "Opening Night Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/blazer",
+      "kit": "blazer",
+      "name": "Academy Blazer",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/sailor",
+      "kit": "sailor",
+      "name": "Sailor Top",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/pilot",
+      "kit": "pilot",
+      "name": "Pilot Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/haori",
+      "kit": "haori",
+      "name": "Wanderer Haori",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/gakuran",
+      "kit": "gakuran",
+      "name": "High Collar Jacket",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/officer",
+      "kit": "officer",
+      "name": "Officer Coat",
       "tab": "suit"
     },
     {
@@ -3432,6 +3480,46 @@
       "kit": "cat:4875445470",
       "name": "Black Short Parted Hair",
       "tab": "hair"
+    },
+    {
+      "kit": "cat:7177948497",
+      "name": "Styled Beard Black",
+      "tab": "beard"
+    },
+    {
+      "kit": "cat:7177951938",
+      "name": "Styled Beard Brown",
+      "tab": "beard"
+    },
+    {
+      "kit": "cat:7177950320",
+      "name": "Styled Beard Blonde",
+      "tab": "beard"
+    },
+    {
+      "kit": "cat:7177954907",
+      "name": "Styled Beard White",
+      "tab": "beard"
+    },
+    {
+      "kit": "cat:6351051364",
+      "name": "Full Black Trimmed Beard",
+      "tab": "beard"
+    },
+    {
+      "kit": "cat:13895617178",
+      "name": "Stubble Beard [Black]",
+      "tab": "beard"
+    },
+    {
+      "kit": "cat:14874478651",
+      "name": "Fancy Moustache",
+      "tab": "beard"
+    },
+    {
+      "kit": "cat:16780013894",
+      "name": "Red Down Facing Moustache",
+      "tab": "beard"
     }
   ],
   "emotes": {
@@ -7520,36 +7608,6 @@
       "tab": "packs"
     },
     {
-      "key": "weaponBoomerang",
-      "kind": "weapon",
-      "tab": "weapons",
-      "weapon": 36
-    },
-    {
-      "key": "weaponWhip",
-      "kind": "weapon",
-      "tab": "weapons",
-      "weapon": 32
-    },
-    {
-      "key": "weaponFan",
-      "kind": "weapon",
-      "tab": "weapons",
-      "weapon": 33
-    },
-    {
-      "key": "weaponYoyo",
-      "kind": "weapon",
-      "tab": "weapons",
-      "weapon": 34
-    },
-    {
-      "key": "weaponDart",
-      "kind": "weapon",
-      "tab": "weapons",
-      "weapon": 35
-    },
-    {
       "key": "tint1",
       "kind": "tint",
       "tab": "effects",
@@ -7757,12 +7815,37 @@
       "tab": "passes"
     },
     {
-      "key": "slot3",
+      "key": "slot4",
       "kind": "slot",
       "tab": "slots"
     },
     {
-      "key": "slot4",
+      "key": "slot5",
+      "kind": "slot",
+      "tab": "slots"
+    },
+    {
+      "key": "slot6",
+      "kind": "slot",
+      "tab": "slots"
+    },
+    {
+      "key": "slot7",
+      "kind": "slot",
+      "tab": "slots"
+    },
+    {
+      "key": "slot8",
+      "kind": "slot",
+      "tab": "slots"
+    },
+    {
+      "key": "slot9",
+      "kind": "slot",
+      "tab": "slots"
+    },
+    {
+      "key": "slot10",
       "kind": "slot",
       "tab": "slots"
     }

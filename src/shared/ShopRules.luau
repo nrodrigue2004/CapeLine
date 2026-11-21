@@ -134,6 +134,10 @@ function ShopRules.available(Config: any, profile: any, key: string, now: number
 	if ShopRules.owned(Config, profile, key) then
 		return false, "owned"
 	end
+	-- hero slots are bought in order: slot N once N - 1 slots are open
+	if kind == "slot" and CreatorRules.maxSlots(profile) < row.slot - 1 then
+		return false, "order"
+	end
 	-- a weapon is only sold once it is playable (the creator plan builds the 36 in steps)
 	if kind == "weapon" and not table.find(Config.Weapons.playable, row.weapon) then
 		return false, "soon"

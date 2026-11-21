@@ -2,7 +2,7 @@
 -- WeaponRules: the weapon slot's rules (nate's hero creator plan, 2026-11-16; Config.Weapons). Pure, so Lune
 -- tests it.
 -- * Ownership is account-wide: Bare Fists (price 0) is always owned; the creator's free pick, the Weapon
---   Rack (Credits) and the Robux shop (the 5 Exotic weapons) set profile.weaponsOwned.
+--   Rack (Credits, the 5 Exotic weapons too since 2026-11-20) set profile.weaponsOwned.
 -- * Each weapon keeps its Mastery points and its look in profile.weapons[id as text] (WEAPON_FIELDS).
 -- * A weapon look travels as a 12-byte buffer: id, style, finish, main, trim, glow, glow strength, flags
 --   (bit 0 the emblem shows), trail, 3 reserved.
@@ -89,7 +89,8 @@ end
 -- The creator's free pick: any weapon the Rack sells (never a Robux one), playable in this build
 function WeaponRules.freePickOk(Config: any, id: number): boolean
 	local w = WeaponRules.get(Config, id)
-	return w ~= nil and w.price ~= nil and WeaponRules.playable(Config, id)
+	-- Exotic weapons are earned at the Rack, never given free (they are the Rack's long goal)
+	return w ~= nil and w.price ~= nil and w.family ~= "exotic" and WeaponRules.playable(Config, id)
 end
 
 -- The Weapon Rack: can this be bought for Credits now? Returns ok, reason, price.

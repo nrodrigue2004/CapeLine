@@ -108,6 +108,16 @@ local OWN = {
 	neck = true,
 	belt = true,
 }
+-- nate's playtest 4 (2026-11-20 22:04Z): "Shirts and pants merge into tops and legs". The everyday Shirt and
+-- Pants show first in the Top and Legs lists; picking one takes the suit or legs piece off (it would cover it),
+-- picking a suit or legs piece keeps the everyday one under it. The shirt and pants rows leave the list.
+local MERGE: { [string]: string } = if not AVATAR and C.clothes.on
+	then { suit = "shirt", legs = "pants" }
+	else {}
+local MERGED = {}
+for top, under in MERGE do
+	MERGED[under] = top
+end
 if AVATAR or not C.bodyStep then
 	table.remove(STEPS, 1)
 end
@@ -882,9 +892,11 @@ end
 
 ----------------------------------------------------------------------------------------------- APPEARANCE
 local function drawSlotColors()
-	-- the slot's own main, trim and glow colour (AUTO = the whole-hero colour) and its material
+	-- the slot's own main, trim and glow colour (AUTO = the whole-hero colour) and its material; on a merged
+	-- Top or Legs with no suit or legs piece on, the everyday Shirt or Pants under it
+	local tslot = if MERGE[slot] and (look.pieces[slot] or 0) == 0 then MERGE[slot] else slot
 	look.tints = look.tints or {}
-	local t = look.tints[slot] or { 0, 0, 0 }
+	local t = look.tints[tslot] or { 0, 0, 0 }
 	for i, n in { "MAIN", "TRIM", "GLOW" } do
 		tile(n, nil, colorTarget == i, false, function()
 			colorTarget = i
@@ -892,24 +904,24 @@ local function drawSlotColors()
 		end)
 	end
 	local mats = look.mats or {}
-	local m = mats[slot] or 0
+	local m = mats[tslot] or 0
 	cycler("MATERIAL", if m == 0 then "Own" else C.materialNames[m], function(d)
 		look.mats = look.mats or {}
-		look.mats[slot] = (m + d) % (#C.materials + 1)
+		look.mats[tslot] = (m + d) % (#C.materials + 1)
 		refresh()
 	end)
 	local target = math.clamp(colorTarget, 1, 3)
 	swatch(nil, (t[target] or 0) == 0, function()
 		local nt = table.clone(t)
 		nt[target] = 0
-		look.tints[slot] = if nt[1] == 0 and nt[2] == 0 and nt[3] == 0 then nil else nt
+		look.tints[tslot] = if nt[1] == 0 and nt[2] == 0 and nt[3] == 0 then nil else nt
 		refresh()
 	end, "AUTO")
 	for i, c in C.palette do
 		swatch(rgb(c), t[target] == i, function()
 			local nt = table.clone(t)
 			nt[target] = i
-			look.tints[slot] = nt
+			look.tints[tslot] = nt
 			refresh()
 		end)
 	end
@@ -963,11 +975,51 @@ local function drawMatchAll()
 		end)
 	end
 end
+-- A Robux pack piece's tile (nate's playtest 4: "Robux items should look higher quality than everything else"):
+-- a thick gold edge and a gold star in the corner, so premium pieces stand out in every list
+local function premiumBadge(b: GuiObject)
+	Kit.stroke(b, Kit.color.gold, 3)
+	local star = Kit.label({
+		Text = "★",
+		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.fromOffset(20, 20),
+		Position = UDim2.new(1, -2, 0, 2),
+		TextColor3 = Kit.color.gold,
+		ZIndex = 4,
+		maxText = 18,
+	})
+	star.Parent = b
+end
 local function drawPieces()
 	local pv = profileView()
 	local cur = look.pieces[slot] or 0
 	tileParent = pieceGrid
-	if not REQUIRED[slot] then
+	local under = MERGE[slot]
+	if under then
+		-- the everyday clothes first (always free), lit while no suit or legs piece covers them
+		local curUnder = look.pieces[under] or 0
+		for _, p in CreatorRules.index(Config).byTab[under] or {} do
+			if not CreatorRules.offered(Config, p) then
+				continue
+			end
+			tile(
+				p.name,
+				nil,
+				cur == 0 and curUnder == p.index,
+				false,
+				function()
+					look.pieces[under] = p.index
+					look.pieces[slot] = 0
+					refresh()
+				end,
+				hoverLook(function(l)
+					l.pieces[under] = p.index
+					l.pieces[slot] = 0
+				end),
+				Thumb.creator(p)
+			)
+		end
+	elseif not REQUIRED[slot] then
 		tile(
 			if AVATAR and OWN[slot] then "MY OWN" else "NONE",
 			nil,
@@ -988,7 +1040,7 @@ local function drawPieces()
 		end
 		local have = CreatorRules.wearable(Config, pv, p, originIdx)
 		local glyph = Thumb.glyph(p)
-		tile(
+		local t = tile(
 			if glyph then glyph .. " " .. p.name else p.name,
 			if have then nil else sourceText(p),
 			cur == p.index,
@@ -1006,6 +1058,9 @@ local function drawPieces()
 			end),
 			Thumb.creator(p)
 		)
+		if p.source.kind == "pack" or p.source.kind == "starter" then
+			premiumBadge(t)
+		end
 	end
 	tileParent = nil
 	-- the slot's pieces show as pictures once any has one (taller cells), else as today's text tiles
@@ -1027,8 +1082,8 @@ local function drawAppearance()
 	for _, area in AREAS do
 		header(area[1])
 		for _, id in area[2] do
-			if CreatorRules.hidden(Config, id) then
-				continue -- retired (our own eyes, face details, makeup)
+			if CreatorRules.hidden(Config, id) or MERGED[id] then
+				continue -- retired (our own eyes, face details, makeup), or merged into Top and Legs
 			end
 			row(slotName(id), nil, slot == id, false, function()
 				if slot ~= id then
@@ -1046,8 +1101,17 @@ local function drawAppearance()
 				count += 1
 			end
 		end
+		local under = MERGE[slot]
+		if under then
+			for _, q in CreatorRules.index(Config).byTab[under] or {} do
+				if CreatorRules.offered(Config, q) then
+					count += 1
+				end
+			end
+		end
+		local natural = C.naturalSkins or #C.skins
 		local sub = if slot == "skin"
-			then "24 tones and 6 fantasy skins"
+			then string.format("%d tones and %d fantasy skins", natural, #C.skins - natural)
 			elseif
 				slot == "colors"
 			then "Sets the whole hero; any slot can then have its own" -- facial hair is Roblox catalog items only (gap-villains, 2026-11-19), free, in their own colours

@@ -14,7 +14,7 @@ return {
 				at = "head",
 				role = "a",
 				glow = true,
-				offset = { 0.000, 0.040, -0.293 },
+				offset = { 0.000, 0.240, -0.293 },
 				size = { 1.359, 0.300, 0.874 },
 			},
 			{
@@ -23,7 +23,7 @@ return {
 				role = "s",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.040, -0.263 },
+				offset = { 0.000, 0.240, -0.263 },
 				size = { 1.390, 0.420, 0.963 },
 			},
 			{
@@ -31,7 +31,7 @@ return {
 				at = "head",
 				role = "dark",
 				glow = false,
-				offset = { 0.000, 0.040, 0.369 },
+				offset = { 0.000, 0.240, 0.369 },
 				size = { 1.270, 0.200, 0.541 },
 			},
 			{
@@ -40,13 +40,13 @@ return {
 				role = "s",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.040, -0.000 },
+				offset = { 0.000, 0.240, -0.000 },
 				size = { 1.440, 0.340, 0.340 },
 			},
 		},
 	},
 	helm = {
-		triangles = 2044,
+		triangles = 2128,
 		hair = false,
 		pieces = {
 			{
@@ -85,7 +85,7 @@ return {
 		},
 	},
 	crest = {
-		triangles = 1324,
+		triangles = 1408,
 		hair = false,
 		pieces = {
 			{
@@ -110,8 +110,8 @@ return {
 				role = "s",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.217, -0.565 },
-				size = { 1.304, 0.296, 0.420 },
+				offset = { 0.000, 0.408, -0.565 },
+				size = { 1.302, 0.218, 0.419 },
 			},
 			{
 				mesh = "Head_crest_Guards",
@@ -125,7 +125,7 @@ return {
 		},
 	},
 	horns = {
-		triangles = 1724,
+		triangles = 1892,
 		hair = false,
 		pieces = {
 			{
@@ -133,8 +133,8 @@ return {
 				at = "head",
 				role = "p",
 				glow = false,
-				offset = { 0.000, 0.117, 0.000 },
-				size = { 1.450, 1.357, 1.450 },
+				offset = { 0.000, 0.117, 0.005 },
+				size = { 1.450, 1.357, 1.440 },
 			},
 			{
 				mesh = "Head_horns_Brow",
@@ -142,8 +142,8 @@ return {
 				role = "dark",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.150, -0.559 },
-				size = { 1.389, 0.363, 0.422 },
+				offset = { 0.000, 0.390, -0.559 },
+				size = { 1.389, 0.264, 0.422 },
 			},
 			{
 				mesh = "Head_horns_Horns",
@@ -158,8 +158,8 @@ return {
 				at = "head",
 				role = "glowRed",
 				glow = true,
-				offset = { 0.000, 0.090, -0.760 },
-				size = { 0.171, 0.234, 0.090 },
+				offset = { 0.000, 0.390, -0.770 },
+				size = { 0.152, 0.208, 0.080 },
 			},
 		},
 	},
@@ -213,7 +213,7 @@ return {
 		},
 	},
 	hood = {
-		triangles = 1260,
+		triangles = 1460,
 		hair = false,
 		pieces = {
 			{
@@ -262,7 +262,7 @@ return {
 				at = "head",
 				role = "a",
 				glow = true,
-				offset = { 0.000, 0.070, -0.711 },
+				offset = { 0.000, 0.250, -0.711 },
 				size = { 1.279, 0.120, 0.138 },
 			},
 			{
@@ -284,7 +284,7 @@ return {
 		},
 	},
 	crown = {
-		triangles = 568,
+		triangles = 880,
 		hair = true,
 		pieces = {
 			{
@@ -318,8 +318,8 @@ return {
 				at = "head",
 				role = "dark",
 				glow = false,
-				offset = { 0.000, 0.126, -0.458 },
-				size = { 1.180, 0.272, 0.364 },
+				offset = { 0.000, 0.271, -0.458 },
+				size = { 1.180, 0.282, 0.364 },
 			},
 		},
 	},
@@ -340,7 +340,7 @@ return {
 				at = "head",
 				role = "a",
 				glow = true,
-				offset = { 0.000, 0.110, -0.681 },
+				offset = { 0.000, 0.270, -0.681 },
 				size = { 0.915, 0.121, 0.159 },
 			},
 			{
@@ -348,8 +348,8 @@ return {
 				at = "head",
 				role = "s",
 				glow = false,
-				offset = { 0.000, 0.020, -0.654 },
-				size = { 1.056, 0.760, 0.226 },
+				offset = { 0.000, 0.090, -0.654 },
+				size = { 1.056, 0.900, 0.226 },
 			},
 			{
 				mesh = "Head_fullface_Strap",
@@ -427,8 +427,8 @@ return {
 				role = "a",
 				glow = false,
 				mat = "Glass",
-				offset = { 0.000, 0.110, -0.666 },
-				size = { 0.906, 0.340, 0.050 },
+				offset = { 0.000, 0.250, -0.692 },
+				size = { 0.670, 0.290, 0.050 },
 			},
 			{
 				mesh = "Head_gasmask_Rings",
@@ -436,8 +436,8 @@ return {
 				role = "s",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.110, -0.686 },
-				size = { 1.012, 0.440, 0.069 },
+				offset = { 0.000, 0.250, -0.712 },
+				size = { 0.765, 0.380, 0.061 },
 			},
 			{
 				mesh = "Head_gasmask_Filter",
@@ -458,7 +458,7 @@ return {
 		},
 	},
 	goalie = {
-		triangles = 1272,
+		triangles = 1536,
 		hair = true,
 		pieces = {
 			{
@@ -474,16 +474,16 @@ return {
 				at = "head",
 				role = "a",
 				glow = false,
-				offset = { 0.000, 0.071, -0.670 },
-				size = { 0.946, 0.961, 0.119 },
+				offset = { 0.000, 0.081, -0.668 },
+				size = { 0.946, 0.982, 0.114 },
 			},
 			{
 				mesh = "Head_goalie_Brow",
 				at = "head",
 				role = "p",
 				glow = false,
-				offset = { 0.000, 0.255, -0.666 },
-				size = { 1.077, 0.070, 0.229 },
+				offset = { 0.000, 0.400, -0.666 },
+				size = { 1.077, 0.060, 0.229 },
 			},
 			{
 				mesh = "Head_goalie_Vents",
@@ -505,15 +505,15 @@ return {
 				role = "p",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.492, -0.000 },
-				size = { 1.410, 0.645, 1.410 },
+				offset = { 0.000, 0.612, -0.000 },
+				size = { 1.410, 0.485, 1.410 },
 			},
 			{
 				mesh = "Head_monovisor_Housing",
 				at = "head",
 				role = "dark",
 				glow = false,
-				offset = { 0.000, 0.070, -0.030 },
+				offset = { 0.000, 0.250, -0.030 },
 				size = { 1.380, 0.320, 1.440 },
 			},
 			{
@@ -521,7 +521,7 @@ return {
 				at = "head",
 				role = "a",
 				glow = true,
-				offset = { 0.000, 0.070, -0.618 },
+				offset = { 0.000, 0.250, -0.618 },
 				size = { 1.308, 0.140, 0.374 },
 			},
 			{
@@ -529,7 +529,7 @@ return {
 				at = "head",
 				role = "s",
 				glow = false,
-				offset = { 0.000, 0.070, -0.000 },
+				offset = { 0.000, 0.250, -0.000 },
 				size = { 1.480, 0.320, 0.320 },
 			},
 		},
@@ -553,7 +553,7 @@ return {
 				role = "dark",
 				glow = false,
 				mat = "Glass",
-				offset = { 0.000, 0.100, -0.757 },
+				offset = { 0.000, 0.260, -0.757 },
 				size = { 1.157, 0.180, 0.116 },
 			},
 			{
@@ -561,7 +561,7 @@ return {
 				at = "head",
 				role = "a",
 				glow = false,
-				offset = { 0.000, 0.100, -0.735 },
+				offset = { 0.000, 0.260, -0.735 },
 				size = { 1.220, 0.280, 0.141 },
 			},
 			{
@@ -624,7 +624,7 @@ return {
 		},
 	},
 	oni = {
-		triangles = 1392,
+		triangles = 1656,
 		hair = true,
 		pieces = {
 			{
@@ -632,15 +632,15 @@ return {
 				at = "head",
 				role = "p",
 				glow = false,
-				offset = { 0.000, 0.009, -0.486 },
-				size = { 1.349, 1.189, 0.622 },
+				offset = { 0.000, 0.010, -0.486 },
+				size = { 1.341, 1.191, 0.622 },
 			},
 			{
 				mesh = "Head_oni_Brows",
 				at = "head",
 				role = "gold",
 				glow = false,
-				offset = { 0.000, 0.310, -0.720 },
+				offset = { 0.000, 0.450, -0.720 },
 				size = { 0.880, 0.200, 0.060 },
 			},
 			{
@@ -670,7 +670,7 @@ return {
 		},
 	},
 	fox = {
-		triangles = 1192,
+		triangles = 1464,
 		hair = true,
 		pieces = {
 			{
@@ -710,13 +710,13 @@ return {
 				at = "head",
 				role = "a",
 				glow = false,
-				offset = { 0.000, -0.015, -0.670 },
-				size = { 0.912, 0.590, 0.136 },
+				offset = { 0.000, 0.065, -0.670 },
+				size = { 0.912, 0.750, 0.136 },
 			},
 		},
 	},
 	crystal = {
-		triangles = 184,
+		triangles = 220,
 		hair = true,
 		pieces = {
 			{
@@ -726,21 +726,21 @@ return {
 				glow = false,
 				mat = "Glass",
 				alpha = 0.15,
-				offset = { 0.000, 0.147, -0.528 },
-				size = { 1.375, 0.498, 0.484 },
+				offset = { 0.000, 0.296, -0.528 },
+				size = { 1.375, 0.481, 0.484 },
 			},
 			{
 				mesh = "Head_crystal_Shards",
 				at = "head",
 				role = "a",
 				glow = true,
-				offset = { 0.000, 0.649, -0.450 },
+				offset = { 0.000, 0.769, -0.450 },
 				size = { 1.186, 0.643, 0.247 },
 			},
 		},
 	},
 	nightMask = {
-		triangles = 980,
+		triangles = 1292,
 		hair = true,
 		pieces = {
 			{
@@ -748,8 +748,8 @@ return {
 				at = "head",
 				role = "dark",
 				glow = false,
-				offset = { 0.000, 0.156, -0.446 },
-				size = { 1.211, 0.373, 0.399 },
+				offset = { 0.000, 0.301, -0.446 },
+				size = { 1.211, 0.363, 0.399 },
 			},
 			{
 				mesh = "Head_nightMask_Edge",
@@ -757,8 +757,8 @@ return {
 				role = "gold",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.157, -0.462 },
-				size = { 1.260, 0.422, 0.417 },
+				offset = { 0.000, 0.302, -0.462 },
+				size = { 1.260, 0.412, 0.417 },
 			},
 			{
 				mesh = "Head_nightMask_Wings",
@@ -766,7 +766,7 @@ return {
 				role = "gold",
 				glow = false,
 				mat = "Metal",
-				offset = { 0.000, 0.594, -0.182 },
+				offset = { 0.000, 0.714, -0.182 },
 				size = { 1.443, 0.457, 0.272 },
 			},
 			{
@@ -774,8 +774,240 @@ return {
 				at = "head",
 				role = "a",
 				glow = true,
-				offset = { 0.000, 0.290, -0.660 },
-				size = { 0.133, 0.168, 0.070 },
+				offset = { 0.000, 0.440, -0.660 },
+				size = { 0.114, 0.144, 0.060 },
+			},
+		},
+	},
+	domino = {
+		triangles = 696,
+		hair = true,
+		pieces = {
+			{
+				mesh = "Head_domino_Mask",
+				at = "head",
+				role = "p",
+				glow = false,
+				offset = { 0.000, 0.283, -0.482 },
+				size = { 1.177, 0.449, 0.359 },
+			},
+			{
+				mesh = "Head_domino_Tie",
+				at = "head",
+				role = "dark",
+				glow = false,
+				offset = { 0.000, 0.250, 0.146 },
+				size = { 1.252, 0.080, 0.963 },
+			},
+		},
+	},
+	masquerade = {
+		triangles = 1236,
+		hair = true,
+		pieces = {
+			{
+				mesh = "Head_masquerade_Mask",
+				at = "head",
+				role = "p",
+				glow = false,
+				offset = { 0.000, 0.359, -0.443 },
+				size = { 1.246, 0.501, 0.447 },
+			},
+			{
+				mesh = "Head_masquerade_Edge",
+				at = "head",
+				role = "gold",
+				glow = false,
+				mat = "Metal",
+				offset = { 0.000, 0.363, -0.449 },
+				size = { 1.283, 0.544, 0.444 },
+			},
+			{
+				mesh = "Head_masquerade_Gem",
+				at = "head",
+				role = "a",
+				glow = true,
+				offset = { -0.000, 0.440, -0.665 },
+				size = { 0.105, 0.143, 0.055 },
+			},
+			{
+				mesh = "Head_masquerade_Tie",
+				at = "head",
+				role = "dark",
+				glow = false,
+				offset = { 0.000, 0.260, 0.186 },
+				size = { 1.249, 0.060, 0.877 },
+			},
+		},
+	},
+	half = {
+		triangles = 896,
+		hair = true,
+		pieces = {
+			{
+				mesh = "Head_half_Plate",
+				at = "head",
+				role = "p",
+				glow = false,
+				offset = { 0.000, -0.237, -0.481 },
+				size = { 1.301, 0.680, 0.557 },
+			},
+			{
+				mesh = "Head_half_Ridge",
+				at = "head",
+				role = "s",
+				glow = false,
+				offset = { 0.000, -0.210, -0.705 },
+				size = { 0.099, 0.520, 0.031 },
+			},
+			{
+				mesh = "Head_half_Bolts",
+				at = "head",
+				role = "s",
+				glow = false,
+				mat = "Metal",
+				offset = { 0.000, -0.210, -0.200 },
+				size = { 1.260, 0.114, 0.120 },
+			},
+			{
+				mesh = "Head_half_Strap",
+				at = "head",
+				role = "dark",
+				glow = false,
+				offset = { 0.000, -0.150, 0.187 },
+				size = { 1.254, 0.120, 0.880 },
+			},
+		},
+	},
+	bandana = {
+		triangles = 780,
+		hair = true,
+		pieces = {
+			{
+				mesh = "Head_bandana_Cloth",
+				at = "head",
+				role = "s",
+				glow = false,
+				mat = "Fabric",
+				offset = { 0.000, -0.310, -0.000 },
+				size = { 1.350, 0.802, 1.450 },
+			},
+			{
+				mesh = "Head_bandana_Knot",
+				at = "head",
+				role = "s",
+				glow = false,
+				mat = "Fabric",
+				offset = { 0.000, -0.233, 0.706 },
+				size = { 0.362, 0.525, 0.237 },
+			},
+		},
+	},
+	cowl = {
+		triangles = 2012,
+		hair = false,
+		pieces = {
+			{
+				mesh = "Head_cowl_Shell",
+				at = "head",
+				role = "p",
+				glow = false,
+				mat = "Fabric",
+				offset = { 0.000, 0.039, 0.006 },
+				size = { 1.360, 1.341, 1.378 },
+			},
+			{
+				mesh = "Head_cowl_Fins",
+				at = "head",
+				role = "p",
+				glow = false,
+				offset = { 0.000, 0.680, -0.050 },
+				size = { 0.960, 0.260, 0.050 },
+			},
+			{
+				mesh = "Head_cowl_Brow",
+				at = "head",
+				role = "s",
+				glow = false,
+				offset = { 0.000, 0.405, -0.557 },
+				size = { 1.102, 0.070, 0.256 },
+			},
+		},
+	},
+	eyepatch = {
+		triangles = 324,
+		hair = true,
+		pieces = {
+			{
+				mesh = "Head_eyepatch_Patch",
+				at = "head",
+				role = "dark",
+				glow = false,
+				mat = "Leather",
+				offset = { -0.145, 0.250, -0.635 },
+				size = { 0.276, 0.280, 0.040 },
+			},
+			{
+				mesh = "Head_eyepatch_Strap",
+				at = "head",
+				role = "dark",
+				glow = false,
+				offset = { 0.000, 0.395, -0.000 },
+				size = { 1.256, 0.176, 1.256 },
+			},
+		},
+	},
+	ninja = {
+		triangles = 2160,
+		hair = false,
+		pieces = {
+			{
+				mesh = "Head_ninja_Wrap",
+				at = "head",
+				role = "dark",
+				glow = false,
+				mat = "Fabric",
+				offset = { 0.000, 0.049, -0.000 },
+				size = { 1.360, 1.361, 1.380 },
+			},
+			{
+				mesh = "Head_ninja_Band",
+				at = "head",
+				role = "p",
+				glow = false,
+				mat = "Fabric",
+				offset = { 0.000, 0.147, 0.102 },
+				size = { 1.360, 0.725, 1.565 },
+			},
+		},
+	},
+	skull = {
+		triangles = 1972,
+		hair = true,
+		pieces = {
+			{
+				mesh = "Head_skull_Face",
+				at = "head",
+				role = "white",
+				glow = false,
+				offset = { 0.000, 0.009, -0.453 },
+				size = { 1.341, 1.189, 0.554 },
+			},
+			{
+				mesh = "Head_skull_Sockets",
+				at = "head",
+				role = "dark",
+				glow = false,
+				offset = { 0.000, 0.199, -0.697 },
+				size = { 0.642, 0.418, 0.057 },
+			},
+			{
+				mesh = "Head_skull_Teeth",
+				at = "head",
+				role = "dark",
+				glow = false,
+				offset = { 0.000, -0.250, -0.683 },
+				size = { 0.641, 0.140, 0.079 },
 			},
 		},
 	},

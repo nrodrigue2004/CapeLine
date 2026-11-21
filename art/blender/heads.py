@@ -44,6 +44,15 @@ def wrap(name, a0, a1, rows, na=28, bulge=None, hole=None, power=2.25, cy=0.0, t
     to top. bulge(a, z) -> extra radius; hole(a, z) -> True leaves that face out (eye holes, the face opening).
     Solidified by `thick` (0: a single sheet)."""
     full = a1 - a0 >= 2 * PI - 1e-6
+    if hole:
+        # rows at the eye openings' edges, so holes over the catalog eyes fall on whole faces (2026-11-21)
+        rows = list(rows)
+        for ze in (EYE_Z - 0.1, EYE_Z + 0.1):
+            for j in range(len(rows) - 1):
+                (za, ra), (zb, rb) = rows[j], rows[j + 1]
+                if za + 0.02 < ze < zb - 0.02:
+                    rows.insert(j + 1, (ze, ra + (rb - ra) * (ze - za) / (zb - za)))
+                    break
     ncol = na if full else na + 1
     bm = bmesh.new()
     grid = []
@@ -89,8 +98,18 @@ def band(z0, z1, r):
     return [(z0, r), (z1, r)]
 
 
-def eyes_hole(w=0.17, h=0.11, x=0.22, z=4.7, r=0.6):
-    """Eye holes at the face decal's eyes (x +-0.22, z 4.7)."""
+# Where heroes' eyes really are (2026-11-21, nate: "most masks don't fit"): heroes wear Roblox catalog faces, drawn
+# flat across the head box's front. Measured over the 44 faces in Config.CatalogLooks (their opaque pixels), the
+# eyes sit at x +-0.07 to +-0.16 and z 4.78 to 4.94 (centre x +-0.115, z 4.86), higher and closer together than the
+# old drawn face (x +-0.22, z 4.7) these masks were first cut for, so their holes and bands hid the eyes.
+EYE_X, EYE_Z = 0.115, 4.86
+
+
+def eyes_hole(w=0.17, h=0.11, x=EYE_X, z=EYE_Z, r=0.6):
+    """Eye holes over the catalog faces' eyes: each at least 0.1 studs round its centre (every face's eyes show).
+    The w, h, x and z the kits passed for the old face are overruled."""
+    x, z = EYE_X, EYE_Z
+    w, h = 0.078, 0.1
     ax = math.asin(min(0.99, x / r))
     aw = w / r
 
@@ -163,14 +182,14 @@ def style(name):
 @style("visor")
 def s_visor():
     # a wraparound glowing band across the eyes, rimmed top and bottom, a strap round the back, ear pods
-    lens = wrap("Lens", -1.75, 1.75, band(4.5, 4.8, 0.655), bulge=lambda a, z: 0.05 * math.cos(a) ** 2, thick=0.05)
-    rim = join("Rim", [wrap("r1", -1.85, 1.85, band(4.8, 4.86, 0.67), bulge=lambda a, z: 0.05 * math.cos(a) ** 2,
+    lens = wrap("Lens", -1.75, 1.75, band(4.7, 5.0, 0.655), bulge=lambda a, z: 0.05 * math.cos(a) ** 2, thick=0.05)
+    rim = join("Rim", [wrap("r1", -1.85, 1.85, band(5.0, 5.06, 0.67), bulge=lambda a, z: 0.05 * math.cos(a) ** 2,
                             thick=0.05),
-                       wrap("r2", -1.85, 1.85, band(4.44, 4.5, 0.67), bulge=lambda a, z: 0.05 * math.cos(a) ** 2,
+                       wrap("r2", -1.85, 1.85, band(4.64, 4.7, 0.67), bulge=lambda a, z: 0.05 * math.cos(a) ** 2,
                             thick=0.05)])
-    strap = wrap("Strap", 1.7, 2 * PI - 1.7, band(4.55, 4.75, 0.625), thick=0.03)
-    pods = join("Pods", [kit.cyl("pl", 0.17, 0.15, 0.12, at=(-0.66, 0, 4.65), segs=16, axis="X"),
-                         kit.cyl("pr", 0.17, 0.15, 0.12, at=(0.66, 0, 4.65), segs=16, axis="X")])
+    strap = wrap("Strap", 1.7, 2 * PI - 1.7, band(4.75, 4.95, 0.625), thick=0.03)
+    pods = join("Pods", [kit.cyl("pl", 0.17, 0.15, 0.12, at=(-0.66, 0, 4.85), segs=16, axis="X"),
+                         kit.cyl("pr", 0.17, 0.15, 0.12, at=(0.66, 0, 4.85), segs=16, axis="X")])
     return [H(lens, "a", True), H(rim, "s", mat="Metal"), H(strap, "dark"), H(pods, "s", mat="Metal")]
 
 
@@ -198,16 +217,16 @@ def s_helm():
 @style("crest")
 def s_crest():
     # an open-faced helmet with a tall swept crest fin, cheek guards and a brow chevron
-    win = lambda a, z: abs(a) < 0.95 and z < 4.86  # noqa: E731
+    win = lambda a, z: abs(a) < 0.95 and z < 5.0  # noqa: E731
     shell = wrap("Shell", -PI, PI, [(4.05, 0.69)] + dome(4.2, 4.95, 0.7, top=5.44), hole=win, thick=0.05)
     fin = flat_shape("Fin", [(0.75, -0.05), (0.55, 0.42), (0.1, 0.78), (-0.5, 0.95), (-0.95, 0.7), (-0.75, 0.42),
                              (-0.3, 0.42), (0.2, 0.25)], 0.12, (0, 0, 5.12), axis="X")
-    chev = wrap("Chevron", -1.0, 1.0, [(4.82, 0.72), (4.96, 0.73)], bulge=lambda a, z: 0.02 - 0.12 * abs(a) *
-                (0.0 if z < 4.9 else 1.0), thick=0.05)
+    chev = wrap("Chevron", -1.0, 1.0, [(4.99, 0.72), (5.11, 0.73)], bulge=lambda a, z: 0.02 - 0.12 * abs(a) *
+                (0.0 if z < 5.05 else 1.0), thick=0.05)
     # the chevron's point: lift the middle (a V pointing down over the nose)
     for v in chev.data.vertices:
         if v.co.y > 0:
-            v.co.z -= 0.14 * max(0.0, 1 - abs(v.co.x) / 0.5)
+            v.co.z -= 0.08 * max(0.0, 1 - abs(v.co.x) / 0.35)
     guards = []
     for s in (-1, 1):
         g = flat_shape("g", [(0.25, 0.25), (0.35, -0.25), (0.05, -0.52), (-0.25, -0.2), (-0.2, 0.25)], 0.06,
@@ -219,12 +238,12 @@ def s_crest():
 @style("horns")
 def s_horns():
     # an open-faced villain's helm: a V brow plate with a glowing gem, and two big curved horns
-    win = lambda a, z: abs(a) < 0.95 and z < 4.8  # noqa: E731
+    win = lambda a, z: abs(a) < 0.95 and z < 4.98  # noqa: E731
     shell = wrap("Shell", -PI, PI, [(4.05, 0.69)] + dome(4.2, 4.9, 0.7, top=5.38), hole=win, thick=0.05)
-    brow = wrap("Brow", -1.1, 1.1, [(4.74, 0.73), (4.94, 0.74)], thick=0.06)
+    brow = wrap("Brow", -1.1, 1.1, [(4.97, 0.73), (5.13, 0.74)], thick=0.06)
     for v in brow.data.vertices:
         if v.co.y > 0:
-            v.co.z -= 0.16 * max(0.0, 1 - abs(v.co.x) / 0.45)
+            v.co.z -= 0.1 * max(0.0, 1 - abs(v.co.x) / 0.3)
     horns = []
     for s in (-1, 1):
         pts, radii = [], []
@@ -233,7 +252,7 @@ def s_horns():
             pts.append((s * (0.62 + 0.55 * t - 0.18 * t * t), 0.05 - 0.25 * t, 5.0 + 0.15 * t + 0.75 * t * t))
             radii.append(0.17 * (1 - t) + 0.012)
         horns.append(rod("h", pts, radii, segs=10))
-    gem = ball("Gem", 0.09, (0, 0.76, 4.7), scale=(1, 0.5, 1.3), segs=10, rings=6)
+    gem = ball("Gem", 0.08, (0, 0.77, 5.0), scale=(1, 0.5, 1.3), segs=10, rings=6)
     return [H(shell, "p"), H(brow, "dark", mat="Metal"), H(join("Horns", horns), "a"), H(gem, "glowRed", True)]
 
 
@@ -294,7 +313,7 @@ def s_frame():
     rows = [(4.0, 0.72), (4.3, 0.74), (4.9, 0.74), (5.2, 0.66), (5.38, 0.4), (5.42, 0.0)]
     shell = wrap("Shell", -PI, PI, rows, na=8, power=4.0, thick=0.06)
     kit.shade_auto(shell, 20)
-    slit = wrap("Slit", -0.75, 0.75, band(4.62, 4.74, 0.765), na=6, power=4.0, thick=0.03)
+    slit = wrap("Slit", -0.75, 0.75, band(4.8, 4.92, 0.765), na=6, power=4.0, thick=0.03)
     fins = []
     for s in (-1, 1):
         fins.append(flat_shape("f", [(0.3, -0.3), (0.3, 0.35), (-0.45, 0.62), (-0.3, -0.1)], 0.08,
@@ -324,7 +343,7 @@ def s_crown():
         wear.solid(ob, 0.05, 0.0)
         rays.append(ob)
     gem = ball("Gem", 0.1, (0, 0.71, 5.08), scale=(1, 0.5, 1.25), segs=10, rings=6)
-    mask = wrap("Mask", -1.15, 1.15, [(4.6, 0.625), (4.83, 0.625)], hole=eyes_hole(0.13, 0.07, z=4.71), thick=0.03)
+    mask = wrap("Mask", -1.15, 1.15, [(4.74, 0.625), (4.98, 0.625)], hole=eyes_hole(0.13, 0.07, z=4.71), thick=0.03)
     for v in mask.data.vertices:  # tapered wing tips
         if abs(v.co.x) > 0.45:
             v.co.z += (abs(v.co.x) - 0.45) * 0.3
@@ -340,10 +359,10 @@ def s_fullface():
 
     plate = wrap("Plate", -1.35, 1.35, [(4.06, 0.6), (4.15, 0.645), (4.5, 0.66), (4.9, 0.66), (5.12, 0.64),
                                         (5.2, 0.58)], bulge=bulge, thick=0.05, na=32)
-    line = wrap("Eyes", -0.62, 0.62, band(4.66, 4.75, 0.71), bulge=lambda a, z: 0.04 * math.cos(a) ** 3, thick=0.02)
+    line = wrap("Eyes", -0.62, 0.62, band(4.82, 4.91, 0.71), bulge=lambda a, z: 0.04 * math.cos(a) ** 3, thick=0.02)
     for v in line.data.vertices:  # the eye line sweeps up at its ends
         v.co.z += 0.1 * max(0.0, abs(v.co.x) - 0.15)
-    brow = wrap("Brow", -0.75, 0.75, band(4.82, 4.92, 0.712), bulge=lambda a, z: 0.04 * math.cos(a) ** 3,
+    brow = wrap("Brow", -0.75, 0.75, band(4.97, 5.06, 0.712), bulge=lambda a, z: 0.04 * math.cos(a) ** 3,
                 thick=0.03)
     for v in brow.data.vertices:
         if v.co.y > 0:
@@ -388,9 +407,9 @@ def s_gasmask():
                                     (5.08, 0.6)], bulge=bulge, thick=0.05)
     lenses, rings = [], []
     for s in (-1, 1):
-        x, y = sp(s * 0.38, 0.69)
-        lenses.append(kit.cyl("l", 0.17, 0.17, 0.05, at=(x, y + 0.02, 4.72), segs=18, axis="Y"))
-        rr = kit.torus("ring", 0.18, 0.04, at=(x, y + 0.04, 4.72), segs=20, csegs=6, axis="Y")
+        x, y = sp(s * 0.24, 0.69)
+        lenses.append(kit.cyl("l", 0.145, 0.145, 0.05, at=(x, y + 0.02, 4.86), segs=18, axis="Y"))
+        rr = kit.torus("ring", 0.155, 0.035, at=(x, y + 0.04, 4.86), segs=20, csegs=6, axis="Y")
         rings.append(rr)
     filt = kit.cyl("Filter", 0.2, 0.17, 0.26, at=(0, 0.86, 4.26), segs=18, axis="Y")
     fcap = kit.cyl("fc", 0.21, 0.21, 0.04, at=(0, 1.0, 4.26), segs=18, axis="Y")
@@ -410,8 +429,8 @@ def s_goalie():
     for s in (-1, 1):
         stripes.append(wrap("st", s * 0.55 - 0.08, s * 0.55 + 0.08, [(4.2, 0.715), (4.55, 0.715)], na=2,
                             bulge=lambda a, z: 0.05 * math.cos(a) ** 2, thick=0.02))
-    mid = wrap("mid", -0.07, 0.07, [(4.88, 0.72), (5.16, 0.69)], na=2, thick=0.02)
-    brow = wrap("Brow", -0.75, 0.75, band(4.83, 4.9, 0.715), bulge=lambda a, z: 0.05 * math.cos(a) ** 2, thick=0.03)
+    mid = wrap("mid", -0.04, 0.04, [(5.03, 0.715), (5.18, 0.69)], na=2, thick=0.02)
+    brow = wrap("Brow", -0.75, 0.75, band(4.98, 5.04, 0.715), bulge=lambda a, z: 0.05 * math.cos(a) ** 2, thick=0.03)
     vents = []
     for k, (x, z) in enumerate(((-0.14, 4.25), (0.0, 4.2), (0.14, 4.25), (-0.07, 4.37), (0.07, 4.37))):
         vents.append(kit.cyl("v", 0.035, 0.035, 0.03, at=(x, 0.712, z), segs=8, axis="Y"))
@@ -421,12 +440,12 @@ def s_goalie():
 @style("monovisor")
 def s_monovisor():
     # a metal half helmet with one wide glowing visor across the eyes in a dark housing
-    cap = wrap("Cap", -PI, PI, dome(4.78, 4.98, 0.68, top=5.4), thick=0.05)
-    house = wrap("Housing", -PI, PI, band(4.52, 4.84, 0.665), bulge=lambda a, z: 0.06 * max(0.0, math.cos(a)) ** 2,
+    cap = wrap("Cap", -PI, PI, dome(4.98, 5.06, 0.68, top=5.44), thick=0.05)
+    house = wrap("Housing", -PI, PI, band(4.7, 5.02, 0.665), bulge=lambda a, z: 0.06 * max(0.0, math.cos(a)) ** 2,
                  thick=0.05)
-    vis = wrap("Visor", -1.0, 1.0, band(4.61, 4.75, 0.735), bulge=lambda a, z: 0.06 * max(0.0, math.cos(a)) ** 2,
+    vis = wrap("Visor", -1.0, 1.0, band(4.79, 4.93, 0.735), bulge=lambda a, z: 0.06 * max(0.0, math.cos(a)) ** 2,
                thick=0.02)
-    discs = join("Discs", [kit.cyl("d", 0.16, 0.16, 0.08, at=(s * 0.7, 0, 4.68), segs=16, axis="X")
+    discs = join("Discs", [kit.cyl("d", 0.16, 0.16, 0.08, at=(s * 0.7, 0, 4.86), segs=16, axis="X")
                            for s in (-1, 1)])
     return [H(cap, "p", mat="Metal"), H(house, "dark"), H(vis, "a", True), H(discs, "s")]
 
@@ -436,8 +455,8 @@ def s_welder():
     # a tall flip-down shield with a dark window, a headband and pivot knobs
     shield = wrap("Shield", -1.15, 1.15, [(4.0, 0.74), (4.3, 0.77), (4.9, 0.77), (5.15, 0.74), (5.25, 0.66)],
                   power=3.2, thick=0.06)
-    win = wrap("Window", -0.62, 0.62, band(4.62, 4.8, 0.805), power=3.2, thick=0.02)
-    frame = wrap("Frame", -0.7, 0.7, band(4.57, 4.85, 0.795), power=3.2, thick=0.02)
+    win = wrap("Window", -0.62, 0.62, band(4.78, 4.96, 0.805), power=3.2, thick=0.02)
+    frame = wrap("Frame", -0.7, 0.7, band(4.73, 5.01, 0.795), power=3.2, thick=0.02)
     head = wrap("Band", -PI, PI, band(4.85, 4.97, 0.625), thick=0.04)
     crown = wrap("Crown", PI - 0.12, PI + 0.12, [(4.97, 0.625)] + [(z, r) for z, r in dome(4.97, 4.97, 0.625,
                                                                                          top=5.34)[3:]], na=2,
@@ -469,7 +488,7 @@ def s_oni():
     # a folk ogre mask: a bold face with eye holes, gold brows, a toothy grin and two white horns
     def bulge(a, z):
         nose = 0.08 * math.exp(-((a / 0.25) ** 2) - ((z - 4.5) / 0.12) ** 2)
-        brow = 0.06 * math.exp(-((z - 4.85) / 0.08) ** 2) * math.cos(a) ** 2
+        brow = 0.06 * math.exp(-((z - 5.02) / 0.07) ** 2) * math.cos(a) ** 2
         return nose + brow + 0.04 * math.cos(a) ** 2
 
     face = wrap("Face", -1.3, 1.3, [(4.04, 0.58), (4.12, 0.645), (4.45, 0.665), (4.85, 0.665), (5.1, 0.64),
@@ -477,7 +496,7 @@ def s_oni():
     brows = []
     for s in (-1, 1):
         b = flat_shape("b", [(-0.2, -0.04), (0.18, 0.1), (0.2, 0.16), (-0.2, 0.04)], 0.06,
-                       (s * 0.24, 0.72, 4.86), axis="Y")
+                       (s * 0.24, 0.72, 5.0), axis="Y")
         if s > 0:
             b.data.transform(Matrix.Translation((0.48, 0, 0)) @ Matrix.Scale(-1, 4, (1, 0, 0)))
             wear.fix_normals(b)
@@ -521,13 +540,13 @@ def s_fox():
     for s in (-1, 1):
         # a swept flick over each eye and a cheek stripe
         marks.append(wrap("m1", s * 0.18 if s > 0 else -0.62, 0.62 if s > 0 else -0.18,
-                          [(4.82, 0.71), (4.86, 0.712)], na=6, bulge=lambda a, z: 0.03 * math.cos(a) ** 2,
+                          [(4.98, 0.71), (5.02, 0.712)], na=6, bulge=lambda a, z: 0.03 * math.cos(a) ** 2,
                           thick=0.015))
         marks.append(wrap("m2", s * 0.55 - 0.06, s * 0.55 + 0.06, [(4.3, 0.705), (4.55, 0.705)], na=1,
                           bulge=lambda a, z: 0.03 * math.cos(a) ** 2, thick=0.015))
     for m in marks:
         for v in m.data.vertices:
-            v.co.z += 0.12 * (abs(v.co.x) - 0.2) if v.co.z > 4.7 else 0.0
+            v.co.z += 0.12 * (abs(v.co.x) - 0.2) if v.co.z > 4.9 else 0.0
     return [H(face, "white"), H(nose, "dark"), H(join("Ears", ears, 20), "white"),
             H(join("Inner", inner, 20), "a"), H(join("Marks", marks, 20), "a")]
 
@@ -535,14 +554,14 @@ def s_fox():
 @style("crystal")
 def s_crystal():
     # a faceted crystal half mask over the eyes and brow, crowned with glowing crystal shards
-    mask = wrap("Mask", -1.2, 1.2, [(4.52, 0.64), (4.62, 0.68), (4.84, 0.69), (5.0, 0.66)], na=8, power=2.6,
+    mask = wrap("Mask", -1.2, 1.2, [(4.68, 0.64), (4.76, 0.68), (5.0, 0.69), (5.14, 0.66)], na=8, power=2.6,
                 hole=eyes_hole(0.14, 0.07, z=4.71), bulge=lambda a, z: 0.05 * math.cos(a) ** 2, thick=0.06)
     kit.shade_auto(mask, 15)
     shards = []
     for x, h, lean, r in ((0.0, 0.62, 0.0, 0.12), (-0.24, 0.44, -0.35, 0.09), (0.24, 0.44, 0.35, 0.09),
                           (-0.44, 0.28, -0.6, 0.07), (0.44, 0.28, 0.6, 0.07)):
-        c = kit.cyl("s", r, 0.0, h, at=(x, 0.42, 4.98 + h / 2), segs=5)
-        wear.turn(c, (-0.25, lean, 0), (x, 0.42, 4.98))
+        c = kit.cyl("s", r, 0.0, h, at=(x, 0.42, 5.1 + h / 2), segs=5)
+        wear.turn(c, (-0.25, lean, 0), (x, 0.42, 5.1))
         shards.append(c)
     sh = join("Shards", shards, 10)
     return [H(mask, "a", mat="Glass", alpha=0.15), H(sh, "a", True)]
@@ -551,12 +570,12 @@ def s_crystal():
 @style("nightMask")
 def s_night():
     # a gala mask: a dark domino with eye holes, gold edging and gold swirl wings, a glowing brow gem
-    mask = wrap("Mask", -1.2, 1.2, [(4.58, 0.625), (4.86, 0.625)], hole=eyes_hole(0.14, 0.08, z=4.71), thick=0.04)
+    mask = wrap("Mask", -1.2, 1.2, [(4.73, 0.625), (5.0, 0.625)], hole=eyes_hole(0.14, 0.08, z=4.71), thick=0.04)
     for v in mask.data.vertices:
         if abs(v.co.x) > 0.4:
             v.co.z += (abs(v.co.x) - 0.4) * 0.45
     edge = []
-    for zz in (4.58, 4.86):
+    for zz in (4.73, 5.0):
         pts = []
         for k in range(17):
             a = -1.2 + 2.4 * k / 16
@@ -573,11 +592,146 @@ def s_night():
             ang = 4.4 * t
             rr = 0.3 * (1 - 0.75 * t)
             pts.append((s * (0.66 + 0.04 * t), 0.3 - 0.22 * t - rr * math.sin(ang) * 0.6,
-                        5.02 + 0.22 * t + rr * (1 - math.cos(ang)) * 0.8))
+                        5.14 + 0.22 * t + rr * (1 - math.cos(ang)) * 0.8))
         wings.append(rod("w", pts, [0.055 * (1 - 0.6 * k / (n - 1)) for k in range(n)], segs=6))
-    gem = ball("Gem", 0.07, (0, 0.66, 4.9), scale=(1, 0.5, 1.2), segs=10, rings=6)
+    gem = ball("Gem", 0.06, (0, 0.66, 5.05), scale=(1, 0.5, 1.2), segs=10, rings=6)
     return [H(mask, "dark"), H(join("Edge", edge), "gold", mat="Metal"), H(join("Wings", wings), "gold", mat="Metal"),
             H(gem, "a", True)]
+
+
+
+# ---------------------------------------------------------------- the 8 flat masks as meshes (2026-11-21)
+# They were head decals (art/clothes/masks.py) drawn round the old face's eyes; on Roblox's round head and the
+# catalog faces they hid the eyes and stretched over the sides. Now shells round the head like the rest, their eye
+# openings over the catalog faces' eyes (EYE_X, EYE_Z), the lower face left to the face's own mouth.
+def wing_tips(ob, from_x, rise):
+    for v in ob.data.vertices:
+        if abs(v.co.x) > from_x:
+            v.co.z += (abs(v.co.x) - from_x) * rise
+
+
+@style("domino")
+def s_domino():
+    # the classic hero's eye mask: a band over the eyes with almond holes and swept tips, a thin edge line
+    mask = wrap("Mask", -1.1, 1.1, [(4.67, 0.625), (4.76, 0.632), (4.96, 0.632), (5.06, 0.625)], hole=eyes_hole(),
+                bulge=lambda a, z: 0.012 * math.cos(a) ** 2, thick=0.035)
+    wing_tips(mask, 0.42, 0.35)
+    tie = wrap("Tie", 1.05, 2 * PI - 1.05, band(4.82, 4.9, 0.615), thick=0.025)
+    return [H(mask, "p"), H(tie, "dark")]
+
+
+@style("masquerade")
+def s_masquerade():
+    # a party mask: a wide band over the eyes rising into pointed wings, gold trim and a brow jewel
+    mask = wrap("Mask", -1.25, 1.25, [(4.72, 0.625), (4.86, 0.634), (5.02, 0.625)], hole=eyes_hole(),
+                bulge=lambda a, z: 0.015 * math.cos(a) ** 2, thick=0.035)
+    wing_tips(mask, 0.35, 0.75)
+    edge = []
+    for zz in (4.72, 5.02):
+        pts = []
+        for k in range(17):
+            a = -1.25 + 2.5 * k / 16
+            x, y = sp(a, 0.655)
+            pts.append((x, y, zz + max(0.0, abs(x) - 0.35) * 0.75))
+        edge.append(rod("e", pts, [0.02] * len(pts), segs=5))
+    gem = ball("Gem", 0.055, (0, 0.665, 5.05), scale=(1, 0.5, 1.3), segs=10, rings=6)
+    tie = wrap("Tie", 1.2, 2 * PI - 1.2, band(4.84, 4.9, 0.615), thick=0.02)
+    return [H(mask, "p"), H(join("Edge", edge), "gold", mat="Metal"), H(gem, "a", True), H(tie, "dark")]
+
+
+@style("half")
+def s_half():
+    # a smooth plate over the nose, mouth and chin, a raised ridge down the middle and side bolts
+    def bulge(a, z):
+        return 0.05 * math.cos(a) ** 3 + 0.03 * math.exp(-((a / 0.15) ** 2))
+
+    plate = wrap("Plate", -1.25, 1.25, [(4.05, 0.58), (4.12, 0.64), (4.4, 0.655), (4.64, 0.645), (4.7, 0.61)],
+                 bulge=bulge, thick=0.05)
+    ridge = wrap("Ridge", -0.05, 0.05, [(4.14, 0.71), (4.66, 0.7)], na=2, thick=0.02)
+    bolts = join("Bolts", [kit.cyl("b", 0.06, 0.06, 0.06, at=(s * 0.6, 0.2, 4.4), segs=10, axis="X") for s in (-1, 1)])
+    strap = wrap("Strap", 1.2, 2 * PI - 1.2, band(4.4, 4.52, 0.615), thick=0.025)
+    return [H(plate, "p"), H(ridge, "s"), H(bolts, "s", mat="Metal"), H(strap, "dark")]
+
+
+@style("bandana")
+def s_bandana():
+    # an outlaw's cloth over the nose and mouth, falling to a point under the chin, knotted at the back
+    def bulge(a, z):
+        return 0.05 * math.cos(a) ** 2 + 0.03 * math.exp(-((a / 0.3) ** 2)) * max(0.0, 1 - abs(z - 4.6) / 0.15)
+
+    cloth = wrap("Cloth", -PI, PI, [(4.12, 0.66), (4.3, 0.65), (4.5, 0.64), (4.7, 0.628)], bulge=bulge,
+                 thick=0.03, na=32)
+    for v in cloth.data.vertices:  # the front falls to a point below the chin
+        if v.co.y > 0 and v.co.z < 4.2:
+            v.co.z -= 0.22 * max(0.0, 1 - abs(v.co.x) / 0.55)
+    knot = ball("Knot", 0.09, (0, -0.66, 4.55), scale=(1.4, 0.8, 1.0))
+    tails = join("Tails", [rod("t", [(s * 0.05, -0.68, 4.52), (s * 0.12, -0.78, 4.32), (s * 0.16, -0.8, 4.12)],
+                               [0.05, 0.04, 0.025], segs=6) for s in (-1, 1)])
+    return [H(cloth, "s", mat="Fabric"), H(join("Knot", [knot, tails]), "s", mat="Fabric")]
+
+
+@style("cowl")
+def s_cowl():
+    # a hero's cowl over the crown, back and sides, the face open below the eyes, eye openings, small fins on top
+    def hole(a, z):
+        return (abs(a) < 0.95 and z < 4.72) or eyes_hole()(a, z)
+
+    shell = wrap("Shell", -PI, PI, [(3.98, 0.66), (4.2, 0.648)] + dome(4.4, 4.98, 0.648, top=5.3), hole=hole,
+                 bulge=lambda a, z: 0.015 * math.cos(a) ** 2, thick=0.04, na=36)
+    fins = []
+    for s in (-1, 1):
+        f = flat_shape("f", [(-0.12, 0.0), (0.12, 0.0), (0.02, 0.26)], 0.05, (s * 0.36, 0.05, 5.16), axis="Y")
+        fins.append(f)
+    brow = wrap("Brow", -0.9, 0.9, band(4.98, 5.05, 0.67), thick=0.03)
+    return [H(shell, "p", mat="Fabric"), H(join("Fins", fins, 20), "p"), H(brow, "s")]
+
+
+@style("eyepatch")
+def s_eyepatch():
+    # a rogue's patch over the left eye on a thin strap that crosses the forehead
+    x, y = sp(-0.19, 0.64)
+    patch = kit.cyl("Patch", 0.14, 0.14, 0.04, at=(x, y + 0.005, EYE_Z), segs=18, axis="Y")
+    strap = wrap("Strap", -PI, PI, [(4.98, 0.618), (5.03, 0.618)], thick=0.02, na=32)
+    for v in strap.data.vertices:  # tilted: down toward the patch's side, up toward the other
+        v.co.z += 0.1 * v.co.x
+    return [H(patch, "dark", mat="Leather"), H(strap, "dark")]
+
+
+@style("ninja")
+def s_ninja():
+    # a wrapped hood over the whole head with an eye slit, the cloth tails knotted at the back
+    def hole(a, z):
+        return abs(a) < 0.62 and abs(z - EYE_Z) < 0.11
+
+    shell = wrap("Wrap", -PI, PI, [(3.98, 0.66), (4.2, 0.648)] + dome(4.4, 5.0, 0.648, top=5.32), hole=hole,
+                 bulge=lambda a, z: 0.01 * math.cos(a) ** 2, thick=0.04, na=32)
+    band_ = wrap("Band", -PI, PI, band(4.99, 5.08, 0.665), thick=0.03)
+    knot = ball("Knot", 0.09, (0, -0.68, 5.03), scale=(1.4, 0.8, 1.0))
+    tails = join("Tails", [rod("t", [(s * 0.05, -0.7, 5.0), (s * 0.15, -0.82, 4.7), (s * 0.2, -0.86, 4.4)],
+                               [0.05, 0.04, 0.025], segs=6) for s in (-1, 1)])
+    return [H(shell, "dark", mat="Fabric"), H(join("Band", [band_, knot, tails]), "p", mat="Fabric")]
+
+
+@style("skull")
+def s_skull():
+    # a bone-white skull face: deep sockets round the eyes, a nose notch and a row of teeth over the mouth
+    def bulge(a, z):
+        cheek = 0.03 * math.exp(-((abs(a) - 0.6) / 0.25) ** 2 - ((z - 4.6) / 0.15) ** 2)
+        return 0.04 * math.cos(a) ** 2 + cheek
+
+    face = wrap("Face", -1.3, 1.3, [(4.04, 0.58), (4.12, 0.645), (4.45, 0.665), (4.85, 0.665), (5.1, 0.64),
+                                    (5.2, 0.58)], hole=eyes_hole(), bulge=bulge, na=40, thick=0.05)
+    sockets = []
+    for s in (-1, 1):
+        x, y = sp(s * 0.19, 0.708)
+        sockets.append(kit.torus("so", 0.13, 0.03, at=(x, y, EYE_Z), segs=18, csegs=5, axis="Y"))
+    nose = flat_shape("Nose", [(-0.06, 0.0), (0.06, 0.0), (0.0, 0.11)], 0.02, (0, 0.715, 4.6), axis="Y")
+    teeth = []
+    for k in range(7):
+        teeth.append(kit.box("t", 0.012, 0.02, 0.14, at=(-0.24 + k * 0.08, 0.712, 4.36)))
+    line = wrap("Line", -0.42, 0.42, band(4.355, 4.37, 0.705), thick=0.015)
+    return [H(face, "white"), H(join("Sockets", sockets + [nose], 30), "dark"),
+            H(join("Teeth", teeth + [line], 20), "dark")]
 
 
 # ---------------------------------------------------------------- build, export, preview
@@ -590,7 +744,7 @@ HEADER = ["heads.py",
 
 
 # the kits whose meshes cover the hair (LookKit leaves the hair off under them; HeadArt hair = false)
-COVERS_HAIR = {"helm", "crest", "horns", "antenna", "hood", "frame", "monovisor"}
+COVERS_HAIR = {"helm", "crest", "horns", "antenna", "hood", "frame", "monovisor", "cowl", "ninja"}
 
 
 def preview(built):

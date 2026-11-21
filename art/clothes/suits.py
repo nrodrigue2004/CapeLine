@@ -1316,6 +1316,196 @@ def night_tux():
 
 
 # kit -> (drawing, shirt tint, pants tint, keep the kit's parts, body paint (torso, arms, legs) for the previews)
+# ---------------------------------------------------------------- anime outfits (nate's playtest 4, 2026-11-20:
+# "more anime outfits"). Original designs in common anime school, pilot and wanderer styles; no show's costume.
+def blazer():
+    # tinted white (so the fixed colours hold): an academy blazer over the p paint. Lapels, the white shirt and a
+    # dark tie in the V, a crest pocket, two brass buttons, cuff stripes; pressed slacks with a crease and a belt
+    s, p = Tpl("shirt"), Tpl("pants")
+    fx, fy, _, _ = F()
+    SH = (244, 244, 248, 255)
+    TIE = (44, 46, 70, 255)
+    BRASS = (226, 186, 84, 255)
+    s.inked_poly([(fx + 46, fy), (fx + 82, fy), (fx + 64, fy + 52)], SH)
+    s.inked_poly([(fx + 60, fy + 6), (fx + 68, fy + 6), (fx + 70, fy + 40), (fx + 64, fy + 50), (fx + 58, fy + 40)], TIE)
+    s.inked_poly([(fx + 58, fy), (fx + 70, fy), (fx + 68, fy + 8), (fx + 60, fy + 8)], TIE)
+    for side in (-1, 1):  # the lapels: tone on the p paint, inked
+        x0 = fx + 64 + side * 18
+        pts = [(x0, fy), (fx + 64 + side * 32, fy), (fx + 64 + side * 26, fy + 26), (fx + 64 + side * 4, fy + 56)]
+        s.tone.d.polygon(pts, fill=tone(42))
+        s.ink.d.line(pts + [pts[0]], fill=INK, width=2, joint="curve")
+    s.ink.d.line([(fx + 64, fy + 56), (fx + 64, fy + HEM - 1)], fill=INK, width=2)
+    for k in range(2):
+        s.inked_ellipse([fx + 66, fy + 64 + k * 16, fx + 73, fy + 71 + k * 16], BRASS, width=1)
+    pocket(s, fx + 86, fy + 30, 22, 14, flap=False)
+    s.inked_poly([(fx + 92, fy + 34), (fx + 102, fy + 34), (fx + 102, fy + 40), (fx + 97, fy + 44), (fx + 92, fy + 40)], BRASS, width=1)
+    for px in (fx + 10, fx + 92):
+        pocket(s, px, fy + 82, 26, 10)
+    for _, _, (x, y, w, _) in s.limb_faces():
+        for r in (HAND - 14, HAND - 9):
+            s.acc.d.line([(x, y + r), (x + w - 1, y + r)], fill=BRASS, width=2)
+    belt(p, fill=(40, 34, 30, 255), buckle=(200, 200, 206, 255))
+    for x, y, w, _ in p.fronts():
+        p.tone.d.line([(x + w // 2, y + 4), (x + w // 2, y + HAND - 2)], fill=tone(60), width=2)
+    return s, p
+
+
+def sailor():
+    # tinted s over white paint: the square sailor collar (front points and the back panel) with a clear stripe,
+    # a knotted neckerchief, striped cuffs; pleated legs in the s paint
+    s, p = Tpl("shirt"), Tpl("pants")
+    fx, fy, _, _ = F()
+    bx, by, _, _ = B()
+    s.inked_poly([(fx + 26, fy), (fx + 102, fy), (fx + 64, fy + 46)], FULL)
+    s.acc.d.polygon([(fx + 50, fy), (fx + 78, fy), (fx + 64, fy + 22)], fill=CLEAR)
+    s.ink.d.line([(fx + 50, fy), (fx + 64, fy + 22), (fx + 78, fy)], fill=INK, width=2)
+    s.acc.d.line([(fx + 34, fy + 4), (fx + 64, fy + 38), (fx + 94, fy + 4)], fill=CLEAR, width=3)
+    s.inked_rect([bx + 10, by, bx + 117, by + 44], FULL)
+    s.acc.d.rectangle([bx + 16, by + 34, bx + 111, by + 37], fill=CLEAR)
+    s.acc.d.rectangle([bx + 16, by, bx + 19, by + 37], fill=CLEAR)
+    s.acc.d.rectangle([bx + 108, by, bx + 111, by + 37], fill=CLEAR)
+    for side in ("R", "L"):
+        x, y, w, _ = TORSO[side]
+        s.inked_rect([x, y, x + w - 1, y + 8], FULL)
+    s.inked_poly([(fx + 56, fy + 40), (fx + 72, fy + 40), (fx + 68, fy + 52), (fx + 60, fy + 52)], LITE)
+    s.inked_poly([(fx + 60, fy + 50), (fx + 66, fy + 50), (fx + 58, fy + 80), (fx + 50, fy + 76)], LITE)
+    s.inked_poly([(fx + 62, fy + 50), (fx + 68, fy + 50), (fx + 78, fy + 76), (fx + 70, fy + 80)], LITE)
+    s.limb_band(s.acc, HAND - 16, HAND, FULL)
+    s.limb_band(s.acc, HAND - 11, HAND - 8, CLEAR)
+    s.limb_line(s.ink, HAND - 16, INK)
+    p.form = True
+    for _, _, (x, y, w, _) in p.limb_faces():
+        for k in range(1, 4):
+            p.tone.d.line([(x + k * w // 4, y), (x + k * w // 4 - 2, y + ELBOW + 6)], fill=tone(64), width=2)
+    for _, (x, y, w, _) in p.torso_faces():
+        for k in range(1, 8):
+            p.tone.d.line([(x + k * w // 8, y + HEM + 4), (x + k * w // 8, y + 127)], fill=tone(54), width=2)
+    p.torso_band(p.tone, HEM, HEM + 6, tone(80))
+    return s, p
+
+
+def pilot():
+    # tinted a over the p, s paint: a fitted pilot suit with hard accent panels: the neck ring, shoulder plates,
+    # rib guides down the sides, forearm units with a glow slot, thigh and knee panels
+    s, p = Tpl("shirt"), Tpl("pants")
+    fx, fy, _, _ = F()
+    bx, by, _, _ = B()
+    collar(s, FULL, h=8)
+    for x0 in (fx, bx):
+        s.inked_poly([(x0, fy + 8 if x0 == fx else by + 8), (x0 + 22, fy + 8 if x0 == fx else by + 8),
+                      (x0 + 10, (fy if x0 == fx else by) + 40), (x0, (fy if x0 == fx else by) + 44)], FULL)
+        y0 = fy if x0 == fx else by
+        s.inked_poly([(x0 + 127, y0 + 8), (x0 + 105, y0 + 8), (x0 + 117, y0 + 40), (x0 + 127, y0 + 44)], FULL)
+    for k in range(4):
+        yy = fy + 66 + k * 9
+        s.inked_rect([fx + 6, yy, fx + 24, yy + 4], LITE, width=1)
+        s.inked_rect([fx + 103, yy, fx + 121, yy + 4], LITE, width=1)
+    seams_abs(s, 54)
+    for _, _, (x, y, w, _) in s.limb_faces():
+        s.inked_rect([x + 2, y + 2, x + w - 3, y + 22], FULL)
+    s.limb_band(s.acc, HAND - 30, HAND - 4, MIDT)
+    s.limb_line(s.ink, HAND - 30, INK)
+    s.limb_line(s.ink, HAND - 4, INK)
+    for x, y, w, _ in s.outer():
+        s.inked_rect([x + 14, y + HAND - 22, x + w - 15, y + HAND - 14], FULL, width=1)
+    for x, y, w, _ in p.fronts():
+        p.inked_poly([(x + 10, y + 8), (x + w - 11, y + 8), (x + w - 18, y + 40), (x + 18, y + 40)], FULL)
+        p.inked_rect([x + 14, y + ELBOW - 6, x + w - 15, y + ELBOW + 14], FULL)
+    for x, y, w, _ in p.outer():
+        p.stripe(p.acc, [(x, y, w, 0)], 0, HAND, 6, LITE)
+    p.torso_band(p.acc, HEM, HEM + 6, FULL)
+    p.torso_band(p.ink, HEM + 6, HEM + 8, INK)
+    p.limb_band(p.acc, HAND - 6, HAND, FULL)
+    return s, p
+
+
+def haori():
+    # tinted s: a wanderer's open haori over the p paint: long front bands, a sawtooth hem band round the jacket
+    # and the wide sleeves, tie cords at the chest; plain legs in s with a wrapped sash
+    s, p = Tpl("shirt"), Tpl("pants")
+    fx, fy, _, _ = F()
+    for x0 in (fx + 30, fx + 84):
+        s.inked_rect([x0, fy, x0 + 13, fy + HEM - 1], FULL)
+    s.ink.d.line([(fx + 44, fy + 46), (fx + 84, fy + 46)], fill=INK, width=3)
+    s.inked_ellipse([fx + 58, fy + 41, fx + 69, fy + 52], LITE, width=1)
+    for _, (x, y, w, _) in s.torso_faces():
+        band = HEM - 22
+        s.acc.d.rectangle([x, y + band, x + w - 1, y + HEM - 1], fill=FULL)
+        for k in range(0, w, 16):  # the sawtooth (tone teeth on the band)
+            s.tone.d.polygon([(x + k, y + HEM - 1), (x + k + 8, y + band + 3), (x + k + 16, y + HEM - 1)], fill=tone(70))
+        s.ink.d.line([(x, y + band), (x + w - 1, y + band)], fill=INK, width=2)
+    for _, _, (x, y, w, _) in s.limb_faces():
+        band = HAND - 22
+        s.acc.d.rectangle([x, y + band, x + w - 1, y + HAND - 1], fill=FULL)
+        for k in range(0, w, 16):
+            s.tone.d.polygon([(x + k, y + HAND - 1), (x + k + 8, y + band + 3), (x + k + 16, y + HAND - 1)], fill=tone(70))
+        s.ink.d.line([(x, y + band), (x + w - 1, y + band)], fill=INK, width=2)
+    p.torso_band(p.acc, HEM, HEM + 10, LITE)
+    p.torso_band(p.ink, HEM + 10, HEM + 12, INK)
+    x, y, _, _ = F()
+    p.inked_poly([(x + 20, y + HEM + 8), (x + 30, y + HEM + 8), (x + 26, y + 127), (x + 16, y + 127)], LITE)
+    p.limb_band(p.tone, HAND - 18, HAND, tone(60))
+    p.limb_line(p.ink, HAND - 18, INK)
+    return s, p
+
+
+def gakuran():
+    # tinted gold over the p paint: a tall-collar school jacket: the stiff collar (tone), a row of gold buttons
+    # down the front, gold cuff rings and a gold edge on the collar; dark-creased legs
+    s, p = Tpl("shirt"), Tpl("pants")
+    fx, fy, _, _ = F()
+    s.torso_band(s.tone, 0, 12, tone(90))
+    s.torso_band(s.acc, 12, 14, FULL)
+    s.torso_band(s.ink, 14, 16, INK)
+    s.ink.d.line([(fx + 64, fy + 16), (fx + 64, fy + HEM - 1)], fill=INK, width=2)
+    for k in range(5):
+        yy = fy + 20 + k * 16
+        s.inked_ellipse([fx + 67, yy, fx + 75, yy + 8], FULL, width=1)
+    for px in (fx + 12, fx + 90):
+        s.ink.d.line([(px, fy + 80), (px + 24, fy + 80)], fill=INK, width=2)
+    for r in (HAND - 14, HAND - 8):
+        s.limb_band(s.acc, r, r + 2, FULL)
+    s.limb_band(s.tone, HAND - 18, HAND, tone(40))
+    p.torso_band(p.tone, HEM, HEM + 10, tone(70))
+    p.torso_band(p.ink, HEM + 10, HEM + 12, INK)
+    for x, y, w, _ in p.fronts():
+        p.tone.d.line([(x + w // 2, y + 2), (x + w // 2, y + HAND - 2)], fill=tone(70), width=2)
+    return s, p
+
+
+def officer():
+    # tinted a over the p paint: an anime officer's coat: two button rows, shoulder boards with fringe, a sash
+    # from the shoulder, a wide belt, braided cuffs; legs with a side stripe
+    s, p = Tpl("shirt"), Tpl("pants")
+    fx, fy, _, _ = F()
+    collar(s, FULL, h=7)
+    for cx in (fx + 44, fx + 84):
+        for k in range(4):
+            yy = fy + 30 + k * 18
+            s.inked_ellipse([cx - 4, yy, cx + 4, yy + 8], FULL, width=1)
+    s.inked_poly([(fx + 108, fy + 8), (fx + 122, fy + 8), (fx + 22, fy + HEM - 1), (fx + 6, fy + HEM - 1)], LITE)
+    for side in ("R", "L"):
+        x, y, w, _ = TORSO[side]
+        s.inked_rect([x, y, x + w - 1, y + 14], FULL)
+        for k in range(2, w - 2, 5):
+            s.acc.d.line([(x + k, y + 15), (x + k, y + 22)], fill=FULL, width=2)
+    for _, _, (x, y, w, _) in s.limb_faces():
+        s.inked_rect([x, y, x + w - 1, y + 12], FULL)
+        for k in range(2, w - 2, 5):
+            s.acc.d.line([(x + k, y + 13), (x + k, y + 20)], fill=FULL, width=2)
+    s.limb_band(s.acc, HAND - 12, HAND, FULL)
+    s.limb_line(s.ink, HAND - 12, INK)
+    for _, _, (x, y, w, _) in s.limb_faces():
+        for k in range(0, w, 8):
+            s.ink.d.line([(x + k, y + HAND - 12), (x + k + 6, y + HAND - 1)], fill=(20, 20, 30, 120), width=1)
+    belt(p, fill=FULL, buckle=LITE, r0=HEM + 2, r1=HEM + 14)
+    for x, y, w, _ in p.outer():
+        p.stripe(p.acc, [(x, y, w, 0)], 0, HAND, 8, FULL)
+        p.stripe(p.ink, [(x, y, w, 0)], 0, HAND, 2, INK, off=-5)
+        p.stripe(p.ink, [(x, y, w, 0)], 0, HAND, 2, INK, off=5)
+    return s, p
+
+
 SUITS = {
     "plain": (plain, "a", "a", False, ("p", "p", "s")),
     "stripe": (stripe, "a", "a", False, ("p", "p", "s")),
@@ -1363,6 +1553,12 @@ SUITS = {
     "frost": (frost, "ice", "ice", True, ("white", "white", "white")),
     "starfield": (starfield, "white", "white", True, ("dark", "dark", "dark")),
     "nightTux": (night_tux, "gold", "gold", False, ("dark", "dark", "dark")),
+    "blazer": (blazer, "white", "white", False, ("p", "p", "s")),
+    "sailor": (sailor, "s", "s", False, ("white", "white", "s")),
+    "pilot": (pilot, "a", "a", False, ("p", "s", "p")),
+    "haori": (haori, "s", "s", True, ("p", "p", "s")),
+    "gakuran": (gakuran, "gold", "gold", False, ("p", "p", "p")),
+    "officer": (officer, "a", "a", False, ("p", "p", "s")),
 }
 
 # sample hero colours for the previews (LookKit.colors roles)

@@ -1,11 +1,12 @@
 -- Weapons: the creator's weapon step and the weapon slot (nate's hero creator plan, 2026-11-16,
 -- https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9). Any weapon pairs with any power. Key 1 holds the power,
 -- key 2 the weapon; M1 and Z X C V act on the held one. One weapon is free at creation; the rest unlock at a
--- safehouse Weapon Rack for Credits; the 5 Exotic weapons are sold for Robux (nate) and are tuned to the same
+-- safehouse Weapon Rack for Credits; the 5 Exotic weapons are earned too (nate, 2026-11-20: no weapons in the
+-- Robux shop): the Rack's dearest, never a free creator pick. All are tuned to the same
 -- damage as the rest (sidegrades: they change how you play, not how strong you are). Per-weapon Mastery
 -- unlocks X, C and V. Guns are cartoon sci-fi blasters, never real-world firearms.
 -- A weapon row: { id, family, name, complexity, text, source }. Ids are saved: never reorder, only append.
---   source: "credits:N" (the Weapon Rack), "robux:shopKey" (Config.Shop.products)
+--   source: "credits:N" (the Weapon Rack). "robux:shopKey" (Config.Shop.products) is still read but nothing uses it
 return {
 	families = {
 		{ id = "fists", name = "Fists", hold = "fists", text = "Fight with your hands and feet" },
@@ -50,11 +51,11 @@ return {
 		{ 29, "ranged", "Crossbow", 2, "Heavy bolts, a net bolt", "credits:1500" },
 		{ 30, "ranged", "Arm Cannon", 1, "Big slow blasts, a beam", "credits:1200" },
 		{ 31, "ranged", "Throwing Stars", 3, "Fan throws that ricochet", "credits:2500" },
-		{ 32, "exotic", "Chain Whip", 3, "Long lashes, pull and swing", "robux:weaponWhip" },
-		{ 33, "exotic", "War Fan", 4, "Wind slashes, a glide", "robux:weaponFan" },
-		{ 34, "exotic", "Yo-yo", 4, "Trick strikes on a tether", "robux:weaponYoyo" },
-		{ 35, "exotic", "Rope Dart", 4, "Long spins, wrap and pull", "robux:weaponDart" },
-		{ 36, "exotic", "Boomerang", 2, "Curved throws that come back", "robux:weaponBoomerang" },
+		{ 32, "exotic", "Chain Whip", 3, "Long lashes, pull and swing", "credits:4000" },
+		{ 33, "exotic", "War Fan", 4, "Wind slashes, a glide", "credits:4500" },
+		{ 34, "exotic", "Yo-yo", 4, "Trick strikes on a tether", "credits:4500" },
+		{ 35, "exotic", "Rope Dart", 4, "Long spins, wrap and pull", "credits:4500" },
+		{ 36, "exotic", "Boomerang", 2, "Curved throws that come back", "credits:3000" },
 	},
 	-- all 36 are playable (the first slice built one per family; the other 29 kits came 2026-11-17). The list
 	-- stays so a new weapon can show as "Coming soon" until its kit is built

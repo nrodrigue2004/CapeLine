@@ -75,6 +75,13 @@ return {
 					{ "Starfield Suit", "starfield", "fame:8" },
 					-- H8: Hero Pass season 1's costume set (PieceKits; PLACEHOLDER ART until the art pass)
 					{ "Opening Night Suit", "nightTux", "pass:1" },
+					-- anime outfits (nate's playtest 4, 2026-11-20); ids 891 to 896
+					{ "Academy Blazer", "blazer", "free" },
+					{ "Sailor Top", "sailor", "free" },
+					{ "Pilot Suit", "pilot", "lvl:14" },
+					{ "Wanderer Haori", "haori", "lvl:20" },
+					{ "High Collar Jacket", "gakuran", "lvl:11" },
+					{ "Officer Coat", "officer", "lvl:28" },
 				},
 			},
 		},
@@ -832,6 +839,9 @@ return {
 				{ "Radio Pack", "antenna", "free" },
 				{ "Umbrella", "umbrella", "free" },
 				{ "Orbit Orbs", "orbs", "legacy:5" },
+				-- 2026-11-21 (nate: "add angel and devil wings"): big wings that read from across a street
+				{ "Angel Wings", "angel", "lvl:10" },
+				{ "Devil Wings", "devil", "lvl:10" },
 			},
 		},
 		-- 2026-11-17 (nate: heroes keep nothing from their avatar, "They wear our clothes, our gear, our
@@ -1198,6 +1208,42 @@ return {
 				tint = { "gold", "gold" },
 				parts = false,
 			},
+			blazer = {
+				shirt = 129725905289842,
+				pants = 125829661976074,
+				tint = { "white", "white" },
+				parts = false,
+			},
+			sailor = {
+				shirt = 103472949356175,
+				pants = 131970673889053,
+				tint = { "s", "s" },
+				parts = false,
+			},
+			pilot = {
+				shirt = 102249340470229,
+				pants = 132203120372117,
+				tint = { "a", "a" },
+				parts = false,
+			},
+			haori = {
+				shirt = 118091842189130,
+				pants = 136365211478995,
+				tint = { "s", "s" },
+				parts = true,
+			},
+			gakuran = {
+				shirt = 138859367964874,
+				pants = 136006170832927,
+				tint = { "gold", "gold" },
+				parts = false,
+			},
+			officer = {
+				shirt = 140501741696403,
+				pants = 98176948121238,
+				tint = { "a", "a" },
+				parts = false,
+			},
 		},
 	},
 	-- gender, build and height: the creator's Body step (nate, 2026-11-17: removed; nate, 2026-11-19 16:45Z:
@@ -1250,8 +1296,11 @@ return {
 	-- decal, tinted by the mask slot's colour role (tint; "white" for a mask drawn in its own colours). Its eye holes
 	-- show the face's own eyes. Once every image a kit lists is uploaded the decals replace its part-built boxes;
 	-- 0 until nate uploads (today's parts until then).
+	-- 2026-11-21 (nate: "most masks don't fit"): off. The decals were drawn round the old drawn face's eyes and
+	-- stretched over Roblox's round head; the 8 flat masks are meshes now (art/blender/heads.py, Config.HeadArt),
+	-- their eye openings over the catalog faces' eyes. Kept for saved ids and a later look.
 	maskArt = {
-		on = true,
+		on = false,
 		kits = {
 			domino = { front = 85019791402580, tint = "white" },
 			half = { front = 128579682701630, side = 79717044974927, tint = "p" },
@@ -1619,7 +1668,23 @@ return {
 		{ 255, 170, 60 },
 		{ 50, 45, 70 },
 		{ 200, 150, 255 },
+		-- 2026-11-21 (nate: "more fantasy skins (e.g. green for earth/plant people)"): 14 more, looks only
+		{ 96, 178, 74 }, -- 31 Leaf
+		{ 62, 122, 58 }, -- 32 Moss
+		{ 168, 214, 96 }, -- 33 Sprout
+		{ 122, 86, 56 }, -- 34 Bark
+		{ 132, 112, 92 }, -- 35 Clay
+		{ 72, 150, 232 }, -- 36 Ocean
+		{ 44, 196, 186 }, -- 37 Lagoon
+		{ 205, 58, 48 }, -- 38 Ember
+		{ 255, 112, 40 }, -- 39 Magma
+		{ 150, 88, 206 }, -- 40 Cosmic
+		{ 236, 240, 252 }, -- 41 Ghost
+		{ 255, 204, 70 }, -- 42 Golden
+		{ 128, 230, 160 }, -- 43 Jade
+		{ 255, 150, 196 }, -- 44 Blossom
 	},
+	naturalSkins = 24, -- skins 1 to 24 are natural tones (Randomize keeps to them most of the time)
 	-- the fantasy skins' material and name (by skin index)
 	fantasySkins = {
 		[25] = { mat = "Slate", name = "Stone" },
@@ -1628,6 +1693,20 @@ return {
 		[28] = { mat = "Neon", name = "Energy" },
 		[29] = { mat = "SmoothPlastic", name = "Shadow" },
 		[30] = { mat = "Glass", name = "Crystal" },
+		[31] = { mat = "SmoothPlastic", name = "Leaf" },
+		[32] = { mat = "Grass", name = "Moss" },
+		[33] = { mat = "SmoothPlastic", name = "Sprout" },
+		[34] = { mat = "Wood", name = "Bark" },
+		[35] = { mat = "Sand", name = "Clay" },
+		[36] = { mat = "SmoothPlastic", name = "Ocean" },
+		[37] = { mat = "SmoothPlastic", name = "Lagoon" },
+		[38] = { mat = "SmoothPlastic", name = "Ember" },
+		[39] = { mat = "CrackedLava", name = "Magma" },
+		[40] = { mat = "SmoothPlastic", name = "Cosmic" },
+		[41] = { mat = "SmoothPlastic", name = "Ghost" },
+		[42] = { mat = "Foil", name = "Golden" },
+		[43] = { mat = "Marble", name = "Jade" },
+		[44] = { mat = "SmoothPlastic", name = "Blossom" },
 	},
 	-- per-slot materials a player can pick (LookCodec mats; 0 = the piece's own)
 	materials = { "Fabric", "Leather", "Metal", "SmoothPlastic", "Neon" },
