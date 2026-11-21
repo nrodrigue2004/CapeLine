@@ -380,6 +380,16 @@ function DevPanel.init()
 		Net.send("DevCommand", "clock", clockIdx)
 		b.Text = "Clock: " .. ({ "day", "dusk", "night", "dawn" })[(clockIdx + 1) % 4 + 1]
 	end)
+	-- the weathers (2026-11-21): cycle through Config.Weather.order (then back to the real weather)
+	local weatherIdx = 0
+	add("Weather: live", function(b)
+		weatherIdx = (weatherIdx + 1) % (#Config.Weather.order + 1)
+		Net.send("DevCommand", "weather", weatherIdx)
+		b.Text = "Weather: " .. (if weatherIdx == 0 then "live" else Config.Weather.order[weatherIdx])
+	end)
+	add("Lightning strike", function()
+		Net.send("DevCommand", "strike")
+	end)
 	local villain = false
 	add("Side: hero", function(b)
 		villain = not villain

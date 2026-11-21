@@ -5,7 +5,10 @@
 -- it, and a storm flashes lightning (a jagged bolt far off, the screen lit twice) with the thunder rolling in
 -- seconds later. Underwater (Fx.DeepClient owns the Atmosphere), in the HQ, a mission pocket or a held story sky
 -- there is no weather: the rain stops and the look relaxes to the place's own sky.
--- Studio: set the Workspace attribute WeatherForce to a kind name (clear, overcast, rain, storm, fog) to hold it.
+-- The new weathers (2026-11-21: snow, blizzard, heatwave, windy, lightning storm, aurora) are drawn by Fx.WeatherLook
+-- from the same look; the server's roof strikes arrive as WeatherStrike. The kind's name goes on the local player's
+-- "Weather" attribute for the radar clock (Ui.Radar).
+-- Studio: set the Workspace attribute WeatherForce to a kind name (Config.Weather.order) to hold it.
 -- Per-frame work (one CFrame write a box, a probe every 0.25 s, the sky every 0.1 s) runs under FrameProf "WeatherFx".
 
 local Lighting = game:GetService("Lighting")
@@ -27,6 +30,8 @@ local HqClient = require(Controllers.HqClient)
 local QualityController = require(Controllers.QualityController)
 local StoryClient = require(Controllers.StoryClient)
 local WorldClient = require(Controllers.WorldClient)
+local Net = require(Shared:WaitForChild("Net"))
+local WeatherLook = require(script.Parent.WeatherLook)
 
 local WeatherFx = {}
 
@@ -55,6 +60,7 @@ local groundY: number? = nil
 local lastCam: Vector3? = nil
 local shown: { [number]: boolean } = {} -- lightning windows whose bolt has shown
 local rolled: { [number]: boolean } = {} -- and whose thunder has rolled
+local strikeFlash = 0 -- a roof strike's flash, fading (WeatherLook.strike)
 WeatherFx.look = nil :: WeatherPlan.Look?
 WeatherFx.kind = "clear"
 
@@ -114,7 +120,7 @@ local function build()
 	e.Color = ColorSequence.new(rgb(R.color))
 	e.LightInfluence = 0.7
 	e.LightEmission = 0.15
-	e.Acceleration = Vector3.new(R.wind[1], R.wind[2], R.wind[3])
+	e.Acceleration = Vector3.new(R.wind[1], R.wind[2], R.wind[3]) -- the look's wind each frame
 	e.SpreadAngle = Vector2.new(3, 3)
 	e.Rate = 0
 	e.Parent = rp
@@ -225,6 +231,7 @@ local function step(dt: number)
 	local rp, re = rainPart :: Part, rainEmitter :: ParticleEmitter
 	rp.CFrame = CFrame.new(cam + lead + Vector3.new(0, R.above, 0))
 	re.Rate = rate
+	re.Acceleration = Vector3.new(look.wind[1], look.wind[2], look.wind[3])
 	-- the rain bed follows the rain (alive-world 2026-11-20); none underwater
 	local wet = if under then 0 else look.rain
 	AudioController.loop("rain", wet > 0.02, (R.sound or 0) * wet)
@@ -252,10 +259,23 @@ local function step(dt: number)
 		se.Rate = 0
 	end
 
+	-- the new weathers' pieces (snow, caps, debris, shimmer, aurora)
+	WeatherLook.step(look, cam, lead, groundY, dt, preset)
+	local name = if WeatherFx.kind == "clear" or inside then "" else (W.names[WeatherFx.kind] or "")
+	if Players.LocalPlayer:GetAttribute("Weather") ~= name then
+		Players.LocalPlayer:SetAttribute("Weather", name)
+	end
+	-- the gust for the flags (Fx.CityLife) and the wind bed (AudioController), in steps so it replicates rarely
+	local gust = math.floor((if inside then 0 else look.gust) * 20 + 0.5) / 20
+	if Players.LocalPlayer:GetAttribute("WeatherGust") ~= gust then
+		Players.LocalPlayer:SetAttribute("WeatherGust", gust)
+	end
+
 	-- lightning: the flash lights the grade; each window's bolt shows once and its thunder rolls once
-	local flash = 0
+	strikeFlash = math.max(0, strikeFlash - dt * 3)
+	local flash = if inside then 0 else strikeFlash
 	if look.lightning and not inside then
-		flash = WeatherPlan.flash(W, t)
+		flash = math.max(flash, WeatherPlan.flash(W, t))
 		local w = math.floor(t / L.gap)
 		local at, thunder = WeatherPlan.strike(W, w)
 		if at and t >= at and t < at + L.flash and not shown[w] then
@@ -308,6 +328,15 @@ function WeatherFx.init()
 	end
 	readBase()
 	cloudsBase()
+	WeatherLook.init()
+	-- a lightning storm's strike on a roof near a hero (server WeatherService): x, y, z, seed
+	Net.listen("WeatherStrike", function(x: number, y: number, z: number, seed: number)
+		local camObj = Workspace.CurrentCamera
+		if not camObj or WeatherFx.sheltered(camObj.CFrame.Position) then
+			return
+		end
+		strikeFlash = math.max(strikeFlash, WeatherLook.strike(x, y, z, seed, camObj.CFrame.Position))
+	end)
 	RunService.Heartbeat:Connect(FrameProf.wrap("WeatherFx", step))
 end
 

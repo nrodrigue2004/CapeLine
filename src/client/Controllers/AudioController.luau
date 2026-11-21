@@ -527,7 +527,10 @@ local function bedTick()
 	for name in L do
 		local want = 0
 		if here and name == "Rooftop" then
-			want = L.Rooftop.volume * roof
+			-- windy days and blizzards bring the rooftop wind down to the street (Fx.WeatherFx's "WeatherGust")
+			local gust = Players.LocalPlayer:GetAttribute("WeatherGust")
+			local g = if type(gust) == "number" then gust * Config.Weather.debris.roofBed else 0
+			want = L.Rooftop.volume * math.max(roof, g)
 		elseif here and name == here then
 			want = L[name].volume * (1 - 0.5 * roof)
 		end
