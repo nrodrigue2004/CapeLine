@@ -489,7 +489,7 @@ local function scanCone(from: Vector3, to: Vector3)
 			Size = Vector3.new(0.2, 5, 5),
 		})
 		:Play()
-	AudioController.play("bossWarning", to, { volume = 0.45, pitch = 1.4 })
+	-- (nate's playtest 2026-11-21) no alarm under the lock-on: the film's score carries it
 	task.delay(3.6, function()
 		cone:Destroy()
 		ring:Destroy()

@@ -994,6 +994,10 @@ return {
 		-- (prologue-cine, 2026-11-20: the suit is a HOLD prompt now, so it moved to the stuck timers: the device
 		-- says when the suit has snapped on, OpeningAct 7)
 		beats = { ceremony = 22, scan = 7.5, rescue = 13, title = 10 },
+		-- (nate's playtest 2026-11-21) the title beat's rise up Crane Tower (Fx.PrologueFx): from fromD studs out
+		-- and fromY up, looking at lookFrom of the deck's height, to toD out and toY over the top deck, looking
+		-- lookUp over it at the relay; turned in `turn`-degree steps until no building is in the way
+		titleShot = { fromD = 340, fromY = 30, lookFrom = 0.55, toD = 75, toY = 14, lookUp = 18, turn = 20 },
 		-- a beat the hero has not finished in this long moves on by itself (the hero is placed at the next one)
 		-- (prologue-cine, 2026-11-20: every beat to the subway fight is a directed cinematic with prompts; each
 		-- timer is longer than that beat's worst case, every prompt missed to the 3rd-miss help, which

@@ -54,6 +54,9 @@ local T = L.traffic
 local CityLife = {}
 CityLife.cars = 0 -- live counts (the Dev panel can show them)
 CityLife.flocks = 0
+CityLife.hidden = false -- PrologueFx's quiet world: no cars (see stepCars)
+CityLife.clearAt = nil :: Vector3? -- CinemaClient: no car this close to a scene's camera
+CityLife.clearRadius = 0
 
 local LIFE_TURN = MeshFix.turn(Config.Life.set) -- the import's turn of Art.Life (Shared.MeshFix, meshcheck)
 local GROUND = Config.City.ground.y
@@ -184,7 +187,9 @@ local function buildCar(): Car?
 			s = math.clamp(s, l.a0 + 4, l.a1 - 4)
 			local pos = Vector3.new(if l.ax == "x" then s else l.c, f.Y, if l.ax == "x" then l.c else s)
 			local d = (pos - f).Magnitude
-			if d >= T.spawnMin and d <= B.carRadius then
+			local gap = CityLife.clearAt
+			local clear = not gap or (pos - gap).Magnitude >= CityLife.clearRadius + 12
+			if d >= T.spawnMin and d <= B.carRadius and clear then
 				local dir = if math.random() < 0.5 then 1 else -1
 				local look = carLooks[math.random(1, #carLooks)]
 				local key = T.paints[math.random(1, #T.paints)]
@@ -482,10 +487,22 @@ local function fearStep(car: Car, dt: number, now: number): (Vector3?, number?)
 	return nil, nil
 end
 
+-- nate's playtest 2026-11-21 ("the prologue and cutscenes get glitchy because there are cars and people walking"):
+-- hidden (PrologueFx's quiet world) drives no cars at all; clearAt (CinemaClient, while a scene runs) drops any
+-- car within clearRadius studs of the camera so a shot never sits inside one (the flags are set up top)
+
 local function stepCars(dt: number, now: number, list: { any })
 	local B = budget()
 	local f = focus()
 	scanDangers(now)
+	if CityLife.hidden then
+		for i = #cars, 1, -1 do
+			dropCar(i)
+		end
+		CityLife.cars = 0
+		return
+	end
+	local gapAt = CityLife.clearAt
 	while #cars < B.cars and #lanes > 0 do
 		local c = buildCar()
 		if not c then
@@ -507,7 +524,13 @@ local function stepCars(dt: number, now: number, list: { any })
 			car.s += car.dir * car.v * dt
 			pos, yaw = laneDims(l, car.dir, car.s)
 		end
-		if car.s < l.a0 - 6 or car.s > l.a1 + 6 or (pos - f).Magnitude > B.carRadius * 1.2 or i > B.cars then
+		if
+			car.s < l.a0 - 6
+			or car.s > l.a1 + 6
+			or (pos - f).Magnitude > B.carRadius * 1.2
+			or i > B.cars
+			or (gapAt and (pos - gapAt).Magnitude < CityLife.clearRadius)
+		then
 			dropCar(i)
 			continue
 		end

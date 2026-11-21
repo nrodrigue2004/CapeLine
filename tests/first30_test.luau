@@ -1496,4 +1496,133 @@ return function(T: any)
 			end
 		end
 	)
+
+	-- nate's playtest 2026-11-21: "cameras get stuck in things... cutscenes get glitchy going through walls", "I
+	-- absolutely hate that alarm noise", "the zooming into the building after the prologue with capeline title is
+	-- lame... maybe the crane building"
+	test(
+		"First 30: a scene's camera skips cars and people but never passes a wall (CamClear, UiSim)",
+		function()
+			local sim, UiSim = newSim()
+			local Vector3 = roblox.Vector3
+			local CamClear = sim:require("Client.Controllers.CamClear")
+			local ws = sim.game:GetService("Workspace")
+			local car = UiSim.newInstance("Part")
+			car.Anchored = false
+			car.Size = Vector3.new(6, 4, 12)
+			local post = UiSim.newInstance("Part")
+			post.Anchored = true
+			post.Size = Vector3.new(1, 6, 1)
+			local wall = UiSim.newInstance("Part")
+			wall.Anchored = true
+			wall.Size = Vector3.new(40, 60, 4)
+			local withWall = true
+			ws._props.Raycast = function(_, origin: Vector3, dir: Vector3, params: any)
+				local skip = {}
+				for _, e in params.FilterDescendantsInstances or {} do
+					skip[e] = true
+				end
+				-- along +X from the origin: the car at x = 4, a thin post at x = 7, the wall at x = 12
+				for _, h in { { car, 4 }, { post, 7 }, { wall, 12 } } do
+					local p, x = h[1], h[2]
+					if
+						not skip[p]
+						and (p ~= wall or withWall)
+						and x > origin.X + 1e-3
+						and x <= origin.X + dir.X
+					then
+						return {
+							Instance = p,
+							Position = Vector3.new(x, origin.Y, origin.Z),
+							Distance = x - origin.X,
+						}
+					end
+				end
+				return nil
+			end
+			local K = Config.Cinema.camera.clear
+			local look, at = Vector3.new(0, 5, 0), Vector3.new(30, 5, 0)
+			local spot = CamClear.spot(look, at)
+			check(
+				math.abs(spot.X - (12 - K.pad)) < 1e-3,
+				"pulled in front of the wall, past the car and post: " .. spot.X
+			)
+			withWall = false
+			check(
+				(CamClear.spot(look, at) - at).Magnitude < 1e-3,
+				"a car and a post alone never pull the camera in"
+			)
+			-- eased: in at once, out slowly
+			withWall = true
+			local pull = CamClear.newPull()
+			local d1 = CamClear.ease(pull, look, at, 1 / 60).X
+			check(math.abs(d1 - (12 - K.pad)) < 1e-3, "in at once: " .. d1)
+			withWall = false
+			local d2 = CamClear.ease(pull, look, at, 1 / 60).X
+			check(d2 > d1 and d2 < 30, "out slowly: " .. d2)
+			check(#sim.errors == 0, table.concat(sim.errors, " | "))
+			-- the wiring: CinemaClient tells the lens, init.client keeps cars and citizens out of it, the prologue's
+			-- quiet world drives no traffic and veils the hub's vehicles, the QTE camera's ray skips moving things
+			local cine = fs.readFile("src/client/Controllers/CinemaClient.luau")
+			check(
+				select(2, string.gsub(cine, "CamClear%.ease%(pull", "")) == 2,
+				"both shot kinds are kept clear"
+			)
+			local boot = fs.readFile("src/client/init.client.luau")
+			check(
+				string.find(boot, "CityLife.clearAt", 1, true)
+					and string.find(boot, "CitizenRenderer.clearAt", 1, true),
+				"lens wired"
+			)
+			local pro = fs.readFile("src/client/Fx/PrologueFx.luau")
+			check(string.find(pro, "CityLife.hidden = on", 1, true), "no traffic in the prologue")
+			check(
+				string.find(fs.readFile("src/client/Fx/PrologueQte.luau"), "CamClear.cast(", 1, true),
+				"QTE ray"
+			)
+		end
+	)
+
+	test("First 30: no alarm siren, and the title rises up Crane Tower", function()
+		check(
+			not string.find(fs.readFile("src/client/Fx/PrologueFx.luau"), 'play("bossWarning"', 1, true),
+			"prologue"
+		)
+		check(
+			not string.find(fs.readFile("src/client/Fx/IntroFilm.luau"), 'play("bossWarning"', 1, true),
+			"intro film"
+		)
+		-- "I'm still getting the silas crane tv on my screen": the HUD's corner TV is off (the boss toast stays)
+		check(Config.Cinema.news.tv.on == false, "the corner TV is off")
+		check(
+			string.find(fs.readFile("src/client/Ui/NewsHud.luau"), "if not N.tv.on then", 1, true),
+			"NewsHud honours it"
+		)
+		local row = Config.Audio.sounds.bossWarning
+		local clip = Config.AudioClips.clips[row.clip]
+		check(row.clip == "bossHorn" and clip and clip[1] == "Music", "the boss warning is the brass horn")
+		local LoadingCard = fs.readFile("src/first/LoadingCard.luau")
+		check(
+			string.find(LoadingCard, tostring(Config.AudioClips.atlases.Music), 1, true),
+			"the loading card plays today's Music atlas"
+		)
+		-- Crane Tower is on the map, tall, and the title shot's ends sit outside it and above the street
+		local MapSites = require("../src/shared/MapSites")
+		local lo, deck = math.huge, -math.huge
+		for _, b in MapSites.permanent(Config).boxes do
+			if (b :: any).site == "tower" then
+				lo = math.min(lo, b.cy - b.sy / 2)
+				if b.kind == "roof" then
+					deck = math.max(deck, b.cy + b.sy / 2)
+				end
+			end
+		end
+		check(deck - lo > 120, "the tower stands tall: " .. deck - lo)
+		local S = Config.Story.opening.titleShot
+		check(S.toD > 40 and S.fromD > S.toD and S.toY > 0, "the camera ends outside, over the deck")
+		check(
+			string.find(fs.readFile("src/client/Fx/PrologueFx.luau"), "towerShot(tw, hall, T)", 1, true),
+			"used"
+		)
+	end)
 end

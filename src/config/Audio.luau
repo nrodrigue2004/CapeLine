@@ -8,7 +8,7 @@
 -- and volume of each play. The `fallback` (one of Roblox's built-in client sounds, pitched by `pitch`) still plays
 -- while an atlas has no id. `clip` defaults to the row's own key (see the end of this file).
 -- Groups (AudioController, `mix` below): Music; Effects (the settings' sound slider) with Combat, World, Ui,
--- Ambience and Voice inside it. Music ducks 40% for the boss siren and voices; big booms duck the city bed and
+-- Ambience and Voice inside it. Music ducks 40% for the boss horn and voices; big booms duck the city bed and
 -- the music for a moment (`mix.duck`).
 
 local B = "rbxasset://sounds/"
@@ -47,7 +47,7 @@ local Audio = {
 		{ id = "levelUp", visual = "JuiceFx" }, -- rising bell; level badge spins; next unlock lights
 		{ id = "skillRank", visual = "LoadoutScreen" }, -- click and chime; node fills; UI bounce
 		{ id = "gearDrop", visual = "JuiceFx" }, -- chime by tier; tier colour beam; Legendary chimes twice
-		{ id = "bossWarning", visual = "WorldFx" }, -- siren and deep horn; red edge tint; banner
+		{ id = "bossWarning", visual = "WorldFx" }, -- deep brass swell and drum hit (no siren); red edge tint; banner
 		{ id = "bossPhase", visual = "WorldFx" }, -- roar; phase pips flip; shake 0.4 s
 		{ id = "bossDefeated", visual = "JuiceFx" }, -- fireworks; MVP card
 		{ id = "combo", visual = "CombatFx" }, -- chord; combo ring; bonus Renown pop
@@ -178,7 +178,8 @@ local Audio = {
 		levelUp = s("electronicpingshort.wav", 0.9, 1.4),
 		skillRank = s("button.wav", 0.6, 1.2),
 		gearDrop = s("electronicpingshort.wav", 0.6, 1.8),
-		bossWarning = s("action_falling.mp3", 1, 0.3, { duck = true }),
+		-- (nate's playtest 2026-11-21: "I absolutely hate that alarm noise") no siren: a deep brass swell and drum hit
+		bossWarning = s("action_falling.mp3", 1, 0.3, { duck = true, clip = "bossHorn", vary = 0 }),
 		bossPhase = s("action_jump_land.mp3", 1, 0.35, { range = 500 }),
 		bossDefeated = s("electronicpingshort.wav", 1, 1),
 		combo = s("electronicpingshort.wav", 0.8, 1.05, { range = 200 }),
@@ -440,7 +441,7 @@ local Audio = {
 		deep = { asset = 0, volume = 0.36, clip = "deep" },
 		hq = { asset = 0, volume = 0.3, clip = "hq" },
 		fade = 1.5, -- seconds to crossfade
-		duck = 0.6, -- music volume while the boss siren or a voice line plays (ducks 40%)
+		duck = 0.6, -- music volume while the boss horn or a voice line plays (ducks 40%)
 		bossRange = 600, -- the boss theme plays within this many studs of a live boss
 	},
 

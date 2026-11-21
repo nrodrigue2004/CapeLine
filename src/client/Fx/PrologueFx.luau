@@ -45,6 +45,7 @@ local RigMath = require(Shared:WaitForChild("RigMath"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
 local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
+local MapSites = require(Shared:WaitForChild("MapSites"))
 
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
@@ -57,6 +58,8 @@ local CombatFx = require(script.Parent.CombatFx)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
 local CitizenRenderer = require(script.Parent.Parent.Controllers.CitizenRenderer)
+local CityLife = require(script.Parent.CityLife)
+local CamClear = require(script.Parent.Parent.Controllers.CamClear)
 local FxLib = require(script.Parent.FxLib)
 local PrologueMeshes = require(script.Parent.PrologueMeshes)
 local PowerMeshes = require(script.Parent.PowerMeshes)
@@ -643,6 +646,60 @@ local function toPlan(list: { Shot }): { CinemaPlan.Shot }
 	return out
 end
 
+-- Crane Tower's foot, top deck and mast top (Shared.MapSites' permanent boxes), worked out once
+type Tower = { foot: Vector3, deck: number, top: number }
+local tower: Tower | false | nil = nil
+local function craneTower(): Tower?
+	if tower ~= nil then
+		return tower or nil
+	end
+	local site = Config.MapSites and Config.MapSites.sites.tower
+	local lo, hi, deck = math.huge, -math.huge, -math.huge
+	if site then
+		for _, b in MapSites.permanent(Config).boxes do
+			if (b :: any).site == "tower" then
+				lo = math.min(lo, b.cy - b.sy / 2)
+				hi = math.max(hi, b.cy + b.sy / 2)
+				if b.kind == "roof" then
+					deck = math.max(deck, b.cy + b.sy / 2)
+				end
+			end
+		end
+	end
+	if not site or hi <= lo then
+		tower = false
+		return nil
+	end
+	tower = { foot = Vector3.new(site.x, lo, site.z), deck = if deck > lo then deck else hi, top = hi }
+	return tower :: Tower
+end
+
+-- The title's rise up Crane Tower: from low and far on the hero's side of it to just off its top deck, turned
+-- (in steps of `T.turn` degrees either way) until both ends see the tower clear of other buildings
+local function towerShot(tw: Tower, hall: Vector3, T: any): ({ Vector3 }, { Vector3 })
+	local flat = Vector3.new(hall.X - tw.foot.X, 0, hall.Z - tw.foot.Z)
+	local base = if flat.Magnitude > 1 then flat.Unit else Vector3.new(0, 0, 1)
+	local function ends(dir: Vector3): (Vector3, Vector3, Vector3, Vector3)
+		local lookA = tw.foot + Vector3.new(0, tw.deck * T.lookFrom, 0)
+		local camA = Vector3.new(tw.foot.X, tw.foot.Y + T.fromY, tw.foot.Z) + dir * T.fromD
+		local lookB = Vector3.new(tw.foot.X, tw.deck + T.lookUp, tw.foot.Z)
+		local camB = Vector3.new(tw.foot.X, tw.deck + T.toY, tw.foot.Z) + dir * T.toD
+		return camA, lookA, camB, lookB
+	end
+	local pick = base
+	for k = 0, 360 / T.turn do
+		local step = math.ceil(k / 2) * (if k % 2 == 1 then 1 else -1)
+		local dir = CFrame.Angles(0, math.rad(step * T.turn), 0):VectorToWorldSpace(base)
+		local camA, lookA, camB, lookB = ends(dir)
+		if not CamClear.cast(lookA, camA) and not CamClear.cast(lookB, camB) then
+			pick = dir
+			break
+		end
+	end
+	local camA, lookA, camB, lookB = ends(pick)
+	return look(camA, lookA), look(camB, lookB)
+end
+
 local function shots(step: string, o: { [string]: any }): { Shot }
 	local list: { Shot } = {}
 	local stage, face = v3(o.stage), v3(o.face)
@@ -704,17 +761,28 @@ local function shots(step: string, o: { [string]: any }): { Shot }
 			b = look(p + side * 11 + up * 2.5, p + up * 4),
 		})
 	elseif step == "title" then
-		local bb = o.billboard
+		-- (nate's playtest 2026-11-21: "the zooming into the building after the prologue with capeline title is
+		-- lame... maybe the crane building") under CAPELINE the camera rises from the street up Crane Tower, the
+		-- city's tallest mark, and pushes in on its top deck and glowing relay: the man the hero just met owns the
+		-- skyline. The billboard shot stays only as the fallback when the tower is off the map.
+		local tw = craneTower()
 		local hall = v3(o.hall)
-		if bb and hall and face then
-			local at = Vector3.new(bb[1], bb[2], bb[3])
-			local n = Vector3.new(bb[4], 0, bb[5])
-			table.insert(list, {
-				t0 = 0,
-				t1 = O.beats.title,
-				a = look(at + n * 120 + up * -20, at),
-				b = look(at + n * 80 + up * -10, at),
-			})
+		if tw and hall then
+			local T = O.titleShot
+			local a, b = towerShot(tw, hall, T)
+			table.insert(list, { t0 = 0, t1 = O.beats.title, a = a, b = b })
+		else
+			local bb = o.billboard
+			if bb and hall and face then
+				local at = Vector3.new(bb[1], bb[2], bb[3])
+				local n = Vector3.new(bb[4], 0, bb[5])
+				table.insert(list, {
+					t0 = 0,
+					t1 = O.beats.title,
+					a = look(at + n * 120 + up * -20, at),
+					b = look(at + n * 80 + up * -10, at),
+				})
+			end
 		end
 	end
 	return list
@@ -906,7 +974,8 @@ local function sweep(o: { [string]: any }, t: number)
 			rune = 0,
 			locked = false,
 		}
-		AudioController.play("bossWarning")
+		-- (nate's playtest 2026-11-21: "I absolutely hate that alarm noise") no siren here: the scanner's hum and
+		-- the crowd's gasp carry the scan
 	end
 	local s = scan :: { [string]: any }
 	local lock = O.beats.scan * 0.42
@@ -1785,6 +1854,18 @@ local function veilOthers(on: boolean)
 			end
 		end
 	end
+	-- (nate's playtest 2026-11-21: "glitchy because there are cars and people walking") the hub's parked and
+	-- driving vehicles are veiled too; CityLife drives no traffic while quiet (setQuiet)
+	local city = Workspace:FindFirstChild("City")
+	local cars = city and city:FindFirstChild("Vehicles")
+	if on and cars then
+		for _, d in cars:GetDescendants() do
+			if (d:IsA("BasePart") or d:IsA("Decal")) and not veiled[d] then
+				veiled[d] = d.LocalTransparencyModifier
+				d.LocalTransparencyModifier = 1
+			end
+		end
+	end
 	if not on then
 		for d, was in veiled do
 			if d.Parent then
@@ -1805,6 +1886,7 @@ local function setQuiet(on: boolean)
 	end
 	quiet = on
 	CitizenRenderer.hidden = on
+	CityLife.hidden = on
 	EnemyRenderer.only = if on
 		then function(id: number): boolean
 			return mine[id] == true
