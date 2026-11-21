@@ -157,6 +157,11 @@ function WeatherFx.sheltered(cam: Vector3): boolean
 	if WorldClient.clockOverride ~= nil or StoryClient.inOpening() then
 		return true
 	end
+	-- the orbit and the other worlds (Controllers.SpaceClient lights them): no city weather up there
+	local space = Players.LocalPlayer:GetAttribute("SpaceZone")
+	if type(space) == "string" and space ~= "" then
+		return true
+	end
 	return PocketLayout.at(Config, cam.X, cam.Y, cam.Z) ~= nil
 end
 
@@ -301,8 +306,9 @@ local function step(dt: number)
 	skyAcc = 0
 	g.Saturation += (look.grade.saturation - g.Saturation) * 0.15
 	g.TintColor = g.TintColor:Lerp(rgb(look.grade.tint), 0.15)
-	if under then
-		return
+	local space = Players.LocalPlayer:GetAttribute("SpaceZone")
+	if under or (type(space) == "string" and space ~= "") then
+		return -- underwater DeepClient owns the Atmosphere, in space SpaceClient does
 	end
 	local air = Lighting:FindFirstChildOfClass("Atmosphere")
 	if air then

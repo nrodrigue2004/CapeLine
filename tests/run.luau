@@ -23344,6 +23344,8 @@ end
 (require :: any)("./alive4_test")({ test = test, check = check, Config = Config });
 -- the six new weathers (2026-11-21): ONLY="Weathers"
 (require :: any)("./weather_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- planet travel (2026-11-21): ONLY="Space"
+(require :: any)("./space_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the far skyline and ground marks (2026-11-21, own file): ONLY="Far skyline" or ONLY="Ground marks"
 (require :: any)("./far_craters_test")({
 	test = test,
