@@ -4608,7 +4608,9 @@ test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 				m.layout .. " has " .. count .. " " .. list
 			)
 		end
-		check(#l.boxes < 400, m.layout .. " stays under 400 parts (" .. #l.boxes .. ")")
+		-- the Safehouse holds the Vigil's HQ room and the tunnels' dressing since 2026-11-21 (most of it ghost decor)
+		local cap = if m.layout == "dungeon" then 560 else 400
+		check(#l.boxes < cap, m.layout .. " stays under " .. cap .. " parts (" .. #l.boxes .. ")")
 		local sp = l.points.spawn
 		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == n, m.layout .. " spawn is inside its pocket")
 	end
@@ -12048,8 +12050,8 @@ test(
 		local kit = HqRules.wallKit(Config, 376)
 		local decor, wallC = 0, 0
 		for _, b in dungeon.boxes do
-			if b.tag == "decor" and (b.ref == "tornPhoto" or b.ref == "tour") then
-				-- act1-choices: not the wall kit (nor the missions lane's radio desk and bunks)
+			if b.tag == "decor" and (b.ref == "tornPhoto" or b.ref == "tour" or b.ref == "dress") then
+				-- act1-choices: not the wall kit (nor the missions lane's radio desk, bunks and 2026-11-21 dressing)
 				check(b.ghost == true, "the torn photo, the desk and the bunks are walk-through")
 			elseif b.tag == "decor" then
 				decor += 1

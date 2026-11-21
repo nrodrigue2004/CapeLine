@@ -355,31 +355,206 @@ function BUILD.dungeon(l: Layout, Config: any)
 	for i = 0, 3 do
 		add(l, "turrets", -40 + i * 26, 0.5, if i % 2 == 0 then -45 else 45)
 	end
-	point(l, "gauntletEnd", 70, 3, 0)
+	-- Lodestar waits at the gauntlet's end, before the safehouse door in the dividing wall (2026-11-21: the
+	-- door was at the far end with the third room as more bare tunnel; now that room IS the Vigil's HQ)
+	point(l, "gauntletEnd", 40, 3, 0)
 	point(l, "boss", 150, 3, 0)
-	box(l, "glow", 180, 8, 0, 4, 12, 12, "beaconGlow") -- the safehouse door
-	point(l, "door", 160, 3, 0)
+	box(l, "glow", 58, 13, 0, 1, 2, 36, "beaconGlow") -- the safehouse door's lit lintel
+	for _, z in { -18.5, 18.5 } do
+		box(l, "prop", 58, wallH / 2, z, 3, wallH, 1.5, "steel") -- its frame
+	end
+	point(l, "door", 54, 3, 0)
+	-- the third room is the Vigil's HQ as the player later sees it (nate 2026-11-21: "Safehouse still looks bad.
+	-- why are there no walls?"): HqRules.hideout's pillars, beams, floor, stair, city map wall and monitor bank,
+	-- with the HQ's Blender modules (HideoutKit.cell) over them. The tunnel's own walls, ceiling and wall kit
+	-- stand in for the cell's, and its open west side is the safehouse door.
+	local hx = 126
+	local keep = {}
+	for _, pc in HqRules.hideout(Config) do
+		local n = pc.name
+		if n == "wall" or n == "ceiling" or n == "shaft" or pc.run then
+			continue -- the tunnel's walls, ceiling and wall kit already stand there
+		end
+		if pc.x < -40 and (n == "monitorBezel" or n == "monitorScreen" or n == "pilaster") then
+			continue -- the west wall is the doorway
+		end
+		if n == "stairNosing" or (n == "workLamp" and pc.y > K.height) then
+			continue -- the shaft's lamp
+		end
+		table.insert(keep, pc)
+	end
+	local first = #l.art
+	local places, hides = HideoutKit.cell(Config, keep, nil)
+	for _, pl in places do
+		local q = table.clone(pl)
+		q.x, q.y, q.z = l.cx + hx + pl.x, l.cy + pl.y, l.cz + pl.z
+		table.insert(l.art, q)
+	end
+	for i, pc in keep do
+		local solid = pc.name == "pillar" or pc.name == "stairStep"
+		local b = BoxKit.box(
+			l.boxes,
+			if pc.glow then "glow" else "prop",
+			l.cx + hx + pc.x,
+			l.cy + pc.y,
+			l.cz + pc.z,
+			pc.sx,
+			pc.sy,
+			pc.sz,
+			pc.color,
+			if solid then nil else { tag = "decor", ghost = true, ref = "dress" }
+		)
+		if hides[i] then
+			(b :: any).art = first + hides[i]
+		end
+	end
+	-- the HQ's furniture where its stations will stand (Config.Hq.stations): the command table under the map wall,
+	-- a couch and lockers by the south wall, a weapon rack by the east wall. Ghost decor, PLACEHOLDER ART (box kit)
+	local st = Config.Hq.stations
+	local cmd = st and st.command or { 0, -36 }
+	box(
+		l,
+		"prop",
+		hx + cmd[1],
+		1.6,
+		cmd[2],
+		16,
+		3.2,
+		8,
+		"steel",
+		{ tag = "decor", ghost = true, ref = "dress" }
+	)
+	box(
+		l,
+		"glow",
+		hx + cmd[1],
+		3.3,
+		cmd[2],
+		14,
+		0.2,
+		6,
+		"beaconGlow",
+		{ tag = "decor", ghost = true, ref = "dress" }
+	)
+	box(l, "prop", hx - 20, 1.2, 50, 14, 2.4, 5, "relicRed", { tag = "decor", ghost = true, ref = "dress" })
+	box(l, "prop", hx - 20, 3, 52.2, 14, 4, 1.2, "relicRed", { tag = "decor", ghost = true, ref = "dress" })
+	for i = 0, 4 do
+		box(
+			l,
+			"prop",
+			hx + 8 + i * 3.4,
+			4,
+			56.5,
+			3,
+			8,
+			3,
+			"steel",
+			{ tag = "decor", ghost = true, ref = "dress" }
+		)
+	end
+	box(l, "prop", hx + 56, 5, 30, 1.5, 8, 14, "wood", { tag = "decor", ghost = true, ref = "dress" })
+	for _, z in { 25, 30, 35 } do
+		box(l, "prop", hx + 55, 5, z, 0.6, 7, 0.8, "steel", { tag = "decor", ghost = true, ref = "dress" })
+	end
+	-- the tunnels before it (rooms 1 and 2): an old maintenance line, not bare boxes. A rail line down the
+	-- middle, crates and barrels stacked by the walls, rubble where the old line caved in, puddles, and red
+	-- emergency lamps between the work lamps. Ghost decor robots never stand on (cover stays the dividing walls).
+	-- PLACEHOLDER ART (box kit) where no Blender look stands over it.
+	for _, z in { -2.5, 2.5 } do
+		box(l, "prop", -64, 0.15, z, 248, 0.3, 0.6, "steel", { tag = "decor", ghost = true, ref = "dress" })
+	end
+	for i = 0, 8 do
+		box(
+			l,
+			"prop",
+			-184 + i * 28,
+			0.08,
+			0,
+			1.2,
+			0.16,
+			7,
+			"wood",
+			{ tag = "decor", ghost = true, ref = "dress" }
+		)
+	end
+	for _, c in { { -176, -50, 0 }, { -150, 48, 1 }, { -96, -50, 2 }, { -20, 50, 0 }, { 30, -50, 1 } } do
+		local x, z = c[1], c[2]
+		box(l, "prop", x, 2, z, 4, 4, 4, "wood", { tag = "decor", ghost = true, ref = "dress" })
+		box(l, "prop", x + 4.6, 2, z, 4, 4, 4, "wood", { tag = "decor", ghost = true, ref = "dress" })
+		box(l, "prop", x + 2.3, 6, z, 4, 4, 4, "wood", { tag = "decor", ghost = true, ref = "dress" })
+		box(
+			l,
+			"prop",
+			x - 4,
+			2.2,
+			z + (if z < 0 then 2 else -2),
+			2.6,
+			4.4,
+			2.6,
+			if c[3] == 1 then "rust" else "steel",
+			{
+				tag = "decor",
+				ghost = true,
+				shape = "Cylinder",
+				ref = "dress",
+			}
+		)
+	end
+	for _, r in { { -120, -30 }, { -8, 34 } } do
+		box(
+			l,
+			"prop",
+			r[1],
+			1.5,
+			r[2],
+			14,
+			3,
+			9,
+			"concrete",
+			{ tag = "decor", ghost = true, ry = 20, ref = "dress" }
+		)
+		box(
+			l,
+			"prop",
+			r[1] + 3,
+			3.6,
+			r[2] - 1,
+			8,
+			2.6,
+			5,
+			"concrete",
+			{ tag = "decor", ghost = true, ry = -15, ref = "dress" }
+		)
+	end
+	for _, w in { { -160, 18 }, { -70, -22 }, { 12, -12 } } do
+		box(l, "glow", w[1], 0.05, w[2], 10, 0.1, 6, "water", { tag = "decor", ghost = true, ref = "dress" })
+	end
+	for x = -180, 50, 46 do
+		for _, k in { if x % 4 == 0 then -1 else 1 } do
+			box(
+				l,
+				"glow",
+				x,
+				wallH - 6,
+				k * 57.6,
+				1.4,
+				1,
+				0.6,
+				"relicRed",
+				{ tag = "decor", ghost = true, ref = "dress" }
+			)
+		end
+	end
 	-- act1-choices (lore 2026-11-19, Act 1's hints at Lodestar's secret): the torn photo by the door, on an old
 	-- crate: a brass frame stood on its end, its print torn down the middle (the kept half in the frame, the
 	-- other half on the floor). Plain cards, nothing drawn on them (no faces: the hint is that it is torn).
 	-- Ghost decor robots never stand on. PLACEHOLDER ART (box kit) until a mesh pass.
-	box(l, "prop", 170, 1.5, -12, 4, 3, 3, "wood", { tag = "decor", ghost = true, ref = "tornPhoto" })
+	box(l, "prop", 64, 1.5, -12, 4, 3, 3, "wood", { tag = "decor", ghost = true, ref = "tornPhoto" })
+	box(l, "prop", 64, 4.4, -12, 2.8, 2.8, 0.3, "pkBrass", { tag = "decor", ghost = true, ref = "tornPhoto" })
 	box(
 		l,
 		"prop",
-		170,
-		4.4,
-		-12,
-		2.8,
-		2.8,
-		0.3,
-		"pkBrass",
-		{ tag = "decor", ghost = true, ref = "tornPhoto" }
-	)
-	box(
-		l,
-		"prop",
-		169.7,
+		63.7,
 		4.4,
 		-12.2,
 		1.2,
@@ -391,7 +566,7 @@ function BUILD.dungeon(l: Layout, Config: any)
 	box(
 		l,
 		"prop",
-		172.6,
+		66.6,
 		0.05,
 		-10.5,
 		1.2,
@@ -405,7 +580,7 @@ function BUILD.dungeon(l: Layout, Config: any)
 	end
 	-- missions lane (2026-11-20): the look round the safehouse after the choice: the torn photo, Patch's radio
 	-- desk (a desk, two sets and a mic arm) and the bunks (two cots). Ghost decor, PLACEHOLDER ART (box kit).
-	add(l, "tour", 166, 0.5, -12)
+	add(l, "tour", 66, 0.5, -16) -- the torn photo, just inside the door (2026-11-21)
 	box(l, "prop", 172, 1.5, 22, 8, 3, 4, "wood", { tag = "decor", ghost = true, ref = "tour" })
 	box(l, "prop", 170.5, 3.9, 22, 2.4, 1.8, 2, "steel", { tag = "decor", ghost = true, ref = "tour" })
 	box(l, "prop", 173.5, 3.9, 22, 2.4, 1.8, 2, "steel", { tag = "decor", ghost = true, ref = "tour" })
