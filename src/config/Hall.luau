@@ -36,7 +36,7 @@ return {
 		boards = { at = { 10.5, 20.8 }, size = { 8, 5 }, y = 5 }, -- on the back wall, facing in
 		contracts = { at = { -13.5, -20.8 }, size = { 8, 5 }, y = 5 }, -- on the front wall, facing in
 		squads = { at = { 10.5, -20.8 }, size = { 8, 5 }, y = 5 },
-		planters = { { -18.5, 18.5 }, { 18.5, -18.5 }, { -18.5, -18.5 } },
+		planters = { { -18.5, 10.5 }, { 12, 1 }, { 12, -10 } }, -- flower tubs (clear of the counter, lift and stair)
 	},
 	-- the training floor: a row of dummies to test every power and weapon on (shared by everyone there, each
 	-- hero's own meter), the big one behind, the Burst Test pad (deal all you can in `seconds`), a Loadout
@@ -68,7 +68,7 @@ return {
 		carts = { { -24, 44, 90 }, { 24, -44, -90 } },
 		cafes = { { 22, 42 }, { -22, -42 } },
 		tubs = { { -8, 27 }, { 8, 27 }, { -8, -27 }, { 8, -27 } },
-		lamps = { { -26, 28 }, { 26, 28 }, { -26, -28 }, { 26, -28 }, { 0, 50 }, { 0, -50 } },
+		lamps = { { -26, 28 }, { 26, 28 }, { -26, -28 }, { 26, -28 }, { 12, 52 }, { 0, -50 } },
 		bins = { { -18, 30 }, { 18, -30 } },
 		vending = { { 28, 34, -90 } },
 		-- the meeting spot before the front door: a ring of light on the paving everyone can find

@@ -245,6 +245,9 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 		p:SetAttribute("Tag", b.tag)
 		p:SetAttribute("Ref", b.ref or 0)
 	end
+	if b.hallPart then
+		p:SetAttribute("Hall", true) -- hero-hall: part of Crane's Hero Hall, whole like the tower (BuildingFx skips it)
+	end
 	if b.crown then
 		p:SetAttribute("Crown", true) -- a skyscraper's top: BuildingFx keeps it up while the shaft's top storey stands
 	end

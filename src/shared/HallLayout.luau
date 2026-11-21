@@ -117,7 +117,6 @@ local function face(
 		if glass then
 			span(list, "prop", x0, x1, top + y0, top + y1, z0, z1, "hallGlass", {
 				mat = "Glass",
-				tint = "hallGlass",
 				alpha = H.windows.alpha,
 				hall = "glass",
 			})
@@ -669,7 +668,7 @@ end
 -- The plaza's hub props (Config.Hall.plaza) as CityKit props: name, x, y, z, turn
 function HallLayout.props(Config: any, cx: number, cz: number, gy: number): { { [string]: any } }
 	local P = Config.Hall.plaza
-	local y = gy + 1.1
+	local y = gy + 1 -- (the city's prop rule: props stand at the ground line; the plaza's top is 0.1 above it)
 	local out = {}
 	local function put(name: string, x: number, z: number, ry: number)
 		table.insert(out, { name = name, x = cx + x, y = y, z = cz + z, ry = ry })

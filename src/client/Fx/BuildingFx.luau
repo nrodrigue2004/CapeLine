@@ -1588,6 +1588,7 @@ local function smashStreet(center: Vector3, radius: number, only: BasePart?, hea
 			and (p.Transparency < 1 or p:GetAttribute("Picket") == true) -- a picket fence's box is hidden behind its picture
 			and p.LocalTransparencyModifier < 1
 			and p:GetAttribute("Tag") == nil
+			and p:GetAttribute("Hall") == nil -- hero-hall: the Hall's counters, rails and panes stay (the tower never breaks)
 			and not (parent and parent:GetAttribute("BuildingId") ~= nil)
 		then
 			local kind = StreetBreak.kind(p.Size.X, p.Size.Y, p.Size.Z)
