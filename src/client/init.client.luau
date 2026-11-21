@@ -48,6 +48,7 @@ local BuildingFx = require(Fx.BuildingFx)
 local CityLife = require(Fx.CityLife)
 local ParkLife = require(Fx.ParkLife)
 local LitWindows = require(Fx.LitWindows)
+local FarSkyline = require(Fx.FarSkyline) -- 2026-11-21: the buildings past the streaming radius
 local WaterSurface = require(Fx.WaterSurface)
 local ImpactFx = require(Fx.ImpactFx) -- 2026-11-19: rams and throws through walls
 local MoveActClient = require(Controllers.MoveActClient) -- the 20 mobility moves (nate 2026-11-20)
@@ -190,6 +191,7 @@ BuildingFx.init()
 CityLife.init() -- the living world: traffic, pigeons, steam, flags, news drones, shop lights, prop bursts
 ParkLife.init() -- the city park: joggers, dogs, picnics, buskers, ducks, rowboats, the carousel, fountains, splashes
 LitWindows.init() -- shapes-2: the kit fronts' windows light up after dusk
+FarSkyline.init() -- 2026-11-21: stand-ins for the hub buildings not streamed in, with window bands
 WaterSurface.init() -- shapes-2: pools, ponds and fountains ripple
 ImpactFx.init()
 MoveActClient.init()

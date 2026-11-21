@@ -476,12 +476,15 @@ return function(T: any)
 		check(
 			has(
 				source("src/server/Services/BuildingService.luau"),
-				"CraterService.blast(center, radius, dmg)"
+				"CraterService.blast(center, radius, dmg, phase)" -- (2026-11-21: with the hitter's phase)
 			),
 			"big hits crater"
 		)
 		check(
-			has(source("src/server/Services/ImpactService.luau"), "CraterService.blast(at, radius, dmg)"),
+			has(
+				source("src/server/Services/ImpactService.luau"),
+				"CraterService.blast(at, radius, dmg, hero.phase)"
+			),
 			"a drop on the ground craters it"
 		)
 		check(has(source("src/server/init.server.luau"), 'boot("CraterService"'), "CraterService boots")

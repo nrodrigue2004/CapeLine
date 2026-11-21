@@ -8,6 +8,11 @@
 -- no collisions or queries; updated 4 times a second (FrameProf).
 -- The rim chunks are the broken blocks of Art.Rubble (Chunk1-3, art/blender/rubble.py; 2026-11-20) stretched to each
 -- chunk's box once they are imported; before that plain parts in the ground's colour (PLACEHOLDER ART).
+-- Ground marks (2026-11-21, nate: "I'm still not noticing any terrain damage or craters"): the server's lighter marks
+-- (wire tier 1 a dent, 2 a scorch; Config.Destruction.ground.marks) come on the same remotes. A scorch is the effects
+-- library's uploaded scorch sheet laid flat (Config.Fx.lib.textures.scorch); a dent is the crater ink small, a dark
+-- pit and the preset's markRim chips (a terrain dent's bowl is real: chips only). The preset's `marks` nearest within
+-- marks.range studs are drawn (1 to 2 + markRim parts each); they fade out over their last `heal` seconds.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -29,9 +34,20 @@ local GroundFx = {}
 
 local D = Config.Destruction
 local G = D.ground
+local M = G.marks
+local SCORCH = Config.Fx.lib.textures.scorch and Config.Fx.lib.textures.scorch.id or 0
 local PIT = Color3.fromRGB(38, 34, 36)
 
-type Drawn = { model: Model, rim: { { part: BasePart, from: CFrame, drop: number } }, ink: Decal? }
+type Drawn = {
+	model: Model,
+	rim: { { part: BasePart, from: CFrame, drop: number } },
+	ink: Decal?,
+	see: number?, -- the ink's own transparency when whole (a scorch)
+}
+
+local function cfgOf(c: CraterRules.Crater): any
+	return if (c.tier or 0) > 0 and M then M else G
+end
 
 local live: { [number]: CraterRules.Crater } = {} -- id -> crater (born on this device's clock)
 local drawn: { [number]: Drawn } = {}
@@ -93,7 +109,43 @@ local function groundLook(c: CraterRules.Crater): (Color3, Enum.Material)
 	return Color3.fromRGB(150, 130, 100), Enum.Material.Slate
 end
 
+-- A scorch: one flat see-through plate with the scorch sheet on top
+local function drawScorch(c: CraterRules.Crater): Drawn
+	local m = Instance.new("Model")
+	m.Name = "GroundMark_" .. c.id
+	local w = c.r * 2.2
+	local plate = part(
+		Vector3.new(w, 0.05, w),
+		CFrame.new(c.x, c.y + 0.06, c.z) * CFrame.Angles(0, (c.id * 1.37) % (math.pi * 2), 0),
+		PIT,
+		Enum.Material.SmoothPlastic
+	)
+	local ink: Decal? = nil
+	if SCORCH ~= 0 then
+		plate.Transparency = 1
+		local decal = Instance.new("Decal")
+		decal.Texture = "rbxassetid://" .. tostring(SCORCH)
+		decal.Face = Enum.NormalId.Top
+		decal.Color3 = Color3.fromRGB(30, 26, 24)
+		decal.Transparency = 0.1
+		decal.Parent = plate
+		ink = decal
+	else
+		-- no sheet: a soft dark disc (PLACEHOLDER ART)
+		plate.Shape = Enum.PartType.Cylinder
+		plate.Size = Vector3.new(0.05, w * 0.8, w * 0.8)
+		plate.CFrame = CFrame.new(c.x, c.y + 0.06, c.z) * CFrame.Angles(0, 0, math.rad(90))
+		plate.Transparency = 0.45
+	end
+	plate.Parent = m
+	m.Parent = folder
+	return { model = m, rim = {}, ink = ink, see = if ink then 0.1 else nil }
+end
+
 local function draw(c: CraterRules.Crater): Drawn
+	if c.tier == CraterRules.TIER.scorch then
+		return drawScorch(c)
+	end
 	local m = Instance.new("Model")
 	m.Name = "GroundCrater_" .. c.id
 	local color, material = groundLook(c)
@@ -131,7 +183,9 @@ local function draw(c: CraterRules.Crater): Drawn
 		pit.Parent = m
 	end
 	local rim = {}
-	for _, r in CraterRules.rim(c, QualityController.preset.craterRim or 8) do
+	local P = QualityController.preset :: any
+	local nRim = if (c.tier or 0) > 0 then P.markRim or 3 else P.craterRim or 8
+	for _, r in CraterRules.rim(c, nRim) do
 		local cf = CFrame.new(r.x, r.y, r.z)
 			* CFrame.Angles(0, math.rad(r.ry), 0)
 			* CFrame.Angles(0, 0, math.rad(r.tilt))
@@ -238,19 +292,29 @@ local function refresh()
 		return
 	end
 	local eye = cam.CFrame.Position
-	local list = {}
+	local list, small = {}, {}
+	local markRange = if M then M.range else 0
 	for id, c in live do
 		local d2 = (c.x - eye.X) ^ 2 + (c.z - eye.Z) ^ 2
-		if d2 < 600 * 600 then
+		if (c.tier or 0) > 0 then
+			if d2 < markRange * markRange then
+				table.insert(small, { id = id, d = d2 })
+			end
+		elseif d2 < 600 * 600 then
 			table.insert(list, { id = id, d = d2 })
 		end
 	end
-	table.sort(list, function(a, b)
+	local function nearest(a, b)
 		return a.d < b.d
-	end)
+	end
+	table.sort(list, nearest)
+	table.sort(small, nearest)
 	local keep: { [number]: boolean } = {}
 	for i = 1, math.min(#list, QualityController.preset.craters or 6) do
 		keep[list[i].id] = true
+	end
+	for i = 1, math.min(#small, (QualityController.preset :: any).marks or 0) do
+		keep[small[i].id] = true
 	end
 	for id in drawn do
 		if not keep[id] then
@@ -265,12 +329,13 @@ local function refresh()
 			d = draw(c)
 			drawn[id] = d
 		end
-		local h = CraterRules.healing(G, c, now)
+		local h = CraterRules.healing(cfgOf(c), c, now)
 		for _, r in d.rim do
 			r.part.CFrame = r.from - Vector3.new(0, r.drop * h, 0)
 		end
 		if d.ink then
-			d.ink.Transparency = h
+			local see = d.see or 0
+			d.ink.Transparency = see + (1 - see) * h
 		end
 	end
 end
@@ -293,6 +358,7 @@ local function fromWire(w: any): CraterRules.Crater?
 		ground = if w[6] == 1 then "terrain" else "part",
 		born = os.clock() - (tonumber(w[7]) or 0),
 		deep = math.clamp(math.floor(tonumber(w[8]) or 1), 1, 6),
+		tier = math.clamp(math.floor(tonumber(w[9]) or 0), 0, 2),
 	}
 end
 
@@ -330,11 +396,13 @@ function GroundFx.init()
 		local c = fromWire(w)
 		if c then
 			if live[c.id] then
-				undraw(c.id) -- dug deeper: drawn again at its new depth (destroy-all round 3)
+				undraw(c.id) -- dug deeper (destroy-all round 3) or a mark grown: drawn again at its new size
 			end
 			live[c.id] = c
-			Juice.fire("crater", Vector3.new(c.x, c.y, c.z), { mine = false })
-			clods(c)
+			if (c.tier or 0) == 0 then
+				Juice.fire("crater", Vector3.new(c.x, c.y, c.z), { mine = false })
+				clods(c)
+			end
 		end
 	end)
 	Net.listen("CraterGone", function(ids: any)

@@ -269,6 +269,9 @@ export type Sim = {
 	-- (robot, x, y, z, dx, dz, distance, exit) a launched robot meets a building's wall (exit: leaving one it broke
 	-- into); true when the wall broke and it may fly on through (the server's ImpactService; tests fake it)
 	wallHit: ((Enemy, number, number, number, number, number, number, boolean) -> boolean)?,
+	-- (robot, x, feetY, z, speed) a launched robot came down on open ground (not stopped by a wall), speed the faster
+	-- of its throw and its fall (2026-11-21: the server marks the ground, CraterService; tests fake it)
+	landHit: ((Enemy, number, number, number, number) -> ())?,
 	launched: { Enemy },
 }
 
@@ -331,6 +334,7 @@ function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 		rngNext = o.random or lcg,
 		ticksLastStep = 0,
 		wallHit = o.wallHit,
+		landHit = o.landHit,
 		launched = {},
 	}
 end
@@ -909,11 +913,17 @@ function EnemySim.launching(sim: Sim, id: number): boolean
 	return e ~= nil and e.launch ~= nil
 end
 
-local function endLaunch(sim: Sim, e: Enemy)
+-- landed: it came down on open ground at the end of its arc or fall (sim.landHit hears it)
+local function endLaunch(sim: Sim, e: Enemy, landed: boolean?)
+	local L = e.launch
 	e.launch = nil
 	e.vx, e.vy, e.vz = 0, 0, 0
 	if e.ai ~= "flyer" then
-		e.y = sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
+		local ground = sim.heightAt(e.x, e.z, e.y)
+		e.y = ground + halfHeight(e.cfg)
+		if landed and L and sim.landHit then
+			sim.landHit(e, e.x, ground, e.z, math.max(L.speed, L.fall or 0))
+		end
 	end
 end
 
@@ -929,7 +939,7 @@ local function stepLaunch(sim: Sim, e: Enemy, dt: number): boolean
 		e.y -= L.fall * dt
 		if e.y <= floor or e.ai == "flyer" then
 			e.y = math.max(e.y, floor)
-			endLaunch(sim, e)
+			endLaunch(sim, e, true)
 			return false
 		end
 		return true
@@ -1005,7 +1015,7 @@ local function stepLaunch(sim: Sim, e: Enemy, dt: number): boolean
 			L.fall = 0
 			return true
 		end
-		endLaunch(sim, e)
+		endLaunch(sim, e, L.ghost <= 0)
 		return false
 	end
 	return true

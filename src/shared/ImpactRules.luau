@@ -234,10 +234,28 @@ function ImpactRules.dropDamage(drop: any, fall: number): (number, number)
 	return math.floor(lerp(drop.dmg[1], drop.dmg[2], t)), lerp(drop.radius[1], drop.radius[2], t)
 end
 
+-- A landing on the ground too light for a drop (markFall to minFall, 2026-11-21): the ground mark's damage and radius
+-- (0 outside that band)
+function ImpactRules.markDamage(drop: any, fall: number): (number, number)
+	if not drop.markFall or fall < drop.markFall or fall >= drop.minFall then
+		return 0, 0
+	end
+	local t = (fall - drop.markFall) / (drop.minFall - drop.markFall)
+	return math.floor(lerp(drop.markDmg[1], drop.markDmg[2], t)), lerp(3, drop.radius[1], t)
+end
+
 -- The server's check of a drop the device saw: the server's own recent top speed backs the claimed fall, and
 -- the landing is near where the server has the hero. Returns the fall speed it counts at, or nil.
-function ImpactRules.dropOk(drop: any, claimed: number, peak: number, distance: number): number?
-	if claimed < drop.minFall or peak < drop.minFall / drop.slack then
+-- floor: the least fall it counts (minFall; markFall for a ground mark, 2026-11-21)
+function ImpactRules.dropOk(
+	drop: any,
+	claimed: number,
+	peak: number,
+	distance: number,
+	floor: number?
+): number?
+	local least = math.min(floor or drop.minFall, drop.minFall)
+	if claimed < least or peak < least / drop.slack then
 		return nil
 	end
 	if distance > drop.near + claimed * drop.lag then

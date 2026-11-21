@@ -32,6 +32,7 @@ local LifePlan = require(Shared:WaitForChild("LifePlan"))
 local Vehicles = require(Shared:WaitForChild("Vehicles"))
 local SignKit = require(Shared:WaitForChild("SignKit"))
 local StreetBreak = require(Shared:WaitForChild("StreetBreak"))
+local SkylinePlan = require(Shared:WaitForChild("SkylinePlan"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = {}
@@ -916,6 +917,15 @@ function CityBuilder.publishInfo(world: any)
 	value.Name = "WorldInfo";
 	(value :: StringValue).Value = HttpService:JSONEncode(info)
 	value.Parent = ReplicatedStorage
+	-- the far skyline (2026-11-21): every hub building's bodies and crown for each device's stand-ins (Fx.FarSkyline),
+	-- in its own value (about 45 KB) so the readers of WorldInfo keep a small text
+	if Config.City.far and Config.City.far.on then
+		local sky = ReplicatedStorage:FindFirstChild("SkylineInfo") or Instance.new("StringValue")
+		sky.Name = "SkylineInfo";
+		(sky :: StringValue).Value =
+			HttpService:JSONEncode(SkylinePlan.pack(SkylinePlan.collect(Config, world)))
+		sky.Parent = ReplicatedStorage
+	end
 end
 
 -- Roof or ground height anywhere; a collapsed building counts as its rubble heap

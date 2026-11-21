@@ -2657,3 +2657,18 @@ nate's "Mix": story missions play privately on the real map, special places keep
 453. When the run ends (or A leaves), A's character shows again on B's device at once (plate, aura, sounds back) and B's on A's; a character that respawns or rejoins mid-run stays hidden from the other side.
 454. During the run A cannot lift a street thing (car, bin) and ramming one does not knock it; A's move acts (MoveActFx) and held-prop swings never show on B's screen; citizens near B do not react to A (no cheering, fleeing or pointing at an invisible hero).
 455. A Downed member in the run: an outsider gets no REVIVE prompt for them; an outsider's hook (CombatFx claw) never catches a member.
+
+## Studio list: far skyline and craters (2026-11-21)
+760. Fly up over the plaza to the ceiling and turn round: every Downtown and Uptown tower stands to the horizon (no gaps where the streaming radius ends), the crowns (setbacks, spires, lanterns, masts) on top, the window bands readable; nothing flickers or doubles where a real chunk streams in (Explorer: Workspace.FarSkyline's Far_<id> models leave as their Building_<id> arrives).
+761. Same at night (Dev clock to 22:00): the far towers' bands glow warm, the near ones show the lit-window pictures out to about 600 studs on medium; at dawn the bands turn back to glass.
+762. On the phone preset (Settings: Low): the far skyline still shows (bands only on the tall towers); Dev panel FPS within 2 of before flying over the city; the micro-profiler's FarSkyline work is one short pass a half second.
+763. Break a tower's top storeys, fly 1,000+ studs away: its stand-in is the cut-down shaft without its crown; collapse one and fly away: no stand-in over its rubble; let the drones repair it: the stand-in is whole again.
+764. Switch preset Low -> High -> Medium while far out: the skyline rebuilds within a couple of seconds with no hitch.
+765. Walking and flying into a far building's spot as it streams in: never stopped by an invisible wall (stand-ins collide with nothing), the camera never pulls in on one.
+766. Memory: Dev panel or F9 Memory on a phone with the stand-ins up: under 10 MB more than before; if a PC has headroom, try StreamingTargetRadius 800 and say if it reads better.
+767. Basic shots and punches into the street: small scorch marks appear and fade after about 45 s; a skill on the ground leaves a dent with a few chips; hitting the same spot grows the mark instead of stacking new ones.
+768. Throw a car onto the road: a dent where it lands; slam a robot down (a heavy knock or throw): a mark where it hits the ground; jump off a 3-storey roof onto the sidewalk: a mark, and from a skyscraper a crater.
+769. In the park: a skill on the lawn dents the real Terrain a little; it fills back when the mark goes; a super on the same spot makes a crater and the dent's ground comes back right (no hole left after both heal).
+770. Two players, A in an on-map mission (phased), B outside: A's hits mark the ground only on A's screen; the park lawn never changes from A's hits; B's marks never show on A's screen during the run.
+771. A fight with 6 heroes spamming basics on one street for a minute: marks stay capped (Dev panel craters count at most 168), no frame drop from marks on the phone preset.
+

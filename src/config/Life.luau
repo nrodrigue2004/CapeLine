@@ -143,9 +143,11 @@ return {
 		minFace = 10, -- faces narrower than this stay dark
 		every = 0.75, -- seconds between passes
 		budget = {
-			low = { radius = 260, faces = 16 },
-			medium = { radius = 420, faces = 48 },
-			high = { radius = 700, faces = 120 },
+			-- (2026-11-21, nate: "windows should appear from further away": 260/420/700 and 16/48 before; past the
+			-- streaming radius the far skyline's lit bands take over, Fx.FarSkyline)
+			low = { radius = 360, faces = 24 },
+			medium = { radius = 600, faces = 72 },
+			high = { radius = 900, faces = 120 }, -- (faces stay at most 120: shapes test)
 		},
 	},
 	-- leaf colours by hash: mostly greens, a few autumn and blossom trees for variety (outskirts and parks)

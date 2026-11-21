@@ -2759,16 +2759,22 @@ function MoveController.init()
 	State.Changed:Connect(retune)
 	-- a drop onto a building from high up (nate, 2026-11-19 13:18Z; Config.Combat.drop): a landing this fast on a
 	-- wreckable roof asks the server to smash it (ImpactService checks the fall against its own history)
+	-- (2026-11-21) a landing on the ground from markFall up asks too: the server leaves a ground mark or crater there
+	local Dp = Config.Combat.drop
 	MoveController.Landed:Connect(function(pos: Vector3, fallSpeed: number)
-		if fallSpeed < Config.Combat.drop.minFall or not root then
+		if fallSpeed < math.min(Dp.minFall, Dp.markFall or Dp.minFall) or not root then
 			return
 		end
 		rayParams.FilterDescendantsInstances = { player.Character :: Instance }
 		local reach = (if hum then hum.HipHeight else 2) + root.Size.Y / 2 + 3
 		local hit = Workspace:Raycast(pos, Vector3.new(0, -reach, 0), rayParams)
 		if hit and buildingOf(hit.Instance) then
+			if fallSpeed >= Dp.minFall then
+				Net.send("ImpactDrop", hit.Position, fallSpeed)
+				MoveController.Dropped:Fire(hit.Position, fallSpeed)
+			end
+		elseif hit then
 			Net.send("ImpactDrop", hit.Position, fallSpeed)
-			MoveController.Dropped:Fire(hit.Position, fallSpeed)
 		end
 	end)
 	State.StatusChanged:Connect(function()
