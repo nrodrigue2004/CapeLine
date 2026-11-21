@@ -210,6 +210,14 @@ return function(T: any)
 		check(HallLayout.floorAt(spots, cx, spots.levels.lobby + 2, cz) == 1, "floorAt: the lobby")
 		check(HallLayout.floorAt(spots, cx, spots.levels.train + 2, cz) == 2, "floorAt: the training floor")
 		check(HallLayout.floorAt(spots, cx + 200, 5, cz) == nil, "floorAt: outside")
+		for _, f in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+			local x, z = HallLayout.faceOf(HallLayout.faceCode(f[1], f[2]))
+			local bx, bz = HallLayout.faceOf(10 + HallLayout.faceCode(f[1], f[2]))
+			check(
+				x == f[1] and z == f[2] and bx == f[1] and bz == f[2],
+				"a sign's face code turns back to its face"
+			)
+		end
 	end)
 
 	test(

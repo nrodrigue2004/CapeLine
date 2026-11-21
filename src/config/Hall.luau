@@ -14,7 +14,8 @@
 -- city's palette until a Blender pass.
 return {
 	on = true,
-	name = "HERO HALL", -- the signs (the lore's "Crane's Hero Hall" is the beacon's and the map's name)
+	name = "HERO HALL", -- the signs over the doors
+	bigName = "CRANE'S HERO HALL", -- the big sign on the east face (the Ceremony's backdrop; the lore's name)
 	wall = 2, -- the outer walls' thickness
 	slab = 2, -- each floor slab's thickness
 	lobbyHeight = 22, -- the lobby's clear height (plaza top to the slab over it)

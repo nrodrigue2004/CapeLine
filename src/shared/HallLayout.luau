@@ -588,7 +588,7 @@ function HallLayout.build(
 			"hallNavy",
 			{
 				tag = "hallSign",
-				ref = 0,
+				ref = HallLayout.faceCode(fx, fz), -- the device puts the words on this face
 				fx = fx,
 				fz = fz,
 			}
@@ -597,7 +597,7 @@ function HallLayout.build(
 	end
 	box(list, "terminal", cx + half + 0.15, top + 30, cz, 0.3, 8, 34, "hallNavy", {
 		tag = "hallSign",
-		ref = 1,
+		ref = 10 + HallLayout.faceCode(1, 0), -- 10 + the face: the big sign
 		fx = 1,
 		fz = 0,
 	})
@@ -705,6 +705,23 @@ function HallLayout.props(Config: any, cx: number, cz: number, gy: number): { { 
 		put("FlowerTub", t[1], t[2], 0)
 	end
 	return out
+end
+
+-- A face's code for a sign's Ref: 1 east (+x), 2 west, 3 back (+z), 4 front (-z); HallLayout.faceOf turns it back
+function HallLayout.faceCode(fx: number, fz: number): number
+	return if fx > 0 then 1 elseif fx < 0 then 2 elseif fz > 0 then 3 else 4
+end
+
+function HallLayout.faceOf(code: number): (number, number)
+	local c = code % 10
+	if c == 1 then
+		return 1, 0
+	elseif c == 2 then
+		return -1, 0
+	elseif c == 3 then
+		return 0, 1
+	end
+	return 0, -1
 end
 
 -- Which floor a height is on (1 lobby, 2 training floor, 3 the roof; nil: not in the Hall's column)

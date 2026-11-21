@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-21 playtest-hall1: gaps25 + Crane's Hero Hall (enterable lobby with Hall of Fame, shop, boards, squads, contracts; training floor with dummies, DPS meter, Burst Test, loadout, weapon rack; lifts; roof launch deck), the plaza as a hub, smaller banner words and unlock popups. Studio 514-531.
 - 2026-11-20 playtest-gaps25: gaps24 + missions on real map sites (Harbour Bridge, Old Town roofs, Crane Tower, Hero Hall plaza, Downtown crossroads, Crane Plant), squads hidden from outsiders. Studio 442-455.
 - 2026-11-20 playtest-gaps24: gaps23 + missions lane (Safehouse soft-lock, Warden/Bulwark HP, story beats in missions 2-6, Act 2 Most Wanted and The Line, private phased runs). Studio 407-415, 420-441. Next: missions on real map sites.
 - 2026-11-20 playtest-gaps23: gaps22 + cutscene polish round 2 (camera drift, jump cuts, depth of field, chase wall pull-in, stage and Lodestar animated). Studio 312-313.

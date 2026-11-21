@@ -23,6 +23,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
+local HallLayout = require(Shared:WaitForChild("HallLayout"))
 
 local State = require(script.Parent.Parent.State)
 local Kit = require(script.Parent.Parent.Ui.Kit)
@@ -122,28 +123,13 @@ local function dress(part: BasePart)
 		return
 	end
 	if tag == "hallSign" then
-		local big = part:GetAttribute("Ref") == 1
-		local wide = part.Size.X > part.Size.Z
-		local fx = if wide
-			then 0
-			else (if part.Position.X > (hall and hall.centre[1] or part.Position.X - 1) then 1 else -1)
-		local fz = if wide
-			then (if part.Position.Z > (hall and hall.centre[2] or part.Position.Z - 1) then 1 else -1)
-			else 0
+		local code = (part:GetAttribute("Ref") or 4) :: number
+		local big = code >= 10
+		local fx, fz = HallLayout.faceOf(code)
 		local g = surface(part, fx, fz)
 		g.PixelsPerStud = if big then 16 else 30
-		local l = words(g, H.name, GOLD)
+		local l = words(g, if big then H.bigName else H.name, GOLD)
 		l.Font = Enum.Font.Bangers
-		if big then
-			words(
-				g,
-				"CRANE INDUSTRIES",
-				Color3.fromRGB(220, 226, 240),
-				UDim2.fromScale(0.6, 0.18),
-				UDim2.fromScale(0.2, 0.8)
-			)
-			l.Size = UDim2.fromScale(0.94, 0.66)
-		end
 	elseif SCREENS[tag] then
 		local s = SCREENS[tag]
 		local faceZ = -((part:GetAttribute("Ref") or 1) :: number)
