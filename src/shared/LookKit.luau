@@ -1962,6 +1962,59 @@ LookKit.legsClothes = legsClothes
 -- CatalogLookService loads on the server into ReplicatedStorage.CatalogLooks (one Accessory per asset id), so
 -- every device clones the same item. Welded by its own attachment to the matching one on the body, the way
 -- Humanoid:AddAccessory fits it, so it sits exactly as on a Roblox avatar.
+-- nate's playtests 4 and 5 (2026-11-20/21: "Faces dont change btw no matter what i pick"): the pick reaches
+-- the head's face decal in every test outside Roblox, so this keeps it there in the real engine and says so in
+-- Studio's Output: the head remembers the face it should show; anything that writes another texture onto the
+-- face decal afterwards (the engine re-dressing a body, a copy) is put back, and other front decals on the head
+-- (a second face from a body or a description) are hidden. In Studio a line names the face and anything odd on
+-- the head (a dynamic head's FaceControls, a mesh texture with a baked face), for Studio item 805.
+local IS_STUDIO = (function()
+	local ok, yes = pcall(function()
+		return game:GetService("RunService"):IsStudio()
+	end)
+	return ok and yes == true
+end)()
+local faceGuards: { [Instance]: RBXScriptConnection } = setmetatable({}, { __mode = "k" }) :: any
+local function guardFace(head: BasePart, decal: Decal, tex: string)
+	head:SetAttribute("HeroFace", tex)
+	for _, d in head:GetChildren() do
+		if d ~= decal and d:IsA("Decal") and d.Face == Enum.NormalId.Front and d.Name ~= "EmblemArt" then
+			d.Transparency = 1 -- a second face under or over ours
+		end
+	end
+	if not faceGuards[decal] then
+		local ok, conn = pcall(function()
+			return decal:GetPropertyChangedSignal("Texture"):Connect(function()
+				local want = head:GetAttribute("HeroFace")
+				if type(want) == "string" and decal.Texture ~= want then
+					if IS_STUDIO then
+						warn("[Face] something set the face to", decal.Texture, "- putting back", want)
+					end
+					decal.Texture = want
+				end
+			end)
+		end)
+		if ok then
+			faceGuards[decal] = conn
+		end
+	end
+	if IS_STUDIO then
+		local odd = {}
+		if head:FindFirstChildOfClass("FaceControls") then
+			table.insert(odd, "FaceControls (a dynamic head: its face is in the mesh)")
+		end
+		if head:IsA("MeshPart") and head.TextureID ~= "" then
+			table.insert(odd, "a mesh texture " .. head.TextureID)
+		end
+		print(
+			"[Face]",
+			head.Parent and head.Parent.Name,
+			tex,
+			if #odd > 0 then table.concat(odd, ", ") else ""
+		)
+	end
+end
+
 local CATALOG_FACE: { [number]: number } = {}
 for _, row in Config.CatalogLooks.faces do
 	CATALOG_FACE[row[2]] = row[3]
@@ -2265,13 +2318,15 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 			local img = CATALOG_FACE[catalogId(visage) or 0]
 				or (if visage and not catalogId(visage) then catalogFaceFor(visage) else nil)
 			local f = Config.NpcLooks.faces[visage or ""]
-			decal.Texture = if img
+			local tex = if img
 				then "rbxassetid://" .. img
 				elseif f and f.human ~= 0 then "rbxassetid://" .. f.human
 				else "rbxasset://textures/face.png"
+			decal.Texture = tex
 			local faceKit = kitOf("face")
 			local drawnFace = faceKit ~= nil and not (RETIRED.face and not catalogId(faceKit))
 			decal.Transparency = if drawnFace or hidesFace then 1 else 0
+			guardFace(head :: BasePart, decal :: Decal, tex)
 		end
 	end
 	local e = kitOf("emblem")

@@ -496,23 +496,47 @@ local function swatch(color: Color3?, on: boolean, pick: () -> (), label: string
 end
 -- a ◀ value ▶ cycler across the grid
 local function cycler(label: string, value: string, change: (number) -> ())
+	-- nate's playtest (2026-11-21: "the customization stuff that has the arrows next to it ... i cant see the text
+	-- in the middle"): two 56 px arrow buttons left about 6 px of a 118 px tile for the words. Now the words fill
+	-- the tile (what it changes on top, the pick under it), thin arrows sit at its edges, and each outer third of
+	-- the tile is the tap for that arrow (tap targets stay thumb-sized; the words are never covered).
 	tileOrder += 1
 	local f = Kit.frame({ LayoutOrder = tileOrder, BackgroundColor3 = Kit.color.paper })
+	local EDGE = 14
+	local top = Kit.label({
+		Text = label,
+		Size = UDim2.new(1, -2 * EDGE, 0.4, 0),
+		Position = UDim2.new(0, EDGE, 0, 2),
+		TextColor3 = Kit.color.muted,
+		Font = Kit.bodyFont,
+		maxText = 11,
+	})
+	top.Parent = f
 	local l = Kit.label({
-		Text = label .. ": " .. value,
-		Size = UDim2.new(1, -2 * T, 1, 0),
-		Position = UDim2.fromOffset(T, 0),
+		Text = value,
+		Size = UDim2.new(1, -2 * EDGE, 0.55, -2),
+		Position = UDim2.new(0, EDGE, 0.42, 0),
 		TextColor3 = Kit.color.ink,
 		Font = Kit.bodyFont,
-		maxText = 13,
+		maxText = 15,
 	})
 	l.Parent = f
 	for i, dir in { -1, 1 } do
-		local b = Kit.button({
+		local glyph = Kit.label({
 			Text = if dir < 0 then "◀" else "▶",
-			Size = UDim2.new(0, T, 1, 0),
-			Position = if i == 1 then UDim2.new() else UDim2.new(1, -T, 0, 0),
-			BackgroundColor3 = Kit.color.gold,
+			Size = UDim2.new(0, EDGE, 1, 0),
+			Position = if i == 1 then UDim2.new() else UDim2.new(1, -EDGE, 0, 0),
+			TextColor3 = Kit.color.gold,
+			maxText = 14,
+		})
+		glyph.Parent = f
+		local b = Kit.button({
+			Text = "",
+			BackgroundTransparency = 1,
+			Size = UDim2.new(0.34, 0, 1, 0),
+			Position = if i == 1 then UDim2.new() else UDim2.new(0.66, 0, 0, 0),
+			ZIndex = 3,
+			ink = false,
 		}, function()
 			change(dir)
 		end)
