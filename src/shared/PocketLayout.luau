@@ -339,6 +339,11 @@ function BUILD.dungeon(l: Layout, Config: any)
 			end
 		end
 	end
+	-- the tunnel's two end walls (nate 2026-11-21: "why are there no walls? i can literally see the skybox": the
+	-- run stopped at the pocket's glass shell, so both ends looked out at the sky)
+	for k = -1, 1, 2 do
+		box(l, "building", k * 192, wallH / 2, 0, 4, wallH + 2, 124, wallC)
+	end
 	-- dividing walls with doors between the 3 rooms
 	for _, x in { -60, 60 } do
 		box(l, "building", x, wallH / 2, -38, 4, wallH, 40, wallC)
