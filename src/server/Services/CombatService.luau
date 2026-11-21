@@ -28,6 +28,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
+local LabRules = require(Shared:WaitForChild("LabRules"))
 local HitQuery = require(Shared:WaitForChild("HitQuery"))
 local CastPlan = require(Shared:WaitForChild("CastPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
@@ -1473,6 +1474,7 @@ function CombatService.use(
 		attackSpeed = Status.value(hero.status, "attackSpeed", now, 0),
 		awakened = awake,
 	})
+	full = LabRules.cooldown(Config, hero.lab, slot, full) -- Studio's Test Lab: "Cooldowns off"
 	-- from when it was due, not from now: the leeway lets a use in early, never shortens the cycle
 	Cooldowns.startNext(
 		hero.cooldowns,

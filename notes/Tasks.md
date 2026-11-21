@@ -204,6 +204,14 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+**How to test everything (Test Lab, 2026-11-21).** In Studio press Play, tap **LAB** (top right, beside DEV).
+WEAPONS: tap any of the 36 (held at once, Z X C V open). POWERS: pick an archetype and a path (loaded at the level
+cap, every ability at max rank), TRY puts any ability on key 1 (BORROW for the archetype's other paths), MOD flips its
+pick. MOVES: any mobility, any rank, both rank-3 and rank-5 moves. CHEATS: god, cooldowns off, endless stamina, supers
+ready. TARGETS: dummies with a damage readout, every robot, each world boss, the HQ boss sim. START: turn SKIP PROLOGUE
+on before OPEN CREATOR or WIPE to land straight in the city; LEAVE LAB gives your own build back (the save keeps it
+the whole time). Studio only: never in a live game.
+
 ### Alive world: safehouses, cranes, chimneys, roof gardens; scared traffic, gulls, smoke (2026-11-20, alive-world)
 Proved headless: the meshes are in the place (Art.Alive, 42 MeshParts, 18 SurfaceAppearances), every look sits over its
 box, the boxes stay (tests/alive_test.luau), the maths of the fear, U-turn and gull circle. Needs Studio:
@@ -2687,3 +2695,16 @@ nate's "Mix": story missions play privately on the real map, special places keep
 770. Two players, A in an on-map mission (phased), B outside: A's hits mark the ground only on A's screen; the park lawn never changes from A's hits; B's marks never show on A's screen during the run.
 771. A fight with 6 heroes spamming basics on one street for a minute: marks stay capped (Dev panel craters count at most 168), no frame drop from marks on the phone preset.
 
+## Studio list: Test Lab (2026-11-21)
+Headless proof: ONLY="Test Lab" (every path's lab loadout passes AbilityRules.validate, TRY on every ability and every
+borrowed skill, all 36 weapons with Z X C V open, every mobility at every rank with both moves, the real DevService's
+lab commands each doing what they say and every one refused outside Studio, the save keeping the pre-lab build, and a
+UiSim walk of every tab at 5 screen sizes). Needs Studio:
+780. Play in Studio: LAB shows beside DEV; it opens the page, X closes it; on a phone emulator (iPhone SE, Android 640, portrait) every tab, button and line is readable and tappable and the page scrolls.
+781. WEAPONS: tap each family's weapons in turn: the weapon appears in the hand at once, the HUD's Z X C V are all open (no "Mastery opens" note), each move plays; HOLD POWER / HOLD WEAPON swap. No weapon is added to the Weapon Rack's owned list and no Mastery toast appears.
+782. POWERS: each archetype, each path: the path loads (level 40, HUD keys 1-4 and the super filled); TRY on each skill puts it on key 1 and it casts; TRY on the super; MOD flips the rank-3 pick (the numbers change); BORROW: a skill of another path of the same archetype tries and casts.
+783. MOVES: each mobility at rank 5 feels like its trained self (no pull-backs in the Output); RANK 0 to 5 change the feel; both rank 3 and both rank 5 moves work when picked (the HUD's move button changes).
+784. CHEATS: GOD (no damage), COOLDOWNS OFF (skills and supers recast every 0.35 s, the HUD sweeps short), STAMINA: ENDLESS (boost, wall runs, the scurry never run out, no pull-back), SUPERS READY (sweeps clear, Awakening full), HEAL, LEVEL 40, STYLE.
+785. TARGETS: DUMMY and BIG DUMMY stand in front of you as the HQ's training dummies facing you, take every hit and show DEALT, HITS and PER SECOND; CLEAR DUMMIES removes them; each robot button spawns that robot in front at your level (flyers in the air); MY EVIL TWIN; each world boss lands in 3 s; BOSS TO 1 HP; HQ BOSS SIM takes you into your HQ with the sim station open.
+786. START: SKIP PROLOGUE ON, then WIPE: NEW HERO: the creator opens with no exposition page; PLAY drops you in the city (no prologue), the story says the opening is done, level 3 and mission 1 cleared. With it OFF the prologue plays as before. OPEN CREATOR with it ON on a hero whose opening was never played also lands in the city.
+787. LEAVE LAB: your own path, loadout, level, mobility and weapon come back; rejoin after testing in the lab without leaving it: the save has the build from before the lab (not the lab's).

@@ -12,4 +12,10 @@ return {
 	-- lore step 10: offer the side quest framework's sample chain (Config.SideQuests dev chains) at its
 	-- giver and in the Journal, in Studio only (the Dev panel gives it either way). Off for every build.
 	sideQuestSample = false,
+	-- The Test Lab (nate, 2026-11-21: "Need a way for me to test out all the weapons/powers/abolities/mobilies in an
+	-- easier way"): the Dev panel's LAB page, Studio only (Shared.LabRules, DevService's lab commands).
+	-- cooldown: seconds every non-basic use waits with "Cooldowns off" (the held M1 keeps its own rate);
+	-- dummies: the most training dummies at once; ahead / gap: studs in front of the hero and apart; robotAhead:
+	-- studs in front a spawned robot lands
+	lab = { cooldown = 0.35, dummies = 6, ahead = 18, gap = 8, robotAhead = 30, flyUp = 14 },
 }

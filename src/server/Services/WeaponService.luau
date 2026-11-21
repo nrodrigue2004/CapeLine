@@ -56,8 +56,8 @@ end
 local function addMastery(hero: any, weaponId: number, points: number)
 	local player = hero.player
 	local profile = player and DataService.get(player)
-	if not profile or weaponId ~= hero.weapon or points <= 0 then
-		return
+	if not profile or weaponId ~= hero.weapon or points <= 0 or hero.lab then
+		return -- (Studio's Test Lab earns no Mastery: its weapon may not even be owned)
 	end
 	local before = WeaponRules.masteryLevel(Config, hero.weaponMastery)
 	local level, opened = WeaponRules.addMastery(Config, profile, weaponId, points)

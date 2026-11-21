@@ -24,6 +24,7 @@ local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
+local LabRules = require(Shared:WaitForChild("LabRules"))
 local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
@@ -318,6 +319,7 @@ function CombatClient.fire(id: string, charge: number?): boolean
 		attackSpeed = State.buff("attackSpeed"),
 		awakened = awake,
 	})
+	full = LabRules.cooldown(Config, State.hero.lab, slot, full) -- Studio's Test Lab: "Cooldowns off"
 	Cooldowns.start(book, id, now, AbilityRules.afterUse(recast, id, eff, now, full))
 	seq += 1
 	channel = nil
@@ -1204,10 +1206,18 @@ function CombatClient.init()
 			Cooldowns.reduce(book, row.id, seconds) -- Cooling Kill
 		end
 	end)
+	local labReset = 0
 	State.Changed:Connect(function()
 		-- a respec or a new loadout resets local cooldowns the server also cleared
 		if State.hero.respecIn and State.hero.respecIn > Config.Abilities.respecCooldown - 2 then
 			Cooldowns.clear(book)
+		end
+		-- Studio's Test Lab: "Supers ready" (and a new lab build) cleared the server's cooldowns too
+		local lab = State.hero.lab
+		if lab and lab.on and lab.reset ~= labReset then
+			labReset = lab.reset
+			Cooldowns.clear(book)
+			table.clear(recast)
 		end
 	end)
 end

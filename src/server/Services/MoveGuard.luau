@@ -20,6 +20,7 @@ local MoveCheck = require(Shared:WaitForChild("MoveCheck"))
 local PosHistory = require(Shared:WaitForChild("PosHistory"))
 local Travel = require(Shared:WaitForChild("Travel"))
 local ClimbMath = require(Shared:WaitForChild("ClimbMath"))
+local LabRules = require(Shared:WaitForChild("LabRules"))
 
 local HeroService = require(script.Parent.HeroService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
@@ -306,7 +307,8 @@ function MoveGuard.init()
 					-- side-content: the hero's own Config.Move (its trained mobility ranks), as on its device
 					local moveCfg = HeroService.moveConfig(hero)
 					-- server stamina mirror
-					local free = t.freeUntil ~= nil and now < (t.freeUntil :: number)
+					local free = (t.freeUntil ~= nil and now < (t.freeUntil :: number))
+						or LabRules.freeStamina(hero.lab) -- Studio's Test Lab: infinite stamina
 					local drain = t.boosting and not free
 					t.stamina = MoveMath.staminaStep(moveCfg, t.stamina, true, drain, step, now - t.drainAt)
 					if drain then

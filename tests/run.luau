@@ -23342,7 +23342,9 @@ end
 	Config = Config,
 	world = world,
 	placePath = placePath,
-})
+});
+-- the Test Lab (2026-11-21): every weapon, power, mobility and cheat in Studio; ONLY="Test Lab"
+(require :: any)("./testlab_test")({ test = test, check = check, Config = Config, placePath = placePath })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)
