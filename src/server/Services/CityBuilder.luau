@@ -187,6 +187,10 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 		if b.tint then
 			p.Color = color(b.tint)
 		end
+		if b.alpha then
+			p.Transparency = b.alpha -- hero-hall: the Hall's window panes (they still collide)
+			p.CastShadow = false
+		end
 	elseif b.kit and b.tint and b.dress then
 		p.Color = color(b.tint) -- a dressing piece waiting on its texture still shows its pocket colour
 	end

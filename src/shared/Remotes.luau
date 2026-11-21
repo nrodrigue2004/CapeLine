@@ -303,6 +303,13 @@ local Remotes: { [string]: RemoteDef } = {
 	},
 	DronesReady = { dir = "S2C" }, -- { credits, minutes }: the COLLECT card
 	HqBossSim = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 }, -- start the 60 s boss sim (HQ level 3)
+	-- hero-hall (2026-11-21): Crane's Hero Hall. HallState: the dummies' target ids and spots, the Burst Test's
+	-- best; HallDps: your meter on the training floor (2 Hz while you hit); HallPad: you stand on the roof's launch
+	-- pad (the server checks it, grants the flight and answers HallLaunch { to, time, height })
+	HallState = { dir = "S2C" },
+	HallDps = { dir = "S2C" },
+	HallPad = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	HallLaunch = { dir = "S2C" },
 	HqDps = { dir = "S2C" }, -- { dps, total, sim = { left, hp, max } }: the training room meter, 2 Hz
 	HqRetire = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- Legacy at the level cap (Hall of Legends)
 	-- WP12: visit a friend's HQ (Shared.VisitRules, VisitService). HqVisitAsk: VISIT (the owner's user id);
