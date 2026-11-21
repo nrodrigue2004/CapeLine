@@ -25,6 +25,8 @@ export type Crater = {
 	ground: string, -- "terrain" or "part"
 	born: number,
 	deep: number?, -- destroy-all round 3: how many hits dug it (1 .. cfg.deepen.max; nil is 1)
+	tier: number?, -- 2026-11-21: nil or 0 a crater, 1 a ground mark's dent, 2 a scorch (CraterRules.TIER)
+	phase: number?, -- a private mission run's (PhaseRules): only its party sees it, and it never digs Terrain
 }
 
 export type Book = {
@@ -33,9 +35,12 @@ export type Book = {
 	times: { number },
 }
 
-function CraterRules.new(): Book
-	return { list = {}, next = 1, times = {} }
+-- idBase: the first id (the ground marks' book starts apart from the craters', so a device keeps both in one list)
+function CraterRules.new(idBase: number?): Book
+	return { list = {}, next = idBase or 1, times = {} }
 end
+
+CraterRules.TIER = { crater = 0, dent = 1, scorch = 2 }
 
 local function lerp(a: number, b: number, t: number): number
 	return a + (b - a) * math.clamp(t, 0, 1)
@@ -275,6 +280,115 @@ end
 function CraterRules.inPark(park: any?, x: number, z: number): boolean
 	local b = park and park.bounds
 	return b ~= nil and x >= b.minX and x <= b.maxX and z >= b.minZ and z <= b.maxZ
+end
+
+-- Ground marks (2026-11-21, nate: "I'm still not noticing any terrain damage or craters"): the hits too light for a
+-- crater leave a small scorch or a shallow dent (M: Config.Destruction.ground.marks, the same caps as craters on their
+-- own book). The mark a hit of dmg makes: its radius (0: too light) and tier (dent at M.dent+, else scorch).
+function CraterRules.markFor(M: any, dmg: number): (number, number)
+	if not M or not M.on or dmg < M.minDmg then
+		return 0, 0
+	end
+	local r = lerp(M.radius[1], M.radius[2], (dmg - M.minDmg) / (M.fullDmg - M.minDmg))
+	return r, if dmg >= M.dent then CraterRules.TIER.dent else CraterRules.TIER.scorch
+end
+
+-- Is the book's per-second cap reached now? (checked before the server casts its ray, so a flurry of basic hits
+-- costs nothing past the cap)
+function CraterRules.busy(cfg: any, book: Book, now: number): boolean
+	local n = 0
+	for _, t in book.times do
+		if now - t < 1 then
+			n += 1
+		end
+	end
+	return n >= cfg.perSecond
+end
+
+-- A hit inside a live mark of the same phase (M.merge x its radius) grows that mark (x M.grow, to M.radius[2]; a dent
+-- once the hit is heavy enough) and starts its life again, instead of a new mark beside it. Counts toward the rate.
+function CraterRules.grow(
+	M: any,
+	book: Book,
+	x: number,
+	z: number,
+	dmg: number,
+	phase: number?,
+	now: number
+): Crater?
+	if CraterRules.busy(M, book, now) then
+		return nil
+	end
+	for _, c in book.list do
+		if c.phase == phase and (c.x - x) ^ 2 + (c.z - z) ^ 2 <= (c.r * M.merge) ^ 2 then
+			local r, tier = CraterRules.markFor(M, dmg)
+			c.r = math.min(M.radius[2], math.max(c.r * M.grow, r))
+			if c.ground ~= "terrain" and tier == CraterRules.TIER.dent then
+				c.tier = tier
+			end
+			c.born = now
+			table.insert(book.times, now)
+			return c
+		end
+	end
+	return nil
+end
+
+-- A new ground mark, or nil (too light, or a cap says no). ground "terrain" only for a dent M.dig+ across outside a
+-- phase (the caller digs it); otherwise it is drawn on every device like part ground.
+function CraterRules.addMark(
+	M: any,
+	book: Book,
+	x: number,
+	y: number,
+	z: number,
+	dmg: number,
+	ground: string,
+	phase: number?,
+	now: number
+): Crater?
+	local r, tier = CraterRules.markFor(M, dmg)
+	if r <= 0 then
+		return nil
+	end
+	if ground == "terrain" and (phase ~= nil or tier ~= CraterRules.TIER.dent or r < M.dig) then
+		ground = "part"
+	end
+	if CraterRules.refuse(M, book, x, z, r, ground, now) then
+		return nil
+	end
+	local c: Crater = {
+		id = book.next,
+		x = x,
+		y = y,
+		z = z,
+		r = r,
+		ground = ground,
+		born = now,
+		tier = tier,
+		phase = phase,
+	}
+	book.next += 1
+	table.insert(book.list, c)
+	table.insert(book.times, now)
+	return c
+end
+
+-- The live terrain craters of a book whose voxels a terrain crater of radius r at (x, z) would share (so the server
+-- writes theirs back first, or refuses it)
+function CraterRules.overlapping(cfg: any, book: Book, x: number, z: number, r: number): { Crater }
+	local out = {}
+	for _, c in book.list do
+		if c.ground == "terrain" and math.sqrt((c.x - x) ^ 2 + (c.z - z) ^ 2) < c.r + r + cfg.voxel * 2 then
+			table.insert(out, c)
+		end
+	end
+	return out
+end
+
+-- May a device in phase `mine` see crater c? (PhaseRules.sees: strict both ways)
+function CraterRules.sees(c: Crater, mine: number?): boolean
+	return c.phase == mine
 end
 
 -- A device's rim chunks for a part crater: n chunks round the rim, tilted outward, seeded by the crater's id so

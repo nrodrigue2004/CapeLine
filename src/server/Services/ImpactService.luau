@@ -26,6 +26,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local ImpactRules = require(Shared:WaitForChild("ImpactRules"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules"))
 local CityPlay = require(Shared:WaitForChild("CityPlay"))
 
 local HeroService = require(script.Parent.HeroService)
@@ -289,12 +290,17 @@ local function onDrop(player: Player, at: Vector3, fall: number)
 	end
 	local Dp = Config.Combat.drop
 	local peak = MoveGuard.peakSpeed(hero, Dp.window)
-	local speed = ImpactRules.dropOk(Dp, fall, peak, (at - pos).Magnitude)
+	local speed = ImpactRules.dropOk(Dp, fall, peak, (at - pos).Magnitude, Dp.markFall)
 	if not speed then
 		return
 	end
 	local dmg, radius = ImpactRules.dropDamage(Dp, speed)
 	if dmg <= 0 then
+		-- a lighter landing on the ground (2026-11-21): a ground mark only; no robots hit, nothing broken
+		local mdmg, mr = ImpactRules.markDamage(Dp, speed)
+		if mdmg > 0 and not BuildingService.buildingAt(at + Vector3.new(0, -2, 0), 3) then
+			CraterService.blast(at, mr, mdmg, hero.phase)
+		end
 		return
 	end
 	if ImpactService.dropHit then
@@ -304,7 +310,7 @@ local function onDrop(player: Player, at: Vector3, fall: number)
 	local id = BuildingService.buildingAt(at + Vector3.new(0, -2, 0), 3)
 	if not id then
 		-- a landing on the ground craters it (fix-destroy, 2026-11-19: CraterService, inside its own caps)
-		CraterService.blast(at, radius, dmg)
+		CraterService.blast(at, radius, dmg, hero.phase)
 		return
 	end
 	if not BuildingService.breakable(id) then
@@ -436,6 +442,17 @@ function ImpactService.init()
 	Net.on("ImpactDrop", onDrop)
 	EnemyService.heroHitHook = ImpactService.robotHit
 	EnemyService.launchWall = launchWall
+	-- a robot slammed or thrown down hard marks the ground where it lands (2026-11-21; Config.Destruction.ground.marks
+	-- robot). A private run's robot (PhaseRules: its sim key) marks only for that run; the prologue's never.
+	local MR = Config.Destruction.ground.marks and Config.Destruction.ground.marks.robot
+	EnemyService.launchLand = function(e: any, at: Vector3, speed: number)
+		if not MR or speed < MR.minSpeed or (e.solo and e.solo > 0) then
+			return
+		end
+		local t = math.clamp((speed - MR.minSpeed) / (MR.fullSpeed - MR.minSpeed), 0, 1)
+		local dmg = MR.dmg[1] + (MR.dmg[2] - MR.dmg[1]) * t
+		CraterService.blast(at, MR.radius, dmg, PhaseRules.phaseOf(e.solo))
+	end
 	Players.PlayerRemoving:Connect(function(player)
 		local hero = HeroService.get(player)
 		if hero then

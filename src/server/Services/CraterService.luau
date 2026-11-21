@@ -12,6 +12,13 @@
 --   (CraterRules.waterLevel: a lawn crater is a dry bowl), and a heavy hit on the open sea throws a splash on the
 --   devices near (BuildingImpact kind 5, splashRate a second; the park's lake splashes through Fx.ParkLife).
 -- * Remotes: CraterSync (a device asks once), CraterState (the live list), CraterAdd, CraterGone.
+-- * Ground marks (2026-11-21, nate: "I'm still not noticing any terrain damage or craters"): a hit too light for a
+--   crater (basic and skill hits at the ground, landings from height, thrown cars, robots slammed down) or one the
+--   crater caps refuse leaves a mark (CraterRules.addMark, Config.Destruction.ground.marks, its own book and caps): a
+--   scorch, or a shallow dent that digs the park's or the seabed's Terrain a little (never under a live crater: a
+--   crater over a dent writes the dent's voxels back first). A hit in a live mark grows it. Marks ride on the craters'
+--   remotes (wire field 9 the tier). A private mission run's craters and marks (blast's phase, PhaseRules) never touch
+--   Terrain and go only to its party's devices (the Player's Phase attribute).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +28,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local CraterRules = require(Shared:WaitForChild("CraterRules"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules"))
 local ParkLayout = require(Shared:WaitForChild("ParkLayout"))
 
 local PerfMonitor = require(script.Parent.PerfMonitor)
@@ -28,8 +36,12 @@ local PerfMonitor = require(script.Parent.PerfMonitor)
 local CraterService = {}
 
 local G = Config.Destruction.ground
+local M = G.marks
 local WATER_Y = Config.World.coast.waterY
 local book = CraterRules.new()
+local marks = CraterRules.new(M and M.idBase)
+CraterService.marks = marks
+CraterService.marked = 0 -- ground marks made since boot (PerfMonitor)
 local saved: { [number]: { region: Region3, mats: any, occ: any } } = {}
 CraterService.book = book
 CraterService.dug = 0 -- terrain craters dug since boot (PerfMonitor)
@@ -58,7 +70,31 @@ local function wire(c: CraterRules.Crater): { any }
 		if c.ground == "terrain" then 1 else 0,
 		os.clock() - c.born,
 		c.deep or 1,
+		c.tier or 0,
 	}
+end
+
+local function phaseOf(player: Player): number?
+	return PhaseRules.read(player:GetAttribute("Phase"))
+end
+
+-- To every device that may see it (a phased one only to its party's)
+local function send(name: string, c: CraterRules.Crater)
+	if c.phase == nil then
+		local w = wire(c)
+		for _, player in Players:GetPlayers() do
+			if phaseOf(player) == nil then
+				Net.fire(name, player, w)
+			end
+		end
+		return
+	end
+	local w = wire(c)
+	for _, player in Players:GetPlayers() do
+		if CraterRules.sees(c, phaseOf(player)) then
+			Net.fire(name, player, w)
+		end
+	end
 end
 
 local function rayParams(): RaycastParams
@@ -141,13 +177,17 @@ end
 -- go), then every dig carves from that read at the crater's depth now (deeper after more hits, shallower as it fills
 -- back: scale) and writes it. Returns true when written.
 local filled: { [number]: number } = {} -- crater id -> the fill scale last written
+local function cfgOf(c: CraterRules.Crater): any
+	return if (c.tier or 0) > 0 then M else G
+end
 local function dig(c: CraterRules.Crater, scale: number?): boolean
 	local terrain = Workspace.Terrain
-	local lo, hi = CraterRules.region(G, c)
+	local cfg = cfgOf(c)
+	local lo, hi = CraterRules.region(cfg, c)
 	local s = saved[c.id]
 	if not s then
 		local region = Region3.new(Vector3.new(lo[1], lo[2], lo[3]), Vector3.new(hi[1], hi[2], hi[3]))
-		local ok, mats, occ = pcall(terrain.ReadVoxels, terrain, region, G.voxel)
+		local ok, mats, occ = pcall(terrain.ReadVoxels, terrain, region, cfg.voxel)
 		if not ok then
 			return false
 		end
@@ -167,8 +207,8 @@ local function dig(c: CraterRules.Crater, scale: number?): boolean
 		end
 	end
 	local world = require(script.Parent.CityBuilder).world -- (required here: the park is built after boot)
-	local waterY = CraterRules.waterLevel(G, world and world.park, WATER_Y, c.x, c.z, ParkLayout.inside)
-	if CraterRules.carve(G, c, lo, names, occs, waterY, scale) == 0 and not saved[c.id] then
+	local waterY = CraterRules.waterLevel(cfg, world and world.park, WATER_Y, c.x, c.z, ParkLayout.inside)
+	if CraterRules.carve(cfg, c, lo, names, occs, waterY, scale) == 0 and not saved[c.id] then
 		return false
 	end
 	local mats, occ = {}, {}
@@ -182,7 +222,7 @@ local function dig(c: CraterRules.Crater, scale: number?): boolean
 			end
 		end
 	end
-	local wrote = pcall(terrain.WriteVoxels, terrain, keep.region, G.voxel, mats, occ)
+	local wrote = pcall(terrain.WriteVoxels, terrain, keep.region, cfg.voxel, mats, occ)
 	if wrote then
 		if not saved[c.id] then
 			CraterService.dug += 1
@@ -193,42 +233,113 @@ local function dig(c: CraterRules.Crater, scale: number?): boolean
 	return wrote
 end
 
--- A heavy hit at `at` (dmg structure damage, radius its blast): a crater in the ground under it, if the ground is
--- close under it and the caps allow. Returns the crater or nil.
-function CraterService.blast(at: Vector3, radius: number, dmg: number): CraterRules.Crater?
-	if not G.on or (dmg < G.minDmg and dmg < (G.splashMin or math.huge)) then
+-- Write a terrain crater's or mark's voxels back as read (it healed, or a crater is dug over it)
+local function restore(c: CraterRules.Crater)
+	local sv = saved[c.id]
+	filled[c.id] = nil
+	if sv then
+		saved[c.id] = nil
+		local terrain = Workspace.Terrain
+		pcall(terrain.WriteVoxels, terrain, sv.region, cfgOf(c).voxel, sv.mats, sv.occ)
+	end
+end
+
+-- A ground mark where a lighter hit meets the ground (2026-11-21): grown if it lands in a live one, else a new scorch
+-- or dent inside the marks' caps. Returns the mark or nil.
+local function mark(surface: Vector3, kind: string, dmg: number, phase: number?): CraterRules.Crater?
+	local now = os.clock()
+	local grown = CraterRules.grow(M, marks, surface.X, surface.Z, dmg, phase, now)
+	if grown then
+		if grown.ground == "terrain" then
+			dig(grown)
+		end
+		send("CraterAdd", grown)
+		return grown
+	end
+	if kind == "terrain" and (#CraterRules.overlapping(G, book, surface.X, surface.Z, M.radius[2]) > 0) then
+		return nil -- (inside a live crater's bowl: its voxels are the crater's)
+	end
+	local c = CraterRules.addMark(M, marks, surface.X, surface.Y, surface.Z, dmg, kind, phase, now)
+	if not c then
 		return nil
+	end
+	if c.ground == "terrain" and not dig(c) then
+		c.ground = "part"
+	end
+	CraterService.marked += 1
+	send("CraterAdd", c)
+	return c
+end
+
+-- A heavy hit at `at` (dmg structure damage, radius its blast): a crater in the ground under it, if the ground is
+-- close under it and the caps allow; a lighter one (or one the crater caps refuse) leaves a ground mark (2026-11-21).
+-- phase: the hitter's private mission run (PhaseRules), whose craters only its party sees and which never dig Terrain.
+-- Returns the crater or mark, or nil.
+function CraterService.blast(at: Vector3, radius: number, dmg: number, phase: number?): CraterRules.Crater?
+	local markOk = M ~= nil and M.on and dmg >= M.minDmg
+	if not G.on or (dmg < G.minDmg and dmg < (G.splashMin or math.huge) and not markOk) then
+		return nil
+	end
+	if dmg < G.minDmg and dmg < (G.splashMin or math.huge) and CraterRules.busy(M, marks, os.clock()) then
+		return nil -- (a flurry of light hits: past the marks' rate, no ray at all)
 	end
 	local t0 = os.clock()
 	local kind, surface = groundAt(at)
-	if not kind or not surface or at.Y - surface.Y > G.near + radius * 0.5 then
+	local near = if dmg >= G.minDmg then G.near else math.min(G.near, M and M.near or G.near)
+	if not kind or not surface or at.Y - surface.Y > near + radius * 0.5 then
 		return nil
 	end
 	if kind == "water" then
-		splash(surface, radius)
+		if phase == nil and dmg >= (G.splashMin or math.huge) then
+			splash(surface, radius)
+		end
 		return nil
 	end
+	if phase ~= nil and kind == "terrain" then
+		kind = "part" -- a private run never changes the shared ground
+	end
 	if dmg < G.minDmg then
-		return nil -- (a lighter hit only splashes)
+		local c = if markOk then mark(surface, kind, dmg, phase) else nil
+		PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
+		return c
 	end
 	-- another heavy hit in a live crater digs it deeper (destroy-all round 3) instead of a new one beside it
-	local deeper = CraterRules.deepen(G, book, surface.X, surface.Z, os.clock())
+	local deeper = if phase == nil then CraterRules.deepen(G, book, surface.X, surface.Z, os.clock()) else nil
 	if deeper then
 		if deeper.ground == "terrain" then
 			dig(deeper)
 		end
-		Net.fireAll("CraterAdd", wire(deeper))
+		send("CraterAdd", deeper)
 		PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
 		return deeper
 	end
 	local c = CraterRules.add(G, book, surface.X, surface.Y, surface.Z, dmg, kind, os.clock())
 	if not c then
-		return nil
+		-- the crater caps said no: the ground still shows the hit
+		local m = if markOk then mark(surface, kind, math.min(dmg, M.fullDmg), phase) else nil
+		PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
+		return m
 	end
-	if kind == "terrain" and not dig(c) then
-		c.ground = "part" -- nothing to dig there after all: drawn like part ground
+	c.phase = phase
+	if kind == "terrain" then
+		-- the dents it is dug over give their voxels back first (each writes back only what it read)
+		local gone = {}
+		for _, m in CraterRules.overlapping(M, marks, c.x, c.z, c.r) do
+			restore(m)
+			local i = table.find(marks.list, m)
+			if i then
+				table.remove(marks.list, i)
+			end
+			table.insert(gone, m.id)
+		end
+		if #gone > 0 then
+			Net.fireAll("CraterGone", gone)
+		end
+		if not dig(c) then
+			c.ground = "part" -- nothing to dig there after all: drawn like part ground
+		end
 	end
-	Net.fireAll("CraterAdd", wire(c))
+	send("CraterAdd", c)
 	PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
 	return c
 end
@@ -236,13 +347,18 @@ end
 function CraterService.init()
 	Net.on("CraterSync", function(player)
 		local list = {}
-		for _, c in book.list do
-			table.insert(list, wire(c))
+		local mine = phaseOf(player)
+		for _, b in { book, marks } do
+			for _, c in b.list do
+				if CraterRules.sees(c, mine) then
+					table.insert(list, wire(c))
+				end
+			end
 		end
 		Net.fire("CraterState", player, list)
 	end)
 	PerfMonitor.watch("craters", function()
-		return #book.list
+		return #book.list + #marks.list
 	end)
 	task.spawn(function()
 		while true do
@@ -257,19 +373,17 @@ function CraterService.init()
 					end
 				end
 			end
-			local gone = CraterRules.step(G, book, now)
-			if #gone > 0 then
-				local ids = {}
-				for _, c in gone do
-					table.insert(ids, c.id)
-					local s = saved[c.id]
-					filled[c.id] = nil
-					if s then
-						saved[c.id] = nil
-						local terrain = Workspace.Terrain
-						pcall(terrain.WriteVoxels, terrain, s.region, G.voxel, s.mats, s.occ)
-					end
+			local ids = {}
+			for _, b in { { book, G }, { marks, M } } do
+				if not b[2] then
+					continue
 				end
+				for _, c in CraterRules.step(b[2], b[1], now) do
+					table.insert(ids, c.id)
+					restore(c)
+				end
+			end
+			if #ids > 0 then
 				Net.fireAll("CraterGone", ids)
 			end
 		end

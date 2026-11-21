@@ -23334,7 +23334,15 @@ end
 });
 (require :: any)("./alive2_test")({ test = test, check = check, Config = Config, world = world });
 (require :: any)("./alive3_test")({ test = test, check = check, Config = Config });
-(require :: any)("./alive4_test")({ test = test, check = check, Config = Config })
+(require :: any)("./alive4_test")({ test = test, check = check, Config = Config });
+-- the far skyline and ground marks (2026-11-21, own file): ONLY="Far skyline" or ONLY="Ground marks"
+(require :: any)("./far_craters_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+})
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

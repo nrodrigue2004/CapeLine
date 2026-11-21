@@ -23,6 +23,9 @@ return {
 	order = { "low", "medium", "high" },
 	low = {
 		streamRadius = 400,
+		marks = 10, -- ground marks drawn (GroundFx: scorches and dents from lighter hits, 2026-11-21)
+		markRim = 0, -- rim chips round each drawn dent
+		far = { parts = 1400, bands = 3, bandMin = 90, step = 60 }, -- the far skyline's stand-ins (Fx.FarSkyline): part cap, window bands a building, its least height, studs between bands
 		partBudget = 6000,
 		debris = 60,
 		falling = 240, -- building pieces in a falling storey or collapse animated at once (BuildingFx; the rest just go)
@@ -59,6 +62,9 @@ return {
 	},
 	medium = {
 		streamRadius = 600,
+		marks = 28, -- ground marks drawn (GroundFx: scorches and dents from lighter hits, 2026-11-21)
+		markRim = 3, -- rim chips round each drawn dent
+		far = { parts = 3600, bands = 8, bandMin = 36, step = 36 }, -- the far skyline's stand-ins (Fx.FarSkyline): part cap, window bands a building, its least height, studs between bands
 		partBudget = 12000,
 		debris = 150,
 		falling = 600,
@@ -95,6 +101,9 @@ return {
 	},
 	high = {
 		streamRadius = 800,
+		marks = 48, -- ground marks drawn (GroundFx: scorches and dents from lighter hits, 2026-11-21)
+		markRim = 4, -- rim chips round each drawn dent
+		far = { parts = 7000, bands = 16, bandMin = 24, step = 24 }, -- the far skyline's stand-ins (Fx.FarSkyline): part cap, window bands a building, its least height, studs between bands
 		partBudget = 20000,
 		debris = 250,
 		falling = 1000,

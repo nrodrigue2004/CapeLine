@@ -296,7 +296,7 @@ return function(T: any)
 		local cr = "src/server/Services/CraterService.luau"
 		check(has(cr, 'return "water", hit.Position'), "a hit on the water is seen")
 		check(has(cr, 'Net.fire("BuildingImpact", player, at, radius, 5)'), "and splashes")
-		check(has(cr, "CraterRules.waterLevel(G, world and world.park"), "park craters dig dry")
+		check(has(cr, "CraterRules.waterLevel(cfg, world and world.park"), "park craters dig dry")
 		check(
 			has("src/server/Services/CityBuilder.luau", 'p:SetAttribute("Dress", dress.box[i])'),
 			"the Deep's groups"
