@@ -73,6 +73,11 @@ return {
 		vending = { { 28, 34, -90 } },
 		-- the meeting spot before the front door: a ring of light on the paving everyone can find
 		meet = { at = { 0, -38 }, radius = 6 },
+		-- a fountain on the back paving (the hub's other gathering spot), trees in planters, and a gold inlay
+		-- strip round the Hall `inlay` studs out from its walls
+		fountain = { at = { 0, 44 }, radius = 6, height = 2.2, jet = 9 },
+		trees = { { -20, 48 }, { 20, -48 }, { -32, -34 } }, -- (clear of the board, the lore book and the stairwell)
+		inlay = 5,
 		-- the canopy over the front door (at the doorway's top) and the gold pillars holding it
 		canopy = { depth = 8, width = 20, y = 15 },
 	},

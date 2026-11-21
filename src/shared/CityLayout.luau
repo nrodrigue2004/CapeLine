@@ -760,6 +760,9 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?, full: any?): Layout
 			if bx == midX and bz == midZ then
 				-- the plaza and Beacon Tower (the Vigil's HQ): where new heroes land
 				box(boxes, "plaza", bcx, gy + 0.6, bcz, t.block, 1, t.block, "sidewalk")
+				if kit and full and full.Hall and full.Hall.on then
+					boxes[#boxes].kit = "Terrazzo" -- hero-hall: the hub plaza in warm terrazzo, not plain sidewalk
+				end
 				local bw = t.beacon.width
 				-- hero-hall (nate 2026-11-21: "still cant enter building by hub area"): with Config.Hall on, the
 				-- tower's bottom two storeys are Crane's Hero Hall (Shared.HallLayout: the lobby, the training
@@ -784,7 +787,7 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?, full: any?): Layout
 					solidFrom = solid + 0.1 -- the plaza's top is gy + 1.1; the tower's box began at gy + 1
 					if kit then
 						for _, p in HallLayout.props(full, bcx, bcz, gy) do
-							CityKit.put(c.props, p.name, p.x, p.y, p.z, p.ry)
+							CityKit.put(c.props, p.name, p.x, p.y, p.z, p.ry).tint = p.tint
 						end
 					end
 				end

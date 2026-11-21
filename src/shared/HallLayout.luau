@@ -25,7 +25,9 @@ local function box(
 	color: string,
 	extra: { [string]: any }?
 ): Box
-	local b: Box = { kind = kind, cx = cx, cy = cy, cz = cz, sx = sx, sy = sy, sz = sz, color = color }
+	-- hallPart: one of the Hall's own boxes (Shared.MapPlan leaves them off the map pictures: the tower covers them)
+	local b: Box =
+		{ kind = kind, cx = cx, cy = cy, cz = cz, sx = sx, sy = sy, sz = sz, color = color, hallPart = true }
 	if extra then
 		for k, v in extra do
 			b[k] = v
@@ -113,7 +115,7 @@ local function face(
 			x0, x1 = d - w / 2, d + w / 2
 		end
 		if glass then
-			span(list, "beacon", x0, x1, top + y0, top + y1, z0, z1, "hallGlass", {
+			span(list, "prop", x0, x1, top + y0, top + y1, z0, z1, "hallGlass", {
 				mat = "Glass",
 				tint = "hallGlass",
 				alpha = H.windows.alpha,
@@ -124,6 +126,30 @@ local function face(
 			if b and kit then
 				b.kit = kit
 			end
+			-- the inside lining (warm plaster, not the facade's windows), inset from the wall's inner face; it stops
+			-- short of the storey's floor slab so it never pokes up through the training floor
+			local t = 0.2
+			local ix0, ix1, iz0, iz1 = x0, x1, z0, z1
+			if fz ~= 0 then
+				local inner = cz + fz * (half - w)
+				iz0, iz1 = math.min(inner, inner - fz * t), math.max(inner, inner - fz * t)
+				ix0, ix1 = math.max(x0, cx - half + w), math.min(x1, cx + half - w)
+			else
+				local inner = cx + fx * (half - w)
+				ix0, ix1 = math.min(inner, inner - fx * t), math.max(inner, inner - fx * t)
+			end
+			span(
+				list,
+				"prop",
+				ix0,
+				ix1,
+				top + y0,
+				top + y1,
+				iz0,
+				iz1,
+				"hallWall",
+				{ hall = "lining", ghost = true }
+			)
 		end
 	end
 	-- the corners belong to the north and south faces (full length); east and west fit between them
@@ -164,12 +190,24 @@ function HallLayout.build(
 	local inner = half - w
 	local lobby, train, solid = HallLayout.levels(Config)
 	local spots: { [string]: any } = {}
+	local tiles = kit ~= nil -- the city kit is on: the slabs, steps and floors wear its textures
 	-- the walls
 	for _, f in { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } } do
 		face(list, Config, cx, cz, top, half, f[1], f[2], kit)
 	end
 	-- the lobby's floor (terrazzo with a red runner from the south door to the dais) and its ceiling lights
-	span(list, "plaza", cx - inner, cx + inner, top - 0.2, top + 0.15, cz - inner, cz + inner, "hallFloor")
+	span(
+		list,
+		"plaza",
+		cx - inner,
+		cx + inner,
+		top - 0.2,
+		top + 0.15,
+		cz - inner,
+		cz + inner,
+		"hallFloor",
+		{ kit = tiles and "Terrazzo" }
+	)
 	span(
 		list,
 		"plaza",
@@ -191,9 +229,42 @@ function HallLayout.build(
 	local sz0 = cz + inner - S.landing - run -- the stair's foot (south end)
 	local sz1 = cz + inner - S.landing -- its head
 	local y0, y1 = top + train - H.slab, top + train
-	span(list, "beacon", cx - inner, sx0, y0, y1, cz - inner, cz + inner, "hallSlab", { hall = "slab" })
-	span(list, "beacon", sx0, sx1, y0, y1, sz1, cz + inner, "hallSlab", { hall = "slab" })
-	span(list, "beacon", sx0, sx1, y0, y1, cz - inner, sz0, "hallSlab", { hall = "slab" })
+	span(
+		list,
+		"beacon",
+		cx - inner,
+		sx0,
+		y0,
+		y1,
+		cz - inner,
+		cz + inner,
+		"hallSlab",
+		{ hall = "slab", kit = tiles and "Concrete" }
+	)
+	span(
+		list,
+		"beacon",
+		sx0,
+		sx1,
+		y0,
+		y1,
+		sz1,
+		cz + inner,
+		"hallSlab",
+		{ hall = "slab", kit = tiles and "Concrete" }
+	)
+	span(
+		list,
+		"beacon",
+		sx0,
+		sx1,
+		y0,
+		y1,
+		cz - inner,
+		sz0,
+		"hallSlab",
+		{ hall = "slab", kit = tiles and "Concrete" }
+	)
 	-- the training floor's mats over the slab
 	span(
 		list,
@@ -210,10 +281,21 @@ function HallLayout.build(
 	-- the steps: solid blocks up to each tread, north from the foot
 	for i = 1, steps do
 		local z0 = sz0 + (i - 1) * S.step
-		span(list, "beacon", sx0, sx1, top, top + i * rise, z0, z0 + S.step, "hallStep", { hall = "step" })
+		span(
+			list,
+			"beacon",
+			sx0,
+			sx1,
+			top,
+			top + i * rise,
+			z0,
+			z0 + S.step,
+			"hallStep",
+			{ hall = "step", kit = tiles and "Terrazzo" }
+		)
 	end
 	-- the rail along the hole's west edge upstairs (gold), and on the stair's open side
-	span(list, "beacon", sx0 - 0.6, sx0, y1, y1 + 3.2, sz0, sz1, "hallGold", { hall = "rail" })
+	span(list, "prop", sx0 - 0.6, sx0, y1, y1 + 3.2, sz0, sz1, "hallGold", { hall = "rail" })
 	-- the roof slab of the base (the tower's solid part starts here)
 	spots.levels = { lobby = top + lobby, train = top + train, solid = top + solid }
 	-- ceiling light panels on both storeys (HallClient lights them)
@@ -303,9 +385,9 @@ function HallLayout.build(
 	screen("hallBoards", L.boards, top, 1)
 	screen("hallContracts", L.contracts, top, -1)
 	screen("hallSquads", L.squads, top, -1)
+	spots.planters = {} -- (the lobby's flower tubs: city props, HallLayout.props)
 	for _, p in L.planters do
-		box(list, "prop", cx + p[1], top + 1.2, cz + p[2], 3.4, 2.4, 3.4, "hallNavy")
-		box(list, "prop", cx + p[1], top + 3.4, cz + p[2], 3.6, 3.6, 3.6, "leaf", { shape = "ball" })
+		table.insert(spots.planters, { x = cx + p[1], y = top, z = cz + p[2] })
 	end
 
 	-- the lifts: one stop a floor and one on the roof, in the same order as H.lift.dests
@@ -427,13 +509,14 @@ function HallLayout.build(
 		"hallSlab",
 		{
 			hall = "deck",
+			kit = tiles and "Concrete",
 		}
 	)
 	for _, sgn in { -1, 1 } do
 		local rx = cx + sgn * (dk.width / 2 - 0.3)
 		span(
 			list,
-			"beacon",
+			"prop",
 			rx - 0.3,
 			rx + 0.3,
 			roofY,
@@ -460,7 +543,7 @@ function HallLayout.build(
 	local doorTop = top + H.door.height
 	span(
 		list,
-		"beacon",
+		"prop",
 		cx - C.width / 2,
 		cx + C.width / 2,
 		top + C.y,
@@ -530,6 +613,55 @@ function HallLayout.build(
 		ref = 0,
 	})
 	spots.meet = { x = cx + M.at[1], y = top, z = cz + M.at[2], r = M.radius }
+	-- the fountain on the back paving: a stone basin, its water and a jet (as Uptown's green)
+	local F = H.plaza.fountain
+	local fx, fz = cx + F.at[1], cz + F.at[2]
+	box(list, "prop", fx, top + F.height / 2, fz, F.radius * 2, F.height, F.radius * 2, "upCream", {
+		shape = "cylinder",
+	})
+	box(list, "water", fx, top + F.height - 0.2, fz, F.radius * 2 - 1.6, 0.4, F.radius * 2 - 1.6, "water", {
+		shape = "cylinder",
+	})
+	box(list, "prop", fx, top + F.height + F.jet / 2, fz, 1.6, F.jet, 1.6, "water", {
+		shape = "cylinder",
+		ghost = true,
+	})
+	spots.fountain = { x = fx, y = top, z = fz, r = F.radius }
+	-- the gold inlay strip round the Hall, broken at the doorways
+	local o = half + H.plaza.inlay
+	for _, f in { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } } do
+		local door = hasDoor(H, f[1], f[2])
+		local pieces = if door
+			then { { -o, -H.door.width / 2 - 2 }, { H.door.width / 2 + 2, o } }
+			else { { -o, o } }
+		for _, pc in pieces do
+			if f[2] ~= 0 then
+				span(
+					list,
+					"mark",
+					cx + pc[1],
+					cx + pc[2],
+					top,
+					top + 0.06,
+					cz + f[2] * o - 0.6,
+					cz + f[2] * o + 0.6,
+					"hallGold"
+				)
+			else
+				span(
+					list,
+					"mark",
+					cx + f[1] * o - 0.6,
+					cx + f[1] * o + 0.6,
+					top,
+					top + 0.06,
+					cz + pc[1],
+					cz + pc[2],
+					"hallGold"
+				)
+			end
+		end
+	end
 	spots.top, spots.half, spots.centre = top, half, { cx, cz }
 	return list, spots
 end
@@ -545,8 +677,10 @@ function HallLayout.props(Config: any, cx: number, cz: number, gy: number): { { 
 	for _, b in P.benches do
 		put("Bench", b[1], b[2], b[3])
 	end
-	for _, c in P.carts do
+	local play = Config.City.kit.play
+	for i, c in P.carts do
 		put("FoodCart", c[1], c[2], c[3])
+		out[#out].tint = play.tints[(i - 1) % #play.tints + 1]
 	end
 	for _, c in P.cafes do
 		put("CafeSet", c[1], c[2], 0)
@@ -554,14 +688,22 @@ function HallLayout.props(Config: any, cx: number, cz: number, gy: number): { { 
 	for _, t in P.tubs do
 		put("FlowerTub", t[1], t[2], 0)
 	end
+	for _, t in P.trees do
+		put("Planter", t[1], t[2], 0)
+	end
 	for _, l in P.lamps do
 		put("StreetLamp", l[1], l[2], 0)
 	end
 	for _, b in P.bins do
 		put("Bin", b[1], b[2], 0)
 	end
-	for _, v in P.vending do
+	for i, v in P.vending do
 		put("VendingMachine", v[1], v[2], v[3])
+		out[#out].tint = play.vending.tints[(i - 1) % #play.vending.tints + 1]
+	end
+	-- the lobby's flower tubs in its corners
+	for _, t in Config.Hall.lobby.planters do
+		put("FlowerTub", t[1], t[2], 0)
 	end
 	return out
 end

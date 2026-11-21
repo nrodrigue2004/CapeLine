@@ -842,6 +842,7 @@ return {
 		-- Crane's Hero Hall inside (Config.Hall, PLACEHOLDER ART): terrazzo, the red runner, slabs and steps, gold
 		-- trim, Crane navy desks, the screens' dark glass, the training mats, the lift and pad glows, light panels
 		hallFloor = { 226, 216, 198 },
+		hallWall = { 238, 230, 214 },
 		hallCarpet = { 168, 40, 48 },
 		hallSlab = { 200, 202, 208 },
 		hallStep = { 176, 178, 186 },

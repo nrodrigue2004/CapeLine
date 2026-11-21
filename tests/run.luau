@@ -23303,6 +23303,15 @@ do
 		placePath = placePath,
 	})
 end
+-- hero-hall (2026-11-21, own file): Crane's Hero Hall, the Beacon Tower's enterable base and the hub plaza;
+-- ONLY="Hero Hall"
+(require :: any)("./hall_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+});
 -- move-2 (2026-11-19, own file): the smash rule, the Hulk climb, the Acrobat's crawl and flips, swing anywhere and
 -- everyone's sprint; ONLY="Climb"
 (require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath });

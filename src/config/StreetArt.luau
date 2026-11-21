@@ -30,7 +30,7 @@ return {
 		ShelterSeat = { size = { 4.400, 1.640, 0.900 }, offset = { 0.000, 0.870, 0.450 } }, -- 132 tris
 	},
 	Bush = {
-		Bush = { size = { 4.862, 3.575, 4.430 }, offset = { -0.023, 1.787, -0.000 } }, -- 1782 tris
+		Bush = { size = { 4.862, 3.575, 4.430 }, offset = { -0.023, 1.787, -0.000 } }, -- 1776 tris
 	},
 	CafeSet = {
 		CafeChairs = { size = { 5.580, 3.200, 1.300 }, offset = { 0.000, 1.600, -0.000 } }, -- 528 tris

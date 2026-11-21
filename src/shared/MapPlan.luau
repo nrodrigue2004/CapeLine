@@ -297,7 +297,8 @@ function MapPlan.cityBoxes(cityCfg: any, w: any, world: any): { any }
 	local out = {}
 	local function add(list: { any }, layer: string)
 		for _, b in list do
-			if SEEN[b.kind] and inAny(b) then
+			-- (hero-hall: the Hall's own boxes are under or inside the Beacon Tower, which the picture shows)
+			if SEEN[b.kind] and not b.hallPart and inAny(b) then
 				table.insert(out, {
 					layer = layer,
 					kind = b.kind,
