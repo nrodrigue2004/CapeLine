@@ -150,8 +150,9 @@ end
 local function stampNow(text: string, color: Color3, sub: string?): Frame
 	local f = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.32),
-		Size = UDim2.fromOffset(260, if sub then 110 else 80),
+		-- nate 2026-11-21: "The big words on the screen in the yellow font are too big": smaller, higher, a smaller slam
+		Position = UDim2.fromScale(0.5, 0.26),
+		Size = UDim2.fromOffset(210, if sub then 84 else 60),
 		BackgroundColor3 = Kit.color.night,
 		BackgroundTransparency = 0.15,
 	})
@@ -178,26 +179,26 @@ local function stampNow(text: string, color: Color3, sub: string?): Frame
 	end
 	local l = Kit.label({
 		Text = text,
-		Size = UDim2.new(1, -16, 0, 60),
+		Size = UDim2.new(1, -16, 0, 44),
 		Position = UDim2.fromOffset(8, 8),
 		TextColor3 = color,
-		maxText = 48,
+		maxText = 34,
 	})
 	l.TextStrokeTransparency = 0
 	l.Parent = f
 	if sub then
 		local s = Kit.label({
 			Text = sub,
-			Size = UDim2.new(1, -16, 0, 30),
-			Position = UDim2.fromOffset(8, 70),
+			Size = UDim2.new(1, -16, 0, 22),
+			Position = UDim2.fromOffset(8, 54),
 			TextColor3 = Kit.color.paper,
 			Font = Kit.bodyFont,
-			maxText = 18,
+			maxText = 15,
 		})
 		s.Parent = f
 	end
 	local scale = Instance.new("UIScale")
-	scale.Scale = if JuiceFx.reduce then 1 else 2.2
+	scale.Scale = if JuiceFx.reduce then 1 else 1.6
 	scale.Parent = f
 	f.Rotation = if JuiceFx.reduce then 0 else -12
 	f.Parent = gui
@@ -355,7 +356,7 @@ local function levelBadge(_at: Vector3?, data: { [string]: any }?): Frame
 	local badge = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.fromOffset(150, 150),
+		Size = UDim2.fromOffset(116, 116), -- smaller (nate 2026-11-21: unlocks on screen too big)
 		BackgroundColor3 = GOLD,
 	})
 	Kit.round(badge, 75)
@@ -392,7 +393,7 @@ local function levelBadge(_at: Vector3?, data: { [string]: any }?): Frame
 		Size = UDim2.fromScale(1, 0.7),
 		Position = UDim2.fromScale(0, 0.08),
 		TextColor3 = Kit.color.ink,
-		maxText = 90,
+		maxText = 70,
 	})
 	n.Parent = badge
 	local l = Kit.label({
@@ -423,7 +424,7 @@ local function levelBadge(_at: Vector3?, data: { [string]: any }?): Frame
 		local s = Kit.label({
 			Text = string.format("NEXT AT %d: %s", nextAt, string.upper(unlock)),
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0.42, 84),
+			Position = UDim2.new(0.5, 0, 0.42, 66),
 			Size = UDim2.fromOffset(340, 30),
 			TextColor3 = Kit.color.muted,
 			maxText = 22,
