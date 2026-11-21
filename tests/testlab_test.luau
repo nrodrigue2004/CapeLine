@@ -442,6 +442,7 @@ return function(T: any)
 				"ContractService",
 				"EventService",
 				"ClockService",
+				"WeatherService",
 				"StoryService",
 				"OpeningService",
 				"MissionService",

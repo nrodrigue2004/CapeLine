@@ -189,6 +189,13 @@ local Remotes: { [string]: RemoteDef } = {
 	BossContribution = { dir = "S2C" }, -- { score, tier, rank, heroes }, 1 Hz to each fighter
 	BossResult = { dir = "S2C" }, -- { defeated, tier, rank, credits, renown, drops, style, mvp }
 	WorldClock = { dir = "S2C" }, -- { start, cycle }: the client works out the time of day
+	WeatherStrike = { dir = "S2C" }, -- x, y, z, seed: a lightning storm's bolt on a roof (WeatherService)
+	-- planet travel (2026-11-21, Config.Space): fly into a ring and ask for the trip (0 the orbit, else a world);
+	-- the server checks and starts the entry (dest, seconds, ship 0/1), lands you (dest), or says why not
+	SpaceGo = { dir = "C2S", schema = { n(0, 8) }, rate = 1, burst = 3 },
+	SpaceEntry = { dir = "S2C" }, -- dest, seconds, ship (1: the ship's cutscene)
+	SpaceArrive = { dir = "S2C" }, -- dest
+	SpaceDenied = { dir = "S2C" }, -- dest, reason ("level", "locked", "combat", "wait", "far")
 	-- Underwater (Config.Deep): caches open and commuters are picked up by swimming close (the server's own
 	-- position check), so there is no C2S remote. { opened = { [cache id] = seconds left }, rescues = { [id]
 	-- = true when waiting }, carriers = { [hero id] = rescue id } }

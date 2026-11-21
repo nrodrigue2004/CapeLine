@@ -1042,10 +1042,68 @@ def rain_main():
     print("wrote rain.png and splash.png to", OUT)
 
 
+def weather_main():
+    """The new weathers (Everything Left 735, 2026-11-21): snow.png (a soft round flake, softer than Frost's
+    six-armed one so a screen of them reads as snowfall, not effects), paper.png (a curled paper scrap for windy
+    days; leaves reuse leaf.png), shimmer.png (thin wavy rising bands, the heatwave's air over hot ground) and
+    aurora.png (a curtain strip for the aurora's Beams: bright lower hem, rays fading upward). White on
+    transparent; the game tints them. Preview art/preview/fx_weather.png on a night-blue city colour."""
+    os.makedirs(OUT, exist_ok=True)
+    size = 64
+    gx, gy = grid(size)
+    r = np.sqrt(gx ** 2 + gy ** 2)
+    ang = np.arctan2(gy, gx)
+    snow = to_image(np.clip(np.exp(-(r / 0.42) ** 2) * (0.85 + 0.15 * np.cos(ang * 6)) * 1.1, 0, 1))
+    snow.save(os.path.join(OUT, "snow.png"))
+    size = 96
+    gx, gy = grid(size)
+    # a curled scrap: a skewed rectangle, a fold line darker, soft edges
+    u = gx * 0.95 + gy * 0.25
+    v = gy * 0.9 - gx * 0.18 + 0.12 * np.sin(gx * 3.0)
+    body = (np.abs(u) < 0.62) & (np.abs(v) < 0.42)
+    soft = np.clip((0.62 - np.abs(u)) * 14, 0, 1) * np.clip((0.42 - np.abs(v)) * 14, 0, 1)
+    fold = 1 - 0.35 * np.exp(-((u - 0.12) / 0.04) ** 2)
+    lines = 1 - 0.18 * (np.sin(v * 40) > 0.85)
+    paper = to_image(np.where(body, soft * fold * lines, 0))
+    paper.save(os.path.join(OUT, "paper.png"))
+    w, h = 128, 256
+    y, x = np.mgrid[0:h, 0:w].astype(np.float32)
+    t = y / (h - 1)
+    bands = np.zeros_like(x)
+    for k in range(5):
+        cx = (k + 0.5) * w / 5 + 6 * np.sin(t * math.pi * 4 + k * 1.7)
+        bands += np.exp(-((x - cx) / 2.2) ** 2)
+    env = np.clip(np.sin(t * math.pi), 0, 1) ** 1.5
+    shimmer = to_image(np.clip(bands * env * 0.55, 0, 1))
+    shimmer.save(os.path.join(OUT, "shimmer.png"))
+    w, h = 256, 128
+    y, x = np.mgrid[0:h, 0:w].astype(np.float32)
+    t = 1 - y / (h - 1)  # 0 at the hem (bottom), 1 at the top
+    fine = 0.5 + 0.5 * np.sin(x / w * math.pi * 46 + np.sin(x / w * math.pi * 5) * 3)
+    broad = 0.5 + 0.5 * np.sin(x / w * math.pi * 8 + 1.3)
+    rays = 0.35 + 0.4 * fine ** 3 + 0.25 * broad
+    hem = np.exp(-((t - 0.07) / 0.05) ** 2) * (0.8 + 0.2 * broad)
+    rise = np.exp(-t * 2.6) * np.clip(t * 12, 0, 1)
+    aurora = to_image(np.clip(hem * 0.75 + rise * rays * 0.85, 0, 1))
+    aurora.save(os.path.join(OUT, "aurora.png"))
+    pv = Image.new("RGBA", (640, 300), (18, 24, 48, 255))
+    tint = lambda im, c: Image.fromarray((np.asarray(im, np.float32) * np.array(list(c) + [255]) / 255).astype(np.uint8), "RGBA")
+    pv.alpha_composite(tint(aurora, (120, 255, 170)).resize((600, 150)), (20, 10))
+    for i in range(20):
+        pv.alpha_composite(snow.resize((14, 14)), (20 + i * 29, 170 + (i * 37) % 50))
+    pv.alpha_composite(paper, (40, 190))
+    pv.alpha_composite(tint(paper, (230, 220, 200)).rotate(30), (150, 190))
+    pv.alpha_composite(tint(shimmer, (255, 200, 150)).resize((96, 110)), (300, 180))
+    pv.save(os.path.join(ROOT, "art", "preview", "fx_weather.png"))
+    print("wrote snow.png, paper.png, shimmer.png and aurora.png to", OUT)
+
+
 if __name__ == "__main__":
     import sys
 
-    if "--rain" in sys.argv:  # only the weather's rain streak and splash (Config.Fx.weather)
+    if "--weather" in sys.argv:  # only the new weathers' snow, paper, shimmer and aurora (Config.Weather)
+        weather_main()
+    elif "--rain" in sys.argv:  # only the weather's rain streak and splash (Config.Fx.weather)
         rain_main()
     elif "--cracks" in sys.argv:  # only the landing crack decals (Config.Fx.crack.decals)
         cracks_main()

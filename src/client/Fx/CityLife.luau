@@ -1242,6 +1242,8 @@ local function dropFlag(fl: Flag)
 	end
 end
 
+local flagClock = 0
+local flagLast: number? = nil
 local function stepFlags(now: number)
 	local B = budget()
 	local f = focus()
@@ -1266,6 +1268,12 @@ local function stepFlags(now: number)
 		end
 	end
 	local wind = L.flagRoofs.wind
+	-- windy days and blizzards whip the flags (Fx.WeatherFx's "WeatherGust" 0..1): the wave runs on its own clock
+	-- that speeds up with the gust, so a change of weather never jumps the cloth
+	local gust = Players.LocalPlayer:GetAttribute("WeatherGust")
+	local mul = 1 + (if type(gust) == "number" then gust else 0) * (Config.Weather.debris.flagWind - 1)
+	flagClock += math.clamp(now - (flagLast or now), 0, 0.25) * mul
+	flagLast = now
 	for i in keep do
 		local fl = flags[i]
 		if not fl then
@@ -1293,7 +1301,7 @@ local function stepFlags(now: number)
 				local sw = L.flagRoofs.size[1] / n
 				local cf = fl.hoist
 				for k, s in fl.segs do
-					cf *= CFrame.Angles(0, LifePlan.wave(k, n, now + i, wind), 0)
+					cf *= CFrame.Angles(0, LifePlan.wave(k, n, flagClock + i, wind), 0)
 					table.insert(bulkParts, s)
 					table.insert(bulkCFrames, cf * CFrame.new(sw / 2, 0, 0))
 					cf *= CFrame.new(sw, 0, 0)

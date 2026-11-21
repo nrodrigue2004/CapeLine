@@ -6,7 +6,7 @@
 -- around the hero, default 3000), repair (every building back), flip (every vehicle near the hero),
 -- incident 1-24 (that template next to the hero), clearincidents, event 1-12, boss (land the next world
 -- boss in 3 s), bosskill (the boss to 1 HP), contract (finish the first accepted contract), clock 0-3
--- (day, dusk, night, dawn), side 0/1 (hero or villain, for this session only).
+-- (day, dusk, night, dawn), weather 0-11 (hold a weather, 0 lets go), strike (a roof strike near a hero), side 0/1 (hero or villain, for this session only).
 -- 2026-11-17: heroic 0/1 (the incidents, events and contracts the Dev panel starts are Heroic), contractstart
 -- 1-12 (take that contract type here, no board).
 -- M9: creator (open the creator to remake this hero), hq (enter your HQ), hqlevel n, away n (offline drones
@@ -57,6 +57,7 @@ local ContractService = require(script.Parent.ContractService)
 local EventService = require(script.Parent.EventService)
 local BossService = require(script.Parent.BossService)
 local ClockService = require(script.Parent.ClockService)
+local WeatherService = require(script.Parent.WeatherService)
 local StoryService = require(script.Parent.StoryService)
 local OpeningService = require(script.Parent.OpeningService)
 local MissionService = require(script.Parent.MissionService)
@@ -534,6 +535,13 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	clock = function(_, _, n)
 		ClockService.jump(n)
+	end,
+	-- weather n: hold kind n of Config.Weather.order (0 lets go); strike: a lightning strike near a hero now
+	weather = function(_, _, n)
+		WeatherService.hold(n or 0)
+	end,
+	strike = function()
+		print("[Dev] strike", WeatherService.strike())
 	end,
 	side = function(_, hero, villain)
 		hero.side = if villain ~= 0 then "villain" else "hero"

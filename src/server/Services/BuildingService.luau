@@ -303,6 +303,27 @@ function BuildingService.buildingAt(at: Vector3, pad: number): number?
 	end)
 end
 
+-- The breakable, standing buildings round (x, z) within r as { id, x, z, sx, sz, top } (the standing roof top):
+-- where a lightning storm may strike (WeatherService, 2026-11-21)
+function BuildingService.roofsNear(x: number, z: number, r: number): { any }
+	local book = BuildingService.book
+	local out = {}
+	if not book then
+		return out
+	end
+	for _, id in BuildingState.near(book, x, z, r) do
+		local b = records[id]
+		if b and breakable(id) and book.state[id] ~= BuildingState.COLLAPSED then
+			local t = CityBuilder.tops[id]
+			table.insert(
+				out,
+				{ id = id, x = b.x, z = b.z, sx = b.sx, sz = b.sz, top = if t then t.top else b.top }
+			)
+		end
+	end
+	return out
+end
+
 function BuildingService.breakable(id: number): boolean
 	return breakable(id)
 end

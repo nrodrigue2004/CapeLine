@@ -174,11 +174,14 @@ local function draw()
 	local cyc = Config.World.clock.cycle
 	local t = WorldClient.clockT() % cyc
 	local hours = (6 + t / cyc * 24) % 24
+	-- the weather's name after it (Fx.WeatherFx sets the attribute; clear and shelter show none)
+	local weather = me:GetAttribute("Weather")
 	clockText.Text = string.format(
-		"%s %02d:%02d",
+		"%s %02d:%02d%s",
 		if WorldClient.isNight() then "NIGHT" else "DAY",
 		math.floor(hours),
-		math.floor((hours % 1) * 60)
+		math.floor((hours % 1) * 60),
+		if type(weather) == "string" and weather ~= "" then " · " .. string.upper(weather) else ""
 	)
 	local boost = me:GetAttribute("FriendBoost")
 	boostText.Text = if typeof(boost) == "number" then string.format("FRIEND BOOST +%d%%", boost) else ""
@@ -299,6 +302,7 @@ function Radar.init()
 		TextStrokeTransparency = 0.3,
 		Font = Kit.bodyFont,
 		maxText = 13,
+		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 	clockText.Parent = gui
 	bossText = Kit.label({
@@ -362,7 +366,7 @@ function Radar.init()
 		disc.Active = hb.radarTaps
 		for i, l in { clockText, bossText, boostText } do
 			l.Position = UDim2.fromOffset(t.x, t.y + (i - 1) * t.h)
-			l.Size = UDim2.fromOffset(t.w + (if i == 1 then 0 else 40), t.h)
+			l.Size = UDim2.fromOffset(t.w + (if i == 1 then 70 else 40), t.h) -- the clock's line holds the weather too
 		end
 		-- the ping wheel opens beside the radar; on a phone under the top row's middle, clear of the stick
 		if hb.compact then
