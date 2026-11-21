@@ -72,7 +72,7 @@ local function buildCard()
 		Visible = false,
 	})
 	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(440, 300)
+	limit.MaxSize = Vector2.new(360, 260) -- hero-hall: unlock cards smaller (nate 2026-11-21)
 	limit.Parent = f
 	Kit.stroke(f, GOLD, 3)
 	local pad = Instance.new("UIPadding")
@@ -104,9 +104,9 @@ local function buildCard()
 		return l
 	end
 	cardTag = line("Tag", 16, 14, Kit.bodyFont, GOLD, 1)
-	cardTitle = line("Title", 30, 28, Kit.font, Kit.color.paper, 2)
-	cardBody = line("Body", 20, 16, Kit.bodyFont, Kit.color.paper, 3)
-	cardHow = line("How", 20, 18, Kit.font, GOLD, 4)
+	cardTitle = line("Title", 24, 22, Kit.font, Kit.color.paper, 2)
+	cardBody = line("Body", 18, 14, Kit.bodyFont, Kit.color.paper, 3)
+	cardHow = line("How", 18, 16, Kit.font, GOLD, 4)
 	f.Parent = gui
 	card = f
 	Popups.panel("moveNew", function()

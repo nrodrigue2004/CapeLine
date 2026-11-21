@@ -141,7 +141,7 @@ local function draw(text: string, color: Color3, big: boolean?, life: number?): 
 	local order = math.floor(os.clock() * 100)
 	local l = Kit.label({
 		Text = text,
-		Size = UDim2.new(1, 0, 0, if big then 54 else 34),
+		Size = UDim2.new(1, 0, 0, if big then 42 else 32), -- hero-hall: big lines were too big (nate 2026-11-21)
 		BackgroundColor3 = fill,
 		BackgroundTransparency = 0,
 		TextColor3 = if dark then Kit.color.white else Kit.color.ink,
@@ -149,7 +149,7 @@ local function draw(text: string, color: Color3, big: boolean?, life: number?): 
 		TextStrokeTransparency = if dark then 0 else 1,
 		LayoutOrder = order,
 		Rotation = if order % 2 == 0 then -Config.Ui.ink.tilt else Config.Ui.ink.tilt,
-		maxText = if big then 40 else 22,
+		maxText = if big then 28 else 20,
 	})
 	Kit.round(l, 12)
 	Kit.stroke(l, Kit.color.ink, if big then 4 else 3)
@@ -980,7 +980,7 @@ function Toasts.init()
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = stack
 	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(420, 260)
+	limit.MaxSize = Vector2.new(380, 260)
 	limit.Parent = stack
 	-- pt-ui: "+N more" under the toasts for the small notes folded while the line was long (Ui.Popups)
 	local chip = Kit.label({
