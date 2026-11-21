@@ -72,6 +72,7 @@ local function surface(part: BasePart, fx: number, fz: number): SurfaceGui
 	g.Adornee = part
 	g.Parent = part
 	local bg = Instance.new("Frame")
+	bg.Name = "Board"
 	bg.Size = UDim2.fromScale(1, 1)
 	bg.BackgroundColor3 = NAVY
 	bg.BorderSizePixel = 0
@@ -90,7 +91,7 @@ local function words(g: SurfaceGui, text: string, color: Color3, size: UDim2?, p
 	l.TextStrokeTransparency = 0
 	l.TextStrokeColor3 = Color3.new(0, 0, 0)
 	l.Text = text
-	l.Parent = g.Frame
+	l.Parent = g:FindFirstChild("Board") or g
 	return l
 end
 
@@ -326,6 +327,76 @@ local function onDps(p: any)
 	l.Visible = true
 end
 
+-- The lift's floor picker: a small card with a button per other stop (HallLift), closed by a pick, its X or by
+-- walking away from the lift
+local picker: Frame? = nil
+local pickerAt: Vector3? = nil
+local function closePicker()
+	if picker then
+		picker.Visible = false
+	end
+	pickerAt = nil
+end
+
+local function openPicker(stop: number, at: Vector3)
+	if not picker then
+		local gui = Kit.screen("HallLift", 6)
+		local f = Kit.frame({
+			Name = "LiftPicker",
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 1, -150),
+			Size = UDim2.fromOffset(250, 150),
+			BackgroundColor3 = NAVY,
+			Visible = false,
+		})
+		Kit.stroke(f, GOLD, 3)
+		Kit.label({
+			Name = "Title",
+			Text = "HALL LIFT",
+			Size = UDim2.new(1, -40, 0, 26),
+			Position = UDim2.fromOffset(10, 6),
+			TextColor3 = GOLD,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			maxText = 22,
+		}).Parent =
+			f
+		Kit.button({
+			Name = "Close",
+			Text = "X",
+			Size = UDim2.fromOffset(28, 28),
+			Position = UDim2.new(1, -34, 0, 6),
+		}, closePicker).Parent =
+			f
+		f.Parent = gui
+		Kit.opening("HallLift", f, closePicker)
+		picker = f
+	end
+	local f = picker :: Frame
+	for _, c in f:GetChildren() do
+		if c.Name == "Dest" then
+			c:Destroy()
+		end
+	end
+	local row = 0
+	for i, name in H.lift.dests do
+		if i ~= stop then
+			Kit.button({
+				Name = "Dest",
+				Text = string.upper(name),
+				Size = UDim2.new(1, -20, 0, 44),
+				Position = UDim2.fromOffset(10, 40 + row * 52),
+			}, function()
+				Net.send("HallLift", i)
+				closePicker()
+			end).Parent =
+				f
+			row += 1
+		end
+	end
+	pickerAt = at
+	f.Visible = true
+end
+
 -- the launch pad: standing on it (for a moment, alive, not in a story scene) asks the server
 local padSince: number? = nil
 local padSent = -math.huge
@@ -405,7 +476,12 @@ function HallClient.init()
 			return
 		end
 		local t = prompt:GetAttribute("Terminal")
-		if t == "hallShop" then
+		if t == "hallLift" then
+			local part = prompt.Parent
+			if part and part:IsA("BasePart") then
+				openPicker((prompt:GetAttribute("Stop") or 1) :: number, part.Position)
+			end
+		elseif t == "hallShop" then
 			require(script.Parent.Parent.Ui.ShopHud).open()
 		elseif t == "hallBoards" then
 			require(script.Parent.Parent.Ui.BoardHud).open()
@@ -416,6 +492,10 @@ function HallClient.init()
 	task.spawn(watchCity)
 	RunService.Heartbeat:Connect(function()
 		padStep()
+		local r = root()
+		if pickerAt and (not r or (r.Position - (pickerAt :: Vector3)).Magnitude > H.lift.radius + 10) then
+			closePicker()
+		end
 		local l = meter
 		if l and l.Visible and os.clock() > meterUntil then
 			l.Visible = false

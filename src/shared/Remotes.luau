@@ -310,6 +310,7 @@ local Remotes: { [string]: RemoteDef } = {
 	HallDps = { dir = "S2C" },
 	HallPad = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	HallLaunch = { dir = "S2C" },
+	HallLift = { dir = "C2S", schema = { n(1, 3) }, rate = 2, burst = 3 }, -- ride the Hall's lift to stop 1-3
 	HqDps = { dir = "S2C" }, -- { dps, total, sim = { left, hp, max } }: the training room meter, 2 Hz
 	HqRetire = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- Legacy at the level cap (Hall of Legends)
 	-- WP12: visit a friend's HQ (Shared.VisitRules, VisitService). HqVisitAsk: VISIT (the owner's user id);

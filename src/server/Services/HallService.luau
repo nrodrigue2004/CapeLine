@@ -6,7 +6,8 @@
 --   squad board open their panels on the device (attribute Terminal); the Contract Board opens here
 --   (ContractService.openAt); the Loadout console and the Weapon Rack carry the safehouse terminals' names, so
 --   TravelClient and WeaponRack open them (the Hall counts as a safe place: SafehouseService's HQ radius).
--- * Lifts: one stop on the lobby, the training floor and the roof; each stop has a prompt per other floor.
+-- * Lifts: one stop on the lobby, the training floor and the roof; a stop's prompt opens the device's floor
+--   picker, and HallLift rides from any stop to the one picked.
 -- * The training floor: shared dummies (EnemyService targets that never fall) and a meter per hero (HallDps,
 --   2 Hz while they hit); the Burst Test (a prompt on the pad: deal all you can in Config.Hall.training.burst
 --   seconds) with this server's best five on the wall screen (HallState).
@@ -187,25 +188,33 @@ local function prompt(part: BasePart, action: string, object: string, terminal: 
 	return p
 end
 
-local function liftPrompts(part: BasePart, stop: number)
-	for i, dest in spots.lifts do
-		if i ~= stop then
-			local p = prompt(part, dest.name, "Hall lift")
-			p.MaxActivationDistance = H.lift.radius + 4
-			p.UIOffset = Vector2.new(0, (i - 1) * 60)
-			p.Triggered:Connect(function(player)
-				local hero = near(player, spots.lifts[stop], H.lift.radius + 6)
-				if hero then
-					local to = Vector3.new(dest.x, dest.y + 3.5, dest.z)
-					local look = Vector3.new(spots.centre[1], to.Y, spots.centre[2])
-					if (look - to).Magnitude < 1 then
-						look = to + Vector3.new(0, 0, -1)
-					end
-					SafehouseService.place(hero, CFrame.lookAt(to, look))
-				end
-			end)
+-- The lift: one prompt per stop opens the device's floor picker; HallLift rides to the stop picked, from any stop
+local function liftPrompt(part: BasePart, stop: number)
+	local p = prompt(part, "Lift", spots.lifts[stop].name, "hallLift")
+	p:SetAttribute("Stop", stop)
+	p.MaxActivationDistance = H.lift.radius + 4
+end
+
+local function ride(player: Player, dest: number)
+	local to = spots.lifts[dest]
+	if not to then
+		return
+	end
+	local hero = nil
+	for i, s in spots.lifts do
+		if i ~= dest then
+			hero = hero or near(player, s, H.lift.radius + 6)
 		end
 	end
+	if not hero then
+		return
+	end
+	local at = Vector3.new(to.x, to.y + 3.5, to.z)
+	local look = Vector3.new(spots.centre[1], at.Y, spots.centre[2])
+	if (look - at).Magnitude < 1 then
+		look = at + Vector3.new(0, 0, -1)
+	end
+	SafehouseService.place(hero, CFrame.lookAt(at, look))
 end
 
 local function wire(part: BasePart)
@@ -229,7 +238,7 @@ local function wire(part: BasePart)
 	elseif tag == "hallWeapons" then
 		prompt(part, "Weapon Rack", "Hero Hall", "weapons")
 	elseif tag == "hallLift" then
-		liftPrompts(part, ref)
+		liftPrompt(part, ref)
 	elseif tag == "hallBurst" then
 		local p = prompt(part, string.format("Burst Test (%d s)", T.burst.seconds), "Training Floor")
 		p.MaxActivationDistance = T.burst.radius + 4
@@ -287,6 +296,7 @@ function HallService.init()
 	end
 	addDummies()
 	Net.on("HallPad", onPad)
+	Net.on("HallLift", ride)
 	Players.PlayerAdded:Connect(function(player)
 		Net.fire("HallState", player, statePacket())
 	end)
