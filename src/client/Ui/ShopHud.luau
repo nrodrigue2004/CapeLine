@@ -3,7 +3,7 @@
 -- or from the menu, never within 10 s of a fight (the server checks again).
 -- * PACKS: costume packs, previewed on your hero. EFFECTS: colour tints over your power effects. EMOTES:
 --   emotes and landing poses. PASSES: Quick Swap and 2x Credits and Renown. SLOTS: hero slots 4 to 10 (99 R$ each,
---   bought in order; nate's playtest 4, 2026-11-20). No weapons are sold here (they are earned at the Weapon Rack).
+--   bought in order; nate's playtest 4, 2026-11-20). WEAPONS: the 5 Exotic weapons only (nate's card, 2026-11-21).
 -- * Every Robux card has the premium finish (nate: "Robux items should look higher quality than everything
 --   else"): a gold foil face, a shine that sweeps across it, a PREMIUM ribbon and a thicker gold edge.
 -- * Owned items say OWNED, and owned tints and landing poses can be equipped here.

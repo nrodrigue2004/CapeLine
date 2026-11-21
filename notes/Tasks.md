@@ -335,6 +335,13 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps30: start here (2026-11-21, build playtest-gaps30)
+Everything in gaps29 plus nate's 03:03Z creator notes: project files capeline/Capeline-playtest-gaps30-2026-11-21.rbxl (Output "playtest-gaps30 (2026-11-21)"). It replaces every older playtest place. Then Studio items 814-816 (and 805 if not done), and 800 and 803 again (Exotic weapons are Robux only again, nate's card).
+
+814. CREATOR > Weapon look and every MATERIAL row: the rows with arrows (STYLE, FINISH, GLOW, SWING TRAIL, MATERIAL) show what they change on top and the pick under it, both readable on a phone and PC; tapping the left third goes back, the right third goes forward.
+815. FACES (nate: "Faces dont change btw no matter what i pick"): open the Output, pick three faces in the creator, press Play. Each pick prints "[Face] <name> rbxassetid://<id>"; the preview and the hero in the world show that face. If a line says "FaceControls" or "a mesh texture", or "[Face] something set the face to ... putting back" appears, copy that line to Claude: it names what was overriding the face.
+816. With a mask or helm on, the catalog face still changes underneath (visible through the eye holes), and no second face shows over or under it.
+
 ### Playtest gaps29: start here (2026-11-21, build playtest-gaps29)
 Everything in gaps28 plus the six new weathers (nate 2026-11-20: "Add in different weathers too", all six): project files capeline/Capeline-playtest-gaps29-2026-11-21.rbxl (Output "playtest-gaps29 (2026-11-21)"). It replaces every older playtest place. Run gaps28's items first if not done, then Studio items 840-857 below. Planet travel is built but OFF (nate: "you can wait on the different planets until later"; Config.Space.on).
 
@@ -363,10 +370,10 @@ Start: Play, skip to the city, open the DEV panel. "Weather: live" cycles the we
 Everything in gaps27 plus nate's playtest 4 creator and shop fixes: project files capeline/Capeline-playtest-gaps28-2026-11-21.rbxl (Output "playtest-gaps28 (2026-11-21)"). It replaces every older playtest place. Then Studio items 800-822 below.
 
 #### Creator and shop fixes (gaps28, Studio items 800-822)
-800. SHOP: no WEAPONS tab and no weapon card anywhere in the Robux shop.
+800. SHOP > WEAPONS: only the 5 Exotic weapons are sold (nate's card 2026-11-21: "Robux only"); no other weapon card anywhere in the Robux shop.
 801. SHOP > SLOTS: HERO SLOT 4 to HERO SLOT 10, each R$ 99; only the next slot can be bought (the later ones say LOCKED, tapping says "Buy the hero slot before this one first"). In a test purchase, buying slot 4 then 5 opens two more slots in the hero list at your HQ (up to 10 heroes).
 802. Every Robux card has the premium finish: warm gold foil from paper to gold, a thick gold edge, a small PREMIUM tag top right that never covers the name, and a white shine sweeping across about every 4 s; owned cards keep the foil but lose the tag and shine. Check at phone and PC sizes.
-803. WEAPON RACK: the 5 Exotic weapons (Chain Whip 4,000, War Fan 4,500, Yo-yo 4,500, Rope Dart 4,500, Boomerang 3,000) are on sale for Credits; the creator's free weapon pick never offers an Exotic.
+803. WEAPON RACK: the 5 Exotic weapons are not sold for Credits (the footer says they are in the shop); in the creator they show locked until bought with Robux; the free weapon pick never offers one.
 804. CREATOR > Looks: in every list, the Robux pack pieces have a thick gold edge and a gold star in the corner.
 805. CREATOR > Looks > Face: pick three different catalog faces in turn; the preview's face changes each time, and the hero in the world has the last one after Play (nate: "changing faces doesnt work"). If it still does not change, note which face and whether the preview or the world is wrong.
 806. CREATOR > Skin: 24 tones and 20 fantasy skins (the card says so); Leaf, Moss and Sprout are greens for plant heroes, Bark looks like wood, Magma like cracked lava, Cosmic like foil; Randomize mostly picks natural tones.

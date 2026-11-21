@@ -2,7 +2,7 @@
 -- WeaponRules: the weapon slot's rules (nate's hero creator plan, 2026-11-16; Config.Weapons). Pure, so Lune
 -- tests it.
 -- * Ownership is account-wide: Bare Fists (price 0) is always owned; the creator's free pick, the Weapon
---   Rack (Credits, the 5 Exotic weapons too since 2026-11-20) set profile.weaponsOwned.
+--   Rack (Credits) and the Robux shop (the 5 Exotic weapons) set profile.weaponsOwned.
 -- * Each weapon keeps its Mastery points and its look in profile.weapons[id as text] (WEAPON_FIELDS).
 -- * A weapon look travels as a 12-byte buffer: id, style, finish, main, trim, glow, glow strength, flags
 --   (bit 0 the emblem shows), trail, 3 reserved.

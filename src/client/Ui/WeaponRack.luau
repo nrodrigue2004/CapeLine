@@ -166,7 +166,7 @@ local function render()
 			end
 		end
 	end
-	footer.Text = string.format("Credits: %s   Exotic weapons are the Rack's top prizes", Kit.comma(credits))
+	footer.Text = string.format("Credits: %s   Exotic weapons are in the shop (P)", Kit.comma(credits))
 end
 
 function WeaponRack.open()

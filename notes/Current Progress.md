@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-21 playtest-gaps30: gaps29 + creator arrow rows readable, the face decal kept and logged in Studio ([Face] lines). Studio 814-816. Exotics card open (Credits vs Robux).
 - 2026-11-21 playtest-gaps29: gaps28 + six new weathers (snow with white roof caps and lawns, blizzard, heatwave, windy days, lightning storms that break roofs near heroes, aurora nights; DEV Weather and Lightning strike buttons, weather name on the radar clock). Studio 840-857. Planet travel built but OFF (Config.Space, nate: later).
 - 2026-11-21 playtest-gaps28: gaps27 + creator and shop fixes (no weapons for Robux, slots 4-10 at 99 R$, premium Robux cards, masks refit to catalog eyes, angel/devil wings, 14 fantasy skins, emblem decals, 6 anime outfits, Shirts/Pants inside Top/Legs). Studio 800-813.
 - 2026-11-21 playtest-gaps27: gaps26 + hall1 (Hero Hall) + missions lane: Safehouse end walls, Vigil HQ room and dressed tunnels; smaller stamps, badge, toasts and NEW MOVE card; weapon ranks (WEAPON tab in POWERS); far skyline stand-ins with window bands; scorches and dents from normal hits; the Studio Test Lab and Skip prologue. Studio 760-771, 780-787, 790-792.

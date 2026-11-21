@@ -7171,7 +7171,7 @@ test("Art: robot mesh fits are sane and match the renderer's pieces", function()
 end)
 
 test(
-	"Creator plan: 36 weapons in 7 families, all on the Rack (Exotics too, no weapon sold for Robux)",
+	"Creator plan: 36 weapons in 7 families, Exotic ones sold for Robux only, the rest on the Rack",
 	function()
 		local WeaponRules = require("../src/shared/WeaponRules")
 		local W = Config.Weapons
@@ -7185,14 +7185,22 @@ test(
 			perFamily[w.family] = (perFamily[w.family] or 0) + 1
 			check(w.complexity >= 1 and w.complexity <= #W.complexity, w.name .. " complexity")
 			check(W.styles[w.family] ~= nil and #W.styles[w.family] == 4, w.name .. " has 4 styles")
-			-- nate's playtest 4 (2026-11-20): "no weapons in the Robux shop"; Exotics are the Rack's top prizes
-			check(w.price ~= nil and w.price >= 0 and w.robux == nil, w.name .. " is on the Rack")
+			-- nate's card (2026-11-21): Exotic weapons are "Robux only"; every other weapon is on the Rack
 			if w.family == "exotic" then
-				check(w.price >= 3000, w.name .. " is a long Credits goal")
+				local row = w.robux and Config.Shop.products[w.robux]
+				check(
+					row ~= nil and row.kind == "weapon" and row.weapon == id,
+					w.name .. " is a Robux product"
+				)
+				check(w.price == nil, w.name .. " is not on the Rack")
+			else
+				check(w.price ~= nil and w.price >= 0 and w.robux == nil, w.name .. " is on the Rack")
 			end
 		end
 		for key, row in Config.Shop.products do
-			check(row.kind ~= "weapon", key .. ": no weapon is sold for Robux")
+			if row.kind == "weapon" then
+				check(list[row.weapon].family == "exotic", key .. ": only Exotic weapons are sold for Robux")
+			end
 		end
 		local want = { fists = 4, one = 6, two = 6, dual = 5, shield = 3, ranged = 7, exotic = 5 }
 		for _, f in W.families do
@@ -7224,11 +7232,18 @@ test("Creator plan: weapon ownership, free pick, the Rack, mastery skills and th
 	check(not ok and why == "credits", "too few Credits")
 	ok = WeaponRules.buyOk(Config, p, 5, 5000)
 	check(ok, "the Rack sells the Sword")
-	local exoOk, _, exoPrice = WeaponRules.buyOk(Config, p, 32, 99999)
-	check(exoOk and exoPrice >= 3000, "the Rack sells Exotic weapons for Credits")
+	check(
+		select(2, WeaponRules.buyOk(Config, p, 32, 99999)) == "robux",
+		"the Rack never sells Exotic weapons"
+	)
 	check(WeaponRules.grant(p, 5) and not WeaponRules.grant(p, 5), "grant once")
 	check(select(2, WeaponRules.buyOk(Config, p, 5, 99999)) == "owned", "owned weapons are not sold twice")
-	check(ShopRules.item(Config, "weaponBoomerang") == nil, "the Robux shop sells no Boomerang")
+	-- the Robux shop gives an Exotic weapon once per receipt
+	check(not ShopRules.owned(Config, p, "weaponBoomerang"), "Boomerang not owned")
+	local granted, got = ShopRules.grant(Config, p, "weaponBoomerang", "r1")
+	check(granted and got and got.weapon == 36, "the Boomerang is granted")
+	check(ShopRules.owned(Config, p, "weaponBoomerang") and WeaponRules.owned(Config, p, 36), "owned now")
+	check(not (ShopRules.grant(Config, p, "weaponBoomerang", "r1")), "a receipt grants once")
 	-- mastery: Z at once, X at 25, C at 75, V at 150, max 300
 	local M = Config.Weapons.mastery
 	check(WeaponRules.skillOpen(Config, 0, "Z") and not WeaponRules.skillOpen(Config, 0, "X"), "Z at once")

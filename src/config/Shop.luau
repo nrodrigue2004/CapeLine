@@ -51,8 +51,13 @@ return {
 		pose22 = { id = 0, robux = 49, kind = "emote", emote = 22 },
 		pose23 = { id = 0, robux = 75, kind = "emote", emote = 23 },
 		pose24 = { id = 0, robux = 99, kind = "emote", emote = 24 },
-		-- no weapons are sold (nate, 2026-11-20: "No weapons in the Robux shop"): the 5 Exotic weapons are earned at
-		-- the Weapon Rack (Config.Weapons)
+		-- the 5 Exotic weapons (nate 2026-11-16: "exotic should be robux"; 2026-11-21 card: "Robux only"):
+		-- equal-strength sidegrades, owned for life. No other weapon is sold for Robux.
+		weaponWhip = { id = 0, robux = 199, kind = "weapon", weapon = 32 },
+		weaponFan = { id = 0, robux = 249, kind = "weapon", weapon = 33 },
+		weaponYoyo = { id = 0, robux = 249, kind = "weapon", weapon = 34 },
+		weaponDart = { id = 0, robux = 249, kind = "weapon", weapon = 35 },
+		weaponBoomerang = { id = 0, robux = 149, kind = "weapon", weapon = 36 },
 		-- H8: the Hero Pass's paid track for the current season (one product, every season; nate's call 4:
 		-- 499 Robux, no tier skips). Cosmetics only; every reward is shown before buying (Config.Pass).
 		heroPass = { id = 0, robux = 499, kind = "heroPass" },
@@ -79,6 +84,11 @@ return {
 			id = "packs",
 			name = "Packs",
 			items = { "pack7", "pack1", "pack2", "pack3", "pack4", "pack5", "pack6" },
+		},
+		{
+			id = "weapons",
+			name = "Weapons",
+			items = { "weaponBoomerang", "weaponWhip", "weaponFan", "weaponYoyo", "weaponDart" },
 		},
 		{
 			id = "effects",
