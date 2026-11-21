@@ -1592,6 +1592,12 @@ return function(T: any)
 			not string.find(fs.readFile("src/client/Fx/IntroFilm.luau"), 'play("bossWarning"', 1, true),
 			"intro film"
 		)
+		-- "I'm still getting the silas crane tv on my screen": the HUD's corner TV is off (the boss toast stays)
+		check(Config.Cinema.news.tv.on == false, "the corner TV is off")
+		check(
+			string.find(fs.readFile("src/client/Ui/NewsHud.luau"), "if not N.tv.on then", 1, true),
+			"NewsHud honours it"
+		)
 		local row = Config.Audio.sounds.bossWarning
 		local clip = Config.AudioClips.clips[row.clip]
 		check(row.clip == "bossHorn" and clip and clip[1] == "Music", "the boss warning is the brass horn")

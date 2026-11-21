@@ -1215,7 +1215,9 @@ return {
 		flash = { boss = true, unmask = true, double = true, sideStart = true },
 		-- the corner TV: a flash plays this long; any other new fact shows on its ticker for `fact` s; with nothing
 		-- new, Crane's segment airs every `craneEvery` s for `crane` s (never in the prologue, a mission or a scene)
-		tv = { seconds = 7, fact = 5, crane = 8, craneEvery = 180, scroll = 10 },
+		-- on = false (nate's playtests 2026-11-20 "no TV", 2026-11-21 "still getting the silas crane tv on my
+		-- screen"): the corner TV never shows; a boss landing still toasts, the big city screens keep the news
+		tv = { on = false, seconds = 7, fact = 5, crane = 8, craneEvery = 180, scroll = 10 },
 		-- the big screens: where they hang (NewsPlan.screens picks the buildings from the world)
 		screens = {
 			downtown = 3, -- the Downtown towers nearest the plaza that get a screen

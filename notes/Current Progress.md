@@ -1,6 +1,6 @@
 # Current Progress
 
-- 2026-11-21 playtest-gaps26: gaps25 + nate's cutscene note: scene cameras skip cars and people and never pass walls (CamClear), no traffic in the prologue, the alarm siren replaced by a brass horn, the title rises up Crane Tower. Studio 314-316.
+- 2026-11-21 playtest-gaps26: gaps25 + nate's cutscene note: scene cameras skip cars and people and never pass walls (CamClear), no traffic in the prologue, the alarm siren replaced by a brass horn, the title rises up Crane Tower, no Silas Crane corner TV. Studio 314-317.
 - 2026-11-20 playtest-gaps25: gaps24 + missions on real map sites (Harbour Bridge, Old Town roofs, Crane Tower, Hero Hall plaza, Downtown crossroads, Crane Plant), squads hidden from outsiders. Studio 442-455.
 - 2026-11-20 playtest-gaps24: gaps23 + missions lane (Safehouse soft-lock, Warden/Bulwark HP, story beats in missions 2-6, Act 2 Most Wanted and The Line, private phased runs). Studio 407-415, 420-441. Next: missions on real map sites.
 - 2026-11-20 playtest-gaps23: gaps22 + cutscene polish round 2 (camera drift, jump cuts, depth of field, chase wall pull-in, stage and Lodestar animated). Studio 312-313.

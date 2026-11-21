@@ -327,7 +327,7 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
 ### Playtest gaps26: start here (2026-11-21, build playtest-gaps26)
-Everything in gaps25 plus nate's 2026-11-21 cutscene note: scene cameras never sit in cars or people and never pass through walls (Client.CamClear), no traffic or hub cars in the prologue, the boss alarm siren replaced by a deep brass horn and gone from the prologue scan and intro film, and the CAPELINE title now rises up Crane Tower: project files capeline/Capeline-playtest-gaps26-2026-11-21.rbxl (Output "playtest-gaps26 (2026-11-21)"). It replaces every older playtest place. Run "Playtest gaps25: start here" first if not done, then Studio items 314-316.
+Everything in gaps25 plus nate's 2026-11-21 cutscene note: scene cameras never sit in cars or people and never pass through walls (Client.CamClear), no traffic or hub cars in the prologue, the boss alarm siren replaced by a deep brass horn and gone from the prologue scan and intro film, and the CAPELINE title now rises up Crane Tower, and the HUD's Silas Crane corner TV is gone: project files capeline/Capeline-playtest-gaps26-2026-11-21.rbxl (Output "playtest-gaps26 (2026-11-21)"). It replaces every older playtest place. Run "Playtest gaps25: start here" first if not done, then Studio items 314-317.
 
 ### Playtest gaps25: start here (2026-11-20, build playtest-gaps25)
 Everything in gaps24 plus story missions on the real map, private to your squad (nate: "Mix", and "Hide you fully"): Framed on the new Harbour Bridge (PLACEHOLDER NAME) over the Docks basin, The Copy on Old Town's real roofs, The Signal on the new Crane Tower between Old Town and the Docks, Live on the Hero Hall plaza, Most Wanted at a Downtown crossroads, The Line in the new Crane Plant on the Docks quay. The Safehouse, the Ceremony subway and side quest pockets stay separate. Outsiders cannot see, hear or bump into a squad in a mission. Config.MapSites.on.<layout> = false puts a mission back in its pocket. Studio checks 442-455 first, then gaps24's.
@@ -2485,6 +2485,8 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 96. Incident and event objects (ActivityProps punch): hit a dressed incident or event object (a billboard, the tram, a crate); each hit jolts its look and springs it back with a clank; its own break (fall, burst) plays as before.
 
 95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
+
+317. No corner TV (NewsHud, Config.Cinema.news.tv.on = false): play 10 minutes in the city: no SILAS CRANE / LIVE TV, no BREAKING NEWS TV and no news ticker box ever shows on the HUD; when a world boss lands its toast still shows; the big screens on the Downtown towers still play the news and Crane's segment.
 
 316. Title shot (PrologueFx towerShot, Config.Story.opening.titleShot): after the subway fight, under CAPELINE the camera rises from low and far up Crane Tower (between Old Town and the Docks) and pushes in on its top deck and glowing relay; no building between the camera and the tower at either end, never inside the tower.
 
