@@ -7530,7 +7530,7 @@ test("Creator plan: all 36 weapons have an M1 and Z X C V, held with key 2, open
 				)
 				check(row.coeff <= 3.5, aid .. " is no stronger than a power skill")
 				local eff = AbilityRules.effective(Config, aid, 1)
-				check(eff.coeff == row.coeff, aid .. " never ranks up")
+				check(eff.coeff == row.coeff, aid .. " rank 1 is its base numbers")
 				if k == 1 and row.shape == "arc" then
 					check(#row.hits == 4, aid .. " is a 4-hit combo")
 				end
@@ -8491,6 +8491,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- act1-choices: a choice in every Act 1 mission (own file, merges easily)
 (require :: any)("./act1_choices_test")({ test = test, check = check, Config = Config }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
+(require :: any)("./weapon_ranks_test")({ test = test, check = check, Config = Config }); -- weapon ranks (nate 2026-11-21, "Mix")
 (require :: any)("./side_content_test")({ test = test, check = check, Config = Config, world = world }); -- side-content: lore pages, mobility training, each side's own content
 (require :: any)("./balance_test")({ test = test, check = check, Config = Config });
 -- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)

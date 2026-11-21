@@ -45,6 +45,7 @@ local draft = { set = "Volt", skills = {} :: { string }, super = nil :: string? 
 local draftIndex = 1
 local selectedSlot = 1 -- 1..4 skills, 5 super
 local MOBILITY = "@mobility" -- viewSet for the MOBILITY tab
+local WEAPON = "@weapon" -- viewSet for the WEAPON tab (weapon ranks, nate 2026-11-21 "Mix")
 
 local REASONS = {
 	["over budget"] = "Over the 52-point budget",
@@ -60,6 +61,8 @@ local REASONS = {
 	credits = "Not enough Credits",
 	cooldown = "Respec is cooling down",
 	["max rank"] = "Already max rank",
+	mastery = "Use this weapon more: Mastery opens this skill",
+	weapon = "Carry this weapon to rank it up",
 	["second loadout locked"] = "Loadout 2 opens at level 15",
 	rank = "Reach rank 3 first",
 	level = "Reach the level shown first",
@@ -68,7 +71,8 @@ local REASONS = {
 	safehouse = "Change loadouts and respec at your HQ or a safehouse",
 }
 
-local function rgb(t: { number }): Color3
+local function rgb(t: { number }?): Color3
+	t = t or { 235, 170, 60 } -- the weapon skills' gold (they have no path colour)
 	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
@@ -195,9 +199,15 @@ end
 local function card(id: string, order: number): Frame
 	local h = State.hero
 	local row = A.list[id]
-	local rank = h.ranks[id] or 0
+	local isWeapon = AbilityRules.isWeapon(row)
+	local wOpen = isWeapon and AbilityRules.weaponOpen(Config, row, h.weaponMastery)
+	local rank = if isWeapon
+		then (if wOpen then AbilityRules.weaponRank(h.ranks, id) else 0)
+		else h.ranks[id] or 0
 	local eff = AbilityRules.effective(Config, id, math.max(rank, 1), h.mods[id])
-	local unlocked = AbilityRules.setUnlocked(Config, h.level, row.set, h.startSet)
+	local unlocked = if isWeapon
+		then wOpen
+		else AbilityRules.setUnlocked(Config, h.level, row.set, h.startSet)
 	local f = Kit.frame({
 		Name = id,
 		LayoutOrder = order,
@@ -222,8 +232,9 @@ local function card(id: string, order: number): Frame
 		maxText = 20,
 	})
 	title.Parent = f
-	local tag = if row.slot == "basic"
-		then "BASIC"
+	local tag = if isWeapon
+		then string.format("%s KEY", row.weaponKey or "")
+		elseif row.slot == "basic" then "BASIC"
 		elseif row.slot == "super" then "SUPER"
 		elseif row.travel then string.format("TRAVEL  %d PTS", row.pts)
 		else string.format("%d PTS", row.pts)
@@ -248,7 +259,17 @@ local function card(id: string, order: number): Frame
 		maxText = 12,
 	})
 	desc.Parent = f
-	if not unlocked or (row.set ~= h.startSet and row.slot ~= "skill") then
+	if isWeapon and not unlocked then
+		local lock = Kit.label({
+			Text = string.format("MASTERY %d OPENS IT", Config.Weapons.mastery.skills[row.weaponKey] or 0),
+			Size = UDim2.new(1, -12, 0, 22),
+			Position = UDim2.new(0, 6, 1, -28),
+			maxText = 16,
+		})
+		lock.Parent = f
+		return f
+	end
+	if not isWeapon and (not unlocked or (row.set ~= h.startSet and row.slot ~= "skill")) then
 		local lock = Kit.label({
 			Text = if unlocked then "MAIN PATH ONLY" else string.format("LOCKED: LEVEL %d", A.borrowLevel),
 			Size = UDim2.new(1, -12, 0, 22),
@@ -283,19 +304,28 @@ local function card(id: string, order: number): Frame
 			end
 		end)
 		rb.Parent = f
-		local eb = Kit.button({
-			Text = if rank > 0 then "EQUIP" else "-",
-			Size = UDim2.new(0.5, -9, 0, 40),
-			Position = UDim2.new(0.5, 3, 1, -44),
-			BackgroundColor3 = if rank > 0 then rgb(A.setColor[row.set]) else Color3.fromRGB(190, 190, 195),
-			maxText = 14,
-		}, function()
-			if rank > 0 then
-				equip(id)
-			else
-				notice(REASONS["not learned"])
-			end
-		end)
+		local eb = if isWeapon
+			then Kit.label({
+				Text = "ON " .. (row.weaponKey or ""),
+				Size = UDim2.new(0.5, -9, 0, 40),
+				Position = UDim2.new(0.5, 3, 1, -44),
+				maxText = 14,
+			})
+			else Kit.button({
+				Text = if rank > 0 then "EQUIP" else "-",
+				Size = UDim2.new(0.5, -9, 0, 40),
+				Position = UDim2.new(0.5, 3, 1, -44),
+				BackgroundColor3 = if rank > 0
+					then rgb(A.setColor[row.set])
+					else Color3.fromRGB(190, 190, 195),
+				maxText = 14,
+			}, function()
+				if rank > 0 then
+					equip(id)
+				else
+					notice(REASONS["not learned"])
+				end
+			end)
 		eb.Parent = f
 		-- mods at rank 3 (rank 2 for supers)
 		local modRank = if row.slot == "super" then 2 else 3
@@ -583,6 +613,31 @@ buildTabs = function()
 	end)
 	mb.Parent = panel
 	tabButtons[MOBILITY] = mb
+	-- weapon ranks (nate 2026-11-21, "Mix"): the WEAPON tab, left of MOBILITY: the carried weapon's Z X C V
+	local wb = Kit.button({
+		Name = "WeaponTab",
+		Text = "WEAPON",
+		Size = UDim2.fromOffset(150, T - 10),
+		Position = UDim2.new(1, -T - 8 - 158 - 158, 0, 6),
+		maxText = 22,
+	}, function()
+		viewSet = WEAPON
+		refresh()
+	end)
+	wb.Parent = panel
+	tabButtons[WEAPON] = wb
+end
+
+-- the carried weapon's ranked skills (Z X C V) in key order
+local function weaponSkills(h: any): { string }
+	local out = {}
+	for _, key in Config.Weapons.keys do
+		local id = "W" .. tostring(h.weapon or 0) .. key
+		if A.list[id] then
+			table.insert(out, id)
+		end
+	end
+	return out
 end
 
 refresh = function()
@@ -599,6 +654,17 @@ refresh = function()
 			local r = MoveRanks.rankOf(Config.Move, h.mobRanks, pick)
 			b.Text = string.format("MOBILITY %d/%d", r, MoveRanks.max(Config.Move, pick))
 			b.BackgroundColor3 = if viewSet == MOBILITY then Kit.color.gold else Color3.fromRGB(210, 210, 215)
+			continue
+		end
+		if set == WEAPON then
+			local total = 0
+			for _, wid in weaponSkills(h) do
+				if AbilityRules.weaponOpen(Config, A.list[wid], h.weaponMastery) then
+					total += AbilityRules.weaponRank(h.ranks, wid)
+				end
+			end
+			b.Text = string.format("WEAPON %d/%d", total, 5 * #weaponSkills(h))
+			b.BackgroundColor3 = if viewSet == WEAPON then Kit.color.gold else Color3.fromRGB(210, 210, 215)
 			continue
 		end
 		local open = AbilityRules.setUnlocked(Config, h.level, set, h.startSet)
@@ -654,6 +720,12 @@ refresh = function()
 					moveCard(pick, r, k, order).Parent = grid
 				end
 			end
+		end
+		return
+	end
+	if viewSet == WEAPON then
+		for i, id in weaponSkills(h) do
+			card(id, i).Parent = grid
 		end
 		return
 	end
@@ -719,7 +791,7 @@ function LoadoutScreen.init()
 	panel.Parent = gui
 	header = Kit.label({
 		Text = "POWERS",
-		Size = UDim2.new(1, -310, 0, 34), -- side-content: room for the MOBILITY tab beside X
+		Size = UDim2.new(1, -470, 0, 34), -- room for the WEAPON and MOBILITY tabs beside X
 		Position = UDim2.fromOffset(14, 8),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Kit.color.gold,

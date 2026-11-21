@@ -2657,3 +2657,8 @@ nate's "Mix": story missions play privately on the real map, special places keep
 453. When the run ends (or A leaves), A's character shows again on B's device at once (plate, aura, sounds back) and B's on A's; a character that respawns or rejoins mid-run stays hidden from the other side.
 454. During the run A cannot lift a street thing (car, bin) and ramming one does not knock it; A's move acts (MoveActFx) and held-prop swings never show on B's screen; citizens near B do not react to A (no cheering, fleeing or pointing at an invisible hero).
 455. A Downed member in the run: an outsider gets no REVIVE prompt for them; an outsider's hook (CombatFx claw) never catches a member.
+
+## Studio list: weapon ranks (missions lane, 2026-11-21)
+790. Open POWERS (the loadout screen): a WEAPON tab sits left of MOBILITY and reads WEAPON n/20 for the carried weapon; the header text still fits beside the tabs on a phone.
+791. WEAPON tab: the carried weapon's Z X C V cards; keys not yet open by Mastery read "MASTERY n OPENS IT"; open ones show pips at rank 1 and RANK UP with its points and Credits.
+792. RANK UP on Z spends the points and Credits, the pips go to 2, and the skill hits harder in the city (and its cooldown drops at rank 4); swapping weapons shows the other weapon's own ranks; respec refunds them.
