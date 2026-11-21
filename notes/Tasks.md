@@ -335,6 +335,25 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps28: start here (2026-11-21, build playtest-gaps28)
+Everything in gaps27 plus nate's playtest 4 creator and shop fixes: project files capeline/Capeline-playtest-gaps28-2026-11-21.rbxl (Output "playtest-gaps28 (2026-11-21)"). It replaces every older playtest place. Then Studio items 800-822 below.
+
+#### Creator and shop fixes (gaps28, Studio items 800-822)
+800. SHOP: no WEAPONS tab and no weapon card anywhere in the Robux shop.
+801. SHOP > SLOTS: HERO SLOT 4 to HERO SLOT 10, each R$ 99; only the next slot can be bought (the later ones say LOCKED, tapping says "Buy the hero slot before this one first"). In a test purchase, buying slot 4 then 5 opens two more slots in the hero list at your HQ (up to 10 heroes).
+802. Every Robux card has the premium finish: warm gold foil from paper to gold, a thick gold edge, a small PREMIUM tag top right that never covers the name, and a white shine sweeping across about every 4 s; owned cards keep the foil but lose the tag and shine. Check at phone and PC sizes.
+803. WEAPON RACK: the 5 Exotic weapons (Chain Whip 4,000, War Fan 4,500, Yo-yo 4,500, Rope Dart 4,500, Boomerang 3,000) are on sale for Credits; the creator's free weapon pick never offers an Exotic.
+804. CREATOR > Looks: in every list, the Robux pack pieces have a thick gold edge and a gold star in the corner.
+805. CREATOR > Looks > Face: pick three different catalog faces in turn; the preview's face changes each time, and the hero in the world has the last one after Play (nate: "changing faces doesnt work"). If it still does not change, note which face and whether the preview or the world is wrong.
+806. CREATOR > Skin: 24 tones and 20 fantasy skins (the card says so); Leaf, Moss and Sprout are greens for plant heroes, Bark looks like wood, Magma like cracked lava, Cosmic like foil; Randomize mostly picks natural tones.
+807. CREATOR > Masks: with any catalog face, each mask (all 31) shows both eyes through its eye holes or above it; none sits on the chin or floats off the head; Cowl and Ninja Wrap hide the hair, the others do not.
+808. The 8 remade masks (Domino, Masquerade, Half Mask, Bandana, Cowl, Eye Patch, Ninja Wrap, Skull) are 3D meshes, not flat stickers.
+809. CREATOR > Symbol: the chest emblem is visible in the creator's turning preview and in the world, over every top (suits, jackets, coats) and every colour; the weapon's emblem shows when its toggle is on and hides when off.
+810. CREATOR > Back bling: Angel Wings (white feathers, gold frame) and Devil Wings (leathery, dark bones, white claws) at level 10; big from behind, they do not cut into the body or the cape; the old Feather Wings and Energy Wings now show feathers face-on.
+811. CREATOR > Top: the everyday shirts come first (always free), then the suits; picking a shirt takes the suit off, picking a suit puts it over. Legs: the everyday pants first, then the legs pieces, the same way. The Shirt and Pants rows are gone from the list. Colours on Top or Legs with only a shirt or pants on colour that shirt or pants.
+812. CREATOR > Top: the 6 anime outfits (Academy Blazer, Sailor Top free; High Collar Jacket level 11, Pilot Suit 14, Wanderer Haori 20, Officer Coat 28) show their drawn Shirt and Pants on the body with the hero's colours; the haori has wide sleeves.
+813. The picture tiles: the new wings and outfits have pictures; the masks' pictures match the new masks.
+
 ### Playtest gaps26: start here (2026-11-21, build playtest-gaps26)
 Everything in gaps25 plus nate's 2026-11-21 cutscene note: scene cameras never sit in cars or people and never pass through walls (Client.CamClear), no traffic or hub cars in the prologue, the boss alarm siren replaced by a deep brass horn and gone from the prologue scan and intro film, and the CAPELINE title now rises up Crane Tower, and the HUD's Silas Crane corner TV is gone: project files capeline/Capeline-playtest-gaps26-2026-11-21.rbxl (Output "playtest-gaps26 (2026-11-21)"). It replaces every older playtest place. Run "Playtest gaps25: start here" first if not done, then Studio items 314-317.
 ### Playtest hall1: start here (2026-11-21, build playtest-hall1)
