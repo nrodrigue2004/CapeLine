@@ -357,7 +357,7 @@ local DUMMY_COLORS = {
 		ends = SIDE_COLORS.villain.main,
 	},
 }
-local function dummy(f: Folder, pos: Vector3, big: boolean?)
+local function dummy(f: Folder, pos: Vector3, big: boolean?, look: Vector3?)
 	local s = if big then 2.6 else 1
 	local base = pos - Vector3.new(0, 3 * s, 0)
 	local metal = Color3.fromRGB(150, 156, 170)
@@ -393,7 +393,9 @@ local function dummy(f: Folder, pos: Vector3, big: boolean?)
 		if padded then HqArtKit.BODY_LOOK else nil
 	)
 	rig.model.Parent = f
-	NpcRig.place(rig, CFrame.new(base + Vector3.new(0, 0.6, 0)))
+	local feet = base + Vector3.new(0, 0.6, 0)
+	local flat = if look then Vector3.new(look.X, 0, look.Z) else Vector3.zero
+	NpcRig.place(rig, if flat.Magnitude > 0.01 then CFrame.lookAt(feet, feet + flat) else CFrame.new(feet))
 	for _, name in { "Head", "UpperTorso", "LowerTorso" } do
 		rig.parts[name].CanQuery = true
 	end
@@ -420,6 +422,12 @@ local function dummy(f: Folder, pos: Vector3, big: boolean?)
 		CFrame.new(0, 0, -chest.Size.Z * 0.5 - 0.05) * CFrame.Angles(0, math.pi / 2, 0)
 	)
 	HqMeshes.cover(target, "dummyTarget")
+end
+
+-- The Dev panel's Test Lab draws its training dummies with this (Studio only): the HQ's dummy at `pos` (its centre,
+-- 3 studs up a small one) facing `look`, into `f`
+function HqClient.drawDummy(f: Folder, pos: Vector3, big: boolean?, look: Vector3?)
+	dummy(f, pos, big, look)
 end
 
 local function statue(f: Folder, entry: { [string]: any }, at: CFrame)

@@ -56,6 +56,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local MoveMath = require(Shared:WaitForChild("MoveMath"))
 local CityPlay = require(Shared:WaitForChild("CityPlay"))
+local LabRules = require(Shared:WaitForChild("LabRules"))
 local SwingMath = require(Shared:WaitForChild("SwingMath"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
@@ -1728,6 +1729,9 @@ local step: (number) -> ()
 -- every frame: the move, then a note of any stamina drain (boost, wall runs, the scurry) for the regen delay
 local function stepAll(dt: number)
 	step(dt)
+	if LabRules.freeStamina(State.hero.lab) then
+		MoveController.stamina = M.stamina.max -- Studio's Test Lab: infinite stamina
+	end
 	if root then
 		local y = root.Position.Y
 		topY = if MoveController.mode == "ground" then y else math.max(topY, y)

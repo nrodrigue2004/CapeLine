@@ -21,6 +21,7 @@ local Inventory = require(Shared:WaitForChild("Inventory"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
+local LabRules = require(Shared:WaitForChild("LabRules"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 
 local DataService = require(script.Parent.DataService)
@@ -63,8 +64,10 @@ function GearService.refresh(player: Player)
 	local totals = GearMath.totals(Config, worn)
 	HeroService.applyGear(hero, totals)
 	-- the carried weapon and its Mastery (hero creator plan; WeaponService runs the slot in play)
-	hero.weapon = WeaponRules.carried(Config, profile, char)
-	hero.weaponMastery = WeaponRules.state(profile, hero.weapon).mastery
+	-- (Studio's Test Lab carries any weapon for the session with every skill key open: Shared.LabRules)
+	hero.weapon = LabRules.weaponOf(hero.lab, WeaponRules.carried(Config, profile, char))
+	hero.weaponMastery =
+		LabRules.weaponMastery(Config, hero.lab, WeaponRules.state(profile, hero.weapon).mastery)
 	GearService.showLook(player, profile, char)
 	DataService.changed(player)
 end
@@ -101,7 +104,7 @@ function GearService.showLook(player: Player, profile: any, char: any)
 	end
 	local styles = CreatorRules.visibleStyles(Config, look, Inventory.shownStyles(profile, char), char.shown)
 	local hero = HeroService.get(player)
-	local weaponId = WeaponRules.carried(Config, profile, char)
+	local weaponId = LabRules.weaponOf(hero and hero.lab, WeaponRules.carried(Config, profile, char))
 	local weapon = WeaponRules.lookOf(profile, weaponId)
 	weapon.mastered = WeaponRules.masteryLevel(Config, WeaponRules.state(profile, weaponId).mastery)
 		>= Config.Weapons.mastery.masteredGlow

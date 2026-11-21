@@ -18,6 +18,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -256,7 +257,11 @@ local function onCreate(
 			hero.scene = nil
 		end
 		createAsked[player] = nil
-		task.defer(OpeningService.start, player)
+		if CreatorService.skipsPrologue(player) then
+			task.defer(OpeningService.skip, player, side) -- Studio's Test Lab: straight into the city
+		else
+			task.defer(OpeningService.start, player)
+		end
 	else
 		c.created = 1
 		-- a hero made before the creator picks freely once; otherwise one free change before level 10
@@ -349,6 +354,17 @@ local function openCreate(player: Player)
 	CreatorService.open(player, "create")
 end
 
+-- Studio's Test Lab "Skip prologue" (DevService labskip): finishing the creator puts a new hero straight into the
+-- city (OpeningService.skip) and the exposition page before it is skipped too. Never in a live game.
+local skipFor: { [Player]: boolean? } = {}
+function CreatorService.setSkipPrologue(player: Player, on: boolean)
+	skipFor[player] = if on and RunService:IsStudio() then true else nil
+end
+
+function CreatorService.skipsPrologue(player: Player): boolean
+	return skipFor[player] == true and RunService:IsStudio()
+end
+
 function CreatorService.createFirst(player: Player)
 	local _, c = charOf(player)
 	local hero = HeroService.get(player)
@@ -365,7 +381,7 @@ function CreatorService.createFirst(player: Player)
 		opening = c.story.opening,
 		introSeen = CinemaService.seenScene(player, Config.Story.opening.intro.scene),
 	}
-	if FlowPlan.introFirst(facts) then
+	if FlowPlan.introFirst(facts) and not CreatorService.skipsPrologue(player) then
 		local at = os.clock()
 		introAt[player] = at
 		Net.fire("OpeningIntro", player, { stage = OpeningService.introStage(player) })
@@ -509,6 +525,7 @@ function CreatorService.init()
 		introAt[player] = nil
 		firstAsked[player] = nil
 		createAsked[player] = nil
+		skipFor[player] = nil
 		GearService.setStreet(player, false)
 	end)
 end
