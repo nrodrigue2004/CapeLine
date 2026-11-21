@@ -804,6 +804,25 @@ return {
 		bandsLow = 144, -- bands every 12 studs up to here
 		bandStep = 36, -- then every 36
 	},
+	-- the far skyline (2026-11-21, nate: "i can see the boss and i can see the park from really far but not the
+	-- buildings or skyscrapers"): each device draws a stand-in for every hub building whose real model is not streamed
+	-- in (Shared.SkylinePlan, Fx.FarSkyline): its bodies and crown in their kit texture and colour plus window bands
+	-- (budget per preset: Config.Presets far). A band is `thick` of its spacing tall (minThick..maxThick studs), `out`
+	-- studs proud of the wall, bands at least minStep apart; glass by day (dayColor), lit Neon after dusk (nightColor,
+	-- Config.Life.lit's hours). build: parts made a frame at most; every: seconds between visibility passes.
+	far = {
+		on = true,
+		thick = 0.42,
+		minThick = 3,
+		maxThick = 14,
+		minStep = 10,
+		out = 0.3,
+		dayColor = { 78, 104, 132 },
+		nightColor = { 255, 206, 128 },
+		nightTransparency = 0.1,
+		build = 160,
+		every = 0.5,
+	},
 	-- Muted building colours so saturated hero colours pop (spec: Style guide)
 	palette = {
 		concrete = { 158, 156, 150 },
@@ -839,6 +858,21 @@ return {
 		roof = { 74, 76, 82 },
 		window = { 255, 214, 140 },
 		beacon = { 236, 240, 245 },
+		-- Crane's Hero Hall inside (Config.Hall, PLACEHOLDER ART): terrazzo, the red runner, slabs and steps, gold
+		-- trim, Crane navy desks, the screens' dark glass, the training mats, the lift and pad glows, light panels
+		hallFloor = { 226, 216, 198 },
+		hallWall = { 238, 230, 214 },
+		hallCarpet = { 168, 40, 48 },
+		hallSlab = { 200, 202, 208 },
+		hallStep = { 176, 178, 186 },
+		hallGold = { 226, 182, 70 },
+		hallNavy = { 34, 48, 96 },
+		hallGlass = { 150, 196, 230 },
+		hallScreen = { 18, 24, 46 },
+		hallMat = { 70, 92, 140 },
+		hallLift = { 110, 220, 255 },
+		hallBurst = { 255, 150, 60 },
+		hallLight = { 255, 246, 226 },
 		beaconGlow = { 120, 200, 255 },
 		water = { 58, 110, 150 },
 		sea = { 46, 92, 132 },

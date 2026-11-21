@@ -30,7 +30,7 @@ local HALFTONE = "rbxassetid://89303571654854"
 -- Config.Ui.logo holds the same id for the main menu.
 LoadingCard.LOGO = 138065040749947
 
-LoadingCard.MUSIC = { atlas = 112969623640373, start = 0.05, length = 34.2857, volume = 0.35, group = 0.2 }
+LoadingCard.MUSIC = { atlas = 98199961567896, start = 0.05, length = 34.2857, volume = 0.35, group = 0.2 }
 
 -- the skyline along the foot of the card: Brightharbor's towers in two layers drifting past (heights as a share
 -- of the strip, widths as a share of one screen; each layer is two copies side by side so it loops)

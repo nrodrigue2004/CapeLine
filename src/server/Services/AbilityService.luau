@@ -44,7 +44,12 @@ function AbilityService.rank(hero: any, id: string): (boolean, string?)
 	if not EconomyService.spend(hero, credits) then
 		return false, "credits"
 	end
-	hero.ranks[id] = (hero.ranks[id] or 0) + 1
+	-- a weapon skill is rank 1 once Mastery opens it, so its first bought rank is 2 (weapon ranks, 2026-11-21)
+	hero.ranks[id] = (
+		if AbilityRules.isWeapon(A.list[id])
+			then AbilityRules.weaponRank(hero.ranks, id)
+			else hero.ranks[id] or 0
+	) + 1
 	if hero.player then
 		DataService.saveSoon(hero.player)
 		Analytics.event(hero.player, "skill_rank", 1, { id, hero.ranks[id] })

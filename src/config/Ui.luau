@@ -243,6 +243,10 @@ return {
 	-- combatHold s; offers wait offerCalm s of calm; toasts up are cut to `hurry` s while others wait; folded
 	-- ones show "+N more" for moreLife s. settle: seconds of calm after a menu or scene before a card shows;
 	-- giveUp: the longest Ui.PopupGate's join cards wait for that.
+	-- the big centred banner words (CombatFx.banner: Awakened, combos, boss calls). hero-hall (nate 2026-11-21:
+	-- "the big words on the screen in the yellow font are too big"): screen shares it grows from and to, and the
+	-- largest its letters may get in px (it was 0.5 x 0.1 to 0.7 x 0.14 with no cap)
+	banner = { from = { 0.3, 0.055 }, to = { 0.42, 0.075 }, maxText = 44 },
 	popups = {
 		settle = 1.2,
 		giveUp = 600,

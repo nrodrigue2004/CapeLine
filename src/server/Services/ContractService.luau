@@ -1102,6 +1102,18 @@ function ContractService.forceStart(player: Player, n: number, heroic: boolean?)
 	return true
 end
 
+-- hero-hall: the Contract Board in Crane's Hero Hall's lobby (HallService), like a safehouse's: offers taken here
+-- start from `at`
+function ContractService.openAt(player: Player, at: Vector3)
+	boardAt[player] = at
+	local hero = HeroService.get(player)
+	if hero and hero.level < CC.board.minLevel then
+		Net.fire("Toast", player, { id = "contractRefused", reason = "level" })
+		return
+	end
+	Net.fire("ContractBoard", player, view(player))
+end
+
 function ContractService.init()
 	SafehouseService.Board:Connect(function(player, safehouseId)
 		local s = CityBuilder.world.safehouses[safehouseId]

@@ -56,6 +56,7 @@ Pick the Swing mobility (creator or a safehouse). Preview of the maths over a re
 10. Low preset phone: FrameProf SwingFx under 0.2 ms, MoveController unchanged from before.
 
 ## Placeholder art and animation (replace before launch)
+- Crane's Hero Hall (hero-hall, 2026-11-21; Config.Hall, Shared.HallLayout): the lobby, training floor, launch deck, canopy, signs, desks, dais and Hall of Fame statues are plain parts in the city palette (PLACEHOLDER ART); the statues are gold, silver and bronze blocky R15 bodies, not the winners' own looks (the board rows carry no look). A Blender pass (a lobby set: desk, dais, screens, benches, lift rings; trophy statues) would make it read as a landmark.
 - Weather sounds (list-combat, 2026-11-20, Fx.WeatherFx): a storm's thunder is the collapse rumble pitched down (PLACEHOLDER SOUND) and needs a recorded thunder clip (NEEDS NATE). Rain has its bed since 2026-11-20 (alive-world: CC0 rain loops in the Ambient atlas, Config.Audio.sounds.rain, Studio 507). The rain and splash textures (art/fx/textures.py --rain) and the far bolt (neon parts) are final-quality enough for launch.
 - Girder Swing's girder (list-combat, 2026-11-20, CombatFx.heldGirder): the Blender I-beam (art/blender/powers.py Girder: riveted flanges, a grip plate, a torn bent far end; Art.Powers 75001477575839) welded to the right hand for the swing; the old parts stay only until Art.Powers is imported. Done.
 - City park (park, 2026-11-20): the name "Brightwood Park" (Config.Park.name, the gate signs) is a PLACEHOLDER NAME; the busker's tune and the ducks' quack are PLACEHOLDER SOUND (Config.Park.sounds busk and quack use Roblox's built-in sounds, asset 0), the splash and fountain burst reuse built-in falling sounds; until Art.Park is imported the structures show as their plain collision boxes and the wall and rail as plain lengths (PLACEHOLDER ART in ParkBuilder; Art.Park is imported, so this only shows in a place built without art/models/Park.rbxm). The fountain and splash water are the built-in smoke particle, tinted (no water sheet of our own yet).
@@ -204,6 +205,14 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+**How to test everything (Test Lab, 2026-11-21).** In Studio press Play, tap **LAB** (top right, beside DEV).
+WEAPONS: tap any of the 36 (held at once, Z X C V open). POWERS: pick an archetype and a path (loaded at the level
+cap, every ability at max rank), TRY puts any ability on key 1 (BORROW for the archetype's other paths), MOD flips its
+pick. MOVES: any mobility, any rank, both rank-3 and rank-5 moves. CHEATS: god, cooldowns off, endless stamina, supers
+ready. TARGETS: dummies with a damage readout, every robot, each world boss, the HQ boss sim. START: turn SKIP PROLOGUE
+on before OPEN CREATOR or WIPE to land straight in the city; LEAVE LAB gives your own build back (the save keeps it
+the whole time). Studio only: never in a live game.
+
 ### Alive world: safehouses, cranes, chimneys, roof gardens; scared traffic, gulls, smoke (2026-11-20, alive-world)
 Proved headless: the meshes are in the place (Art.Alive, 42 MeshParts, 18 SurfaceAppearances), every look sits over its
 box, the boxes stay (tests/alive_test.luau), the maths of the fear, U-turn and gull circle. Needs Studio:
@@ -325,6 +334,32 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 5. The corner TV is a red cartoon TV set (antennas, cream bezel, grille, knobs): the band, line and ticker show inside its window and do not spill past it; on a phone it fits above the action buttons and clear of the top row.
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
+
+### Playtest gaps26: start here (2026-11-21, build playtest-gaps26)
+Everything in gaps25 plus nate's 2026-11-21 cutscene note: scene cameras never sit in cars or people and never pass through walls (Client.CamClear), no traffic or hub cars in the prologue, the boss alarm siren replaced by a deep brass horn and gone from the prologue scan and intro film, and the CAPELINE title now rises up Crane Tower, and the HUD's Silas Crane corner TV is gone: project files capeline/Capeline-playtest-gaps26-2026-11-21.rbxl (Output "playtest-gaps26 (2026-11-21)"). It replaces every older playtest place. Run "Playtest gaps25: start here" first if not done, then Studio items 314-317.
+### Playtest hall1: start here (2026-11-21, build playtest-hall1)
+Everything in gaps25 plus Crane's Hero Hall (nate: "still cant enter building by hub area and it doesnt look like a hub area"): the Beacon Tower's bottom two storeys are hollow and enterable (a lobby and a training floor upstairs), a launch deck on its roof, the plaza dressed as a hub, and smaller banner words, big toasts, stamps, level badge and NEW MOVE cards (nate: "too big"). Project files capeline/Capeline-playtest-hall1-2026-11-21.rbxl (Output "playtest-hall1 (2026-11-21)"). Studio checks 514-531 below, then gaps25's.
+
+### Hero Hall and the hub plaza (2026-11-21, hero-hall; Config.Hall, Shared.HallLayout, HallService, HallClient)
+Start: open the place, Play, finish or skip to the city, fly to the plaza in Downtown's middle (the tallest tower, the weekly board in front of its west side). Check pictures from the game's own layout: art/preview/HeroHall_front.png, HeroHall_air.png, HeroHall_roof.png, HeroHallCut_lobby.png, HeroHallCut_training.png.
+514. Walk in through each of the three doorways (front under the navy canopy with two gold pillars, back, and west toward the board): no invisible wall, no snag on the frame. The east face (the Ceremony's backdrop) has no door and a big gold "CRANE'S HERO HALL" sign about 30 studs up; each doorway has a navy "HERO HALL" sign over it, readable from the plaza.
+515. The lobby: cream walls (not the facade's window texture) inside, terrazzo floor, a red runner from the front door to a gold and navy round dais in the middle, warm light from four ceiling panels; it is not dark inside at noon or at night.
+516. Hall of Fame: three statues on the dais (gold #1 in front, silver and bronze behind), arm raised, each with a plate "#1 NAME / N MVPS" from this week's BOSS MVPS board, or "#n THIS COULD BE YOU" while the board is empty. They face the front door.
+517. Press B at the navy desk with the gold top (back-west, "Shop"): the Robux shop opens. B at the back wall screen "WEEKLY BOARDS": the boards panel opens. B at "SQUADS" (front wall, east of the door): the squad panel opens. B at "CONTRACT BOARD" (front wall, west): the Contract Board opens at level 4+ (below: the level toast); accepting an offer works from there.
+518. The stair along the east wall: walk (not jump) up from the front end to the training floor; no step is too high, no head bump on the ceiling, the gold rail upstairs keeps you from falling back into the stairwell. Walk down again.
+519. The lift (glowing cyan disc, lobby's front-west corner): B shows "Lift"; a small HALL LIFT card offers TRAINING FLOOR and ROOF (from the lobby). Each puts you on that stop's disc facing the Hall's middle. The card closes on a pick, on X, or when you walk away. From the roof it offers LOBBY and TRAINING FLOOR.
+520. The training floor: four dummies in a row at the back and a big one behind them, in your side's colours, glass windows round the room (you see the city, you cannot walk through them). Hit the dummies with powers and weapons: damage numbers, aim assist locks on them, they never fall; a small navy meter under the top shows "DPS n   TOTAL n" while you hit, gone 2 s after you stop.
+521. Burst Test: stand on the orange disc, B "Burst Test (20 s)": the meter counts "BURST TEST 20 s  score" down; at 0 it reads "BURST TEST: n DAMAGE!" and the front wall screen lists this server's best five by display name (yours once). A second player's run shows on your screen too.
+522. Powers on the training floor do not break the rails, the console, the rack, the dummies' plates or the window panes (the Hall never breaks); the lobby's flower tubs and the plaza's benches, carts and lamps still break like any street thing.
+523. Training floor terminals: B at the console by the west wall opens Loadout; B at the Weapon Rack on the front wall opens the Weapon Rack. Swapping a loadout there is allowed (no "go to a safehouse" refusal).
+524. The roof: ride the lift to ROOF: you stand on the tower's top by the fast-travel beacon. Walk out onto the deck over the front face (gold rails both sides); step onto the orange pad at its end: after a quarter second you are flung out and down over the front street in an arc (no rubber-band back onto the pad), then fall or fly as usual. Standing on it again within 2 s does nothing.
+525. Fly into the Hall through a doorway at speed, and leap inside: the camera never shows the outside through a wall; flying out of a doorway works. Flight through the walls still bounces off (the tower is whole on purpose).
+526. The plaza as a hub: warm terrazzo paving, a thin gold strip round the Hall broken at the doors, a glowing gold meeting ring before the front door, benches facing the Hall, two food carts, cafe tables, a vending machine, flower tubs, lamps, three trees in planters and a fountain with a jet behind the Hall; nothing stands in a doorway's way, on a spawn, on the costume contest stage corner or in front of the weekly board.
+527. The Ceremony prologue (DEV > "Prologue: Vigil"): the stage still stands on the east face, the crowd and camera beats are as before; the big sign reads behind Crane. Nothing of the Hall's inside shows in the shots.
+528. The Live mission (Act 1, on the Hero Hall plaza): its stage, screen and pillars still stand round the tower and the fight works; nothing of the Hall blocks it.
+529. Fast travel to "Crane's Hero Hall" from the MAP: you land as before (outside or on the plaza), not stuck inside a wall.
+530. Phone: the prompts are tappable, the HALL LIFT card fits, the meter does not cover the top row.
+531. HUD sizes (nate: "the big words on the screen in the yellow font are too big ... the unlocks are too big"): Awaken, combos and boss calls like "IT'S COMING DOWN! HIT IT!" are about half the old size and never huge on a big monitor; LEVEL n! and UNLOCKED toasts, the medal and DONE! stamps, the level badge and the NEW MOVE card are smaller and still readable on a phone.
 
 ### Playtest gaps25: start here (2026-11-20, build playtest-gaps25)
 Everything in gaps24 plus story missions on the real map, private to your squad (nate: "Mix", and "Hide you fully"): Framed on the new Harbour Bridge (PLACEHOLDER NAME) over the Docks basin, The Copy on Old Town's real roofs, The Signal on the new Crane Tower between Old Town and the Docks, Live on the Hero Hall plaza, Most Wanted at a Downtown crossroads, The Line in the new Crane Plant on the Docks quay. The Safehouse, the Ceremony subway and side quest pockets stay separate. Outsiders cannot see, hear or bump into a squad in a mission. Config.MapSites.on.<layout> = false puts a mission back in its pocket. Studio checks 442-455 first, then gaps24's.
@@ -2483,6 +2518,14 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 
 95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
 
+317. No corner TV (NewsHud, Config.Cinema.news.tv.on = false): play 10 minutes in the city: no SILAS CRANE / LIVE TV, no BREAKING NEWS TV and no news ticker box ever shows on the HUD; when a world boss lands its toast still shows; the big screens on the Downtown towers still play the news and Crane's segment.
+
+316. Title shot (PrologueFx towerShot, Config.Story.opening.titleShot): after the subway fight, under CAPELINE the camera rises from low and far up Crane Tower (between Old Town and the Docks) and pushes in on its top deck and glowing relay; no building between the camera and the tower at either end, never inside the tower.
+
+315. No alarm (Config.Audio bossWarning clip bossHorn, Music atlas 98199961567896): the Ceremony's scan and the intro film's lock-on play no siren (only the scanner hum, the gasp and the score); when a world boss is called the warning is a deep brass swell with a drum hit, no siren; the loading screen music still plays (new Music atlas id).
+
+314. Scene cameras clear (Client.CamClear, CinemaClient, PrologueQte; nate's playtest 2026-11-21): in the prologue no traffic drives and no hub cars or other heroes show; in the rooftop chase and the QTEs a passing car, person or small prop never snaps the camera in, while a real wall still pulls it in front at once and lets it out slowly; in every mission cutscene and the title no shot looks through a building wall, and no car or citizen sits in the lens (cars drop out within 22 studs of the camera, citizens within 9, other heroes, robots and hub vehicles within 7 fade).
+
 313. Cutscene characters (PrologueFx stage, StoryFx lodestarStep, NpcAnim.crowd.waiting, round 2): in the Ceremony's scan, Crane keeps presenting his scanner and his three heroes stand with arms folded, weight shifting (no frozen wave); after the heroes vanish Crane keeps moving; in a mission cutscene with Lodestar (Safehouse), he talks with his hands the whole beat, never a statue.
 
 312. Cutscene camera feel (CinemaClient drift, jump cuts, depth of field; PrologueQte follow pull-in; round 2): in the Ceremony and a mission cutscene, no shot is dead still: each pushes in slowly with a faint breathing sway (no jitter); where one shot starts close to where the last ended, the camera eases across instead of jerking; the far city is softly blurred and the subject sharp (not on the low preset), easing off after the scene; in the rooftop chase, passing a wall or corner pulls the camera in front smoothly and lets it back out slowly, never pumping in and out.
@@ -2657,3 +2700,35 @@ nate's "Mix": story missions play privately on the real map, special places keep
 453. When the run ends (or A leaves), A's character shows again on B's device at once (plate, aura, sounds back) and B's on A's; a character that respawns or rejoins mid-run stays hidden from the other side.
 454. During the run A cannot lift a street thing (car, bin) and ramming one does not knock it; A's move acts (MoveActFx) and held-prop swings never show on B's screen; citizens near B do not react to A (no cheering, fleeing or pointing at an invisible hero).
 455. A Downed member in the run: an outsider gets no REVIVE prompt for them; an outsider's hook (CombatFx claw) never catches a member.
+
+## Studio list: weapon ranks (missions lane, 2026-11-21)
+790. Open POWERS (the loadout screen): a WEAPON tab sits left of MOBILITY and reads WEAPON n/20 for the carried weapon; the header text still fits beside the tabs on a phone.
+791. WEAPON tab: the carried weapon's Z X C V cards; keys not yet open by Mastery read "MASTERY n OPENS IT"; open ones show pips at rank 1 and RANK UP with its points and Credits.
+792. RANK UP on Z spends the points and Credits, the pips go to 2, and the skill hits harder in the city (and its cooldown drops at rank 4); swapping weapons shows the other weapon's own ranks; respec refunds them.
+## Studio list: far skyline and craters (2026-11-21)
+760. Fly up over the plaza to the ceiling and turn round: every Downtown and Uptown tower stands to the horizon (no gaps where the streaming radius ends), the crowns (setbacks, spires, lanterns, masts) on top, the window bands readable; nothing flickers or doubles where a real chunk streams in (Explorer: Workspace.FarSkyline's Far_<id> models leave as their Building_<id> arrives).
+761. Same at night (Dev clock to 22:00): the far towers' bands glow warm, the near ones show the lit-window pictures out to about 600 studs on medium; at dawn the bands turn back to glass.
+762. On the phone preset (Settings: Low): the far skyline still shows (bands only on the tall towers); Dev panel FPS within 2 of before flying over the city; the micro-profiler's FarSkyline work is one short pass a half second.
+763. Break a tower's top storeys, fly 1,000+ studs away: its stand-in is the cut-down shaft without its crown; collapse one and fly away: no stand-in over its rubble; let the drones repair it: the stand-in is whole again.
+764. Switch preset Low -> High -> Medium while far out: the skyline rebuilds within a couple of seconds with no hitch.
+765. Walking and flying into a far building's spot as it streams in: never stopped by an invisible wall (stand-ins collide with nothing), the camera never pulls in on one.
+766. Memory: Dev panel or F9 Memory on a phone with the stand-ins up: under 10 MB more than before; if a PC has headroom, try StreamingTargetRadius 800 and say if it reads better.
+767. Basic shots and punches into the street: small scorch marks appear and fade after about 45 s; a skill on the ground leaves a dent with a few chips; hitting the same spot grows the mark instead of stacking new ones.
+768. Throw a car onto the road: a dent where it lands; slam a robot down (a heavy knock or throw): a mark where it hits the ground; jump off a 3-storey roof onto the sidewalk: a mark, and from a skyscraper a crater.
+769. In the park: a skill on the lawn dents the real Terrain a little; it fills back when the mark goes; a super on the same spot makes a crater and the dent's ground comes back right (no hole left after both heal).
+770. Two players, A in an on-map mission (phased), B outside: A's hits mark the ground only on A's screen; the park lawn never changes from A's hits; B's marks never show on A's screen during the run.
+771. A fight with 6 heroes spamming basics on one street for a minute: marks stay capped (Dev panel craters count at most 168), no frame drop from marks on the phone preset.
+
+## Studio list: Test Lab (2026-11-21)
+Headless proof: ONLY="Test Lab" (every path's lab loadout passes AbilityRules.validate, TRY on every ability and every
+borrowed skill, all 36 weapons with Z X C V open, every mobility at every rank with both moves, the real DevService's
+lab commands each doing what they say and every one refused outside Studio, the save keeping the pre-lab build, and a
+UiSim walk of every tab at 5 screen sizes). Needs Studio:
+780. Play in Studio: LAB shows beside DEV; it opens the page, X closes it; on a phone emulator (iPhone SE, Android 640, portrait) every tab, button and line is readable and tappable and the page scrolls.
+781. WEAPONS: tap each family's weapons in turn: the weapon appears in the hand at once, the HUD's Z X C V are all open (no "Mastery opens" note), each move plays; HOLD POWER / HOLD WEAPON swap. No weapon is added to the Weapon Rack's owned list and no Mastery toast appears.
+782. POWERS: each archetype, each path: the path loads (level 40, HUD keys 1-4 and the super filled); TRY on each skill puts it on key 1 and it casts; TRY on the super; MOD flips the rank-3 pick (the numbers change); BORROW: a skill of another path of the same archetype tries and casts.
+783. MOVES: each mobility at rank 5 feels like its trained self (no pull-backs in the Output); RANK 0 to 5 change the feel; both rank 3 and both rank 5 moves work when picked (the HUD's move button changes).
+784. CHEATS: GOD (no damage), COOLDOWNS OFF (skills and supers recast every 0.35 s, the HUD sweeps short), STAMINA: ENDLESS (boost, wall runs, the scurry never run out, no pull-back), SUPERS READY (sweeps clear, Awakening full), HEAL, LEVEL 40, STYLE.
+785. TARGETS: DUMMY and BIG DUMMY stand in front of you as the HQ's training dummies facing you, take every hit and show DEALT, HITS and PER SECOND; CLEAR DUMMIES removes them; each robot button spawns that robot in front at your level (flyers in the air); MY EVIL TWIN; each world boss lands in 3 s; BOSS TO 1 HP; HQ BOSS SIM takes you into your HQ with the sim station open.
+786. START: SKIP PROLOGUE ON, then WIPE: NEW HERO: the creator opens with no exposition page; PLAY drops you in the city (no prologue), the story says the opening is done, level 3 and mission 1 cleared. With it OFF the prologue plays as before. OPEN CREATOR with it ON on a hero whose opening was never played also lands in the city.
+787. LEAVE LAB: your own path, loadout, level, mobility and weapon come back; rejoin after testing in the lab without leaving it: the save has the build from before the lab (not the lab's).

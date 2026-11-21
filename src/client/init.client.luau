@@ -30,6 +30,7 @@ local DeepClient = require(Controllers.DeepClient)
 local StoryClient = require(Controllers.StoryClient)
 local PvpClient = require(Controllers.PvpClient)
 local HqClient = require(Controllers.HqClient)
+local HallClient = require(Controllers.HallClient) -- hero-hall: Crane's Hero Hall
 local AudioController = require(Controllers.AudioController)
 local IdleWatch = require(Controllers.IdleWatch)
 local Telemetry = require(Controllers.Telemetry)
@@ -48,6 +49,7 @@ local BuildingFx = require(Fx.BuildingFx)
 local CityLife = require(Fx.CityLife)
 local ParkLife = require(Fx.ParkLife)
 local LitWindows = require(Fx.LitWindows)
+local FarSkyline = require(Fx.FarSkyline) -- 2026-11-21: the buildings past the streaming radius
 local WaterSurface = require(Fx.WaterSurface)
 local ImpactFx = require(Fx.ImpactFx) -- 2026-11-19: rams and throws through walls
 local MoveActClient = require(Controllers.MoveActClient) -- the 20 mobility moves (nate 2026-11-20)
@@ -138,6 +140,17 @@ MoveController.init()
 GroundGuard.init() -- holds the hero still until the ground under a spawn or a server move has streamed in
 CameraController.init()
 CinemaClient.init()
+-- (nate's playtest 2026-11-21) a scene's camera never sits inside a car or a person: no car driven and no
+-- citizen drawn right at the lens, and anything else moving there faded on this device (Config.Cinema.camera.clear)
+do
+	local CamClear = require(Controllers.CamClear)
+	local K = Config.Cinema.camera.clear
+	CinemaClient.onLens = function(at: Vector3?)
+		CityLife.clearAt, CityLife.clearRadius = at, K.gap
+		CitizenRenderer.clearAt, CitizenRenderer.clearRadius = at, K.people
+		CamClear.fadeNear(at)
+	end
+end
 EnemyRenderer.init()
 CitizenRenderer.init()
 WorldClient.init()
@@ -190,6 +203,7 @@ BuildingFx.init()
 CityLife.init() -- the living world: traffic, pigeons, steam, flags, news drones, shop lights, prop bursts
 ParkLife.init() -- the city park: joggers, dogs, picnics, buskers, ducks, rowboats, the carousel, fountains, splashes
 LitWindows.init() -- shapes-2: the kit fronts' windows light up after dusk
+FarSkyline.init() -- 2026-11-21: stand-ins for the hub buildings not streamed in, with window bands
 WaterSurface.init() -- shapes-2: pools, ponds and fountains ripple
 ImpactFx.init()
 MoveActClient.init()
@@ -221,6 +235,7 @@ NpcGestures.init()
 TetherFx.init()
 SwingTrailFx.init() -- the weapons' swing trails, lit during their moves (list-combat)
 HqClient.init()
+HallClient.init()
 EmoteFx.init()
 GadgetClient.init()
 Hud.init()

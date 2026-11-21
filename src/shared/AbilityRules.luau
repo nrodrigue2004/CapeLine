@@ -109,7 +109,10 @@ function AbilityRules.pointsSpent(config: any, ranks: { [string]: number }, star
 		local row = config.Abilities.list[id]
 		if row and row.slot ~= "basic" then
 			for k = 1, r do
-				if not AbilityRules.isStarter(config, id, startSet) or k > 1 then
+				if
+					(not AbilityRules.isStarter(config, id, startSet) or k > 1)
+					and not (row.set == "Weapon" and k == 1)
+				then
 					total += (AbilityRules.rankCost(config, id, k))
 				end
 			end
@@ -125,7 +128,10 @@ function AbilityRules.creditsSpent(config: any, ranks: { [string]: number }, sta
 		local row = config.Abilities.list[id]
 		if row and row.slot ~= "basic" then
 			for k = 1, r do
-				if not AbilityRules.isStarter(config, id, startSet) or k > 1 then
+				if
+					(not AbilityRules.isStarter(config, id, startSet) or k > 1)
+					and not (row.set == "Weapon" and k == 1)
+				then
 					total += select(2, AbilityRules.rankCost(config, id, k))
 				end
 			end
@@ -191,7 +197,7 @@ function AbilityRules.borrowed(config: any, ranks: { [string]: number }, startSe
 	local n = 0
 	for id, rank in ranks do
 		local row = config.Abilities.list[id]
-		if row and rank > 0 and row.set ~= main then
+		if row and rank > 0 and row.set ~= main and row.set ~= "Weapon" then
 			n += 1
 		end
 	end
@@ -247,7 +253,29 @@ export type HeroView = {
 	ranks: { [string]: number },
 	bonusPoints: number?,
 	credits: number?,
+	weapon: number?, -- the equipped weapon (its Z X C V rank like skills: weapon ranks, nate 2026-11-21)
+	weaponMastery: number?, -- that weapon's Mastery points
 }
+
+-- Weapon ranks (nate 2026-11-21, card "Mix": "Mastery from use opens each skill, then you rank it up in the
+-- POWERS screen like a power"): a weapon's Z X C V work at rank 1 the moment Mastery opens them (free), and
+-- ranks 2 to 5 cost Skill Points and Credits like a power's (rankCost), with the same rank effects (more
+-- damage from rank 2, a shorter cooldown at rank 4). Ranked on the equipped weapon only.
+function AbilityRules.isWeapon(row: any): boolean
+	return row ~= nil and row.set == "Weapon"
+end
+
+-- Is this weapon skill open by Mastery (key Z is open at once)?
+function AbilityRules.weaponOpen(config: any, row: any, masteryPoints: number?): boolean
+	local M = config.Weapons.mastery
+	local need = M.skills[row.weaponKey or ""] or math.huge
+	return math.min(M.max, math.floor((masteryPoints or 0) / M.perLevel)) >= need
+end
+
+-- The rank a weapon skill counts as (1 once open; ranks bought on top)
+function AbilityRules.weaponRank(ranks: { [string]: number }, id: string): number
+	return math.max(ranks[id] or 0, 1)
+end
 
 -- Can this hero buy the next rank? Returns ok, reason, points, credits
 function AbilityRules.canRank(
@@ -259,6 +287,31 @@ function AbilityRules.canRank(
 	local row = config.Abilities.list[id]
 	if not row or row.slot == "basic" then
 		return false, "no ranks", 0, 0
+	end
+	if AbilityRules.isWeapon(row) then
+		if hero.weapon ~= row.weapon then
+			return false, "weapon", 0, 0
+		end
+		if not AbilityRules.weaponOpen(config, row, hero.weaponMastery) then
+			return false, "mastery", 0, 0
+		end
+		local wcur = AbilityRules.weaponRank(hero.ranks, id)
+		if wcur >= AbilityRules.maxRank(row) then
+			return false, "max rank", 0, 0
+		end
+		local wpts, wcr = AbilityRules.rankCost(config, id, wcur + 1)
+		if freeCredits then
+			wcr = 0
+		end
+		local wleft = AbilityRules.pointsEarned(config, hero.level, hero.bonusPoints)
+			- AbilityRules.pointsSpent(config, hero.ranks, hero.startSet)
+		if wpts > wleft then
+			return false, "points", wpts, wcr
+		end
+		if wcr > (hero.credits or 0) then
+			return false, "credits", wpts, wcr
+		end
+		return true, nil, wpts, wcr
 	end
 	if not AbilityRules.setUnlocked(config, hero.level, row.set, hero.startSet) then
 		return false, "set locked", 0, 0

@@ -33,14 +33,100 @@ local GuideHud = require(script.Parent.GuideHud)
 local NewsHud = require(script.Parent.NewsHud)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 local FinisherFx = require(script.Parent.Parent.Fx.FinisherFx)
+local HqClient = require(script.Parent.Parent.Controllers.HqClient)
+local TestLab = require(script.Parent.TestLab) -- the Test Lab (2026-11-21): LAB beside DEV
 local Players = game:GetService("Players")
 
 local DevPanel = {}
+
+-- The Test Lab's training dummies (DevService labdummy): each invisible anchor in Workspace.TestLab gets the HQ's
+-- training dummy drawn over it and a readout of what it took (total, hits and the last 5 s per second)
+function DevPanel.watchDummies()
+	local Workspace = game:GetService("Workspace")
+	local drawn = Instance.new("Folder")
+	drawn.Name = "TestLabDummies"
+	drawn.Parent = Workspace
+	local function draw(anchor: Instance)
+		if not anchor:IsA("BasePart") then
+			return
+		end
+		local f = Instance.new("Folder")
+		f.Name = "Dummy"
+		f.Parent = drawn
+		local big = anchor:GetAttribute("Big") == true
+		HqClient.drawDummy(f, anchor.Position, big, anchor.CFrame.LookVector)
+		local board = Instance.new("BillboardGui")
+		board.Size = UDim2.fromOffset(180, 54)
+		board.StudsOffset = Vector3.new(0, (if big then 2.6 else 1) * 4.5, 0)
+		board.AlwaysOnTop = true
+		board.Adornee = anchor
+		board.Parent = f
+		local text = Kit.label({
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 0.3,
+			BackgroundColor3 = Kit.color.night,
+			TextColor3 = Kit.color.paper,
+			Text = "HIT ME",
+			maxText = 18,
+			ink = false,
+		})
+		text.Parent = board
+		local hits: { { number } } = {}
+		local last = 0
+		local function update()
+			local dealt = (anchor:GetAttribute("Dealt") or 0) :: number
+			local now = os.clock()
+			if dealt > last then
+				table.insert(hits, { now, dealt - last })
+			end
+			last = dealt
+			while hits[1] and now - hits[1][1] > 5 do
+				table.remove(hits, 1)
+			end
+			local recent = 0
+			for _, h in hits do
+				recent += h[2]
+			end
+			local span = if #hits > 0 then math.max(1, now - hits[1][1]) else 1
+			text.Text = string.format(
+				"%s DEALT  %d HITS\n%s PER SECOND",
+				Kit.comma(math.floor(dealt)),
+				(anchor:GetAttribute("Hits") or 0) :: number,
+				Kit.comma(math.floor(recent / span))
+			)
+		end
+		anchor:GetAttributeChangedSignal("Dealt"):Connect(update)
+		task.spawn(function()
+			while anchor.Parent do
+				task.wait(0.5)
+				update()
+			end
+			f:Destroy()
+		end)
+	end
+	local function watch(folder: Instance)
+		for _, c in folder:GetChildren() do
+			draw(c)
+		end
+		folder.ChildAdded:Connect(draw)
+	end
+	local existing = Workspace:FindFirstChild("TestLab")
+	if existing then
+		watch(existing)
+	end
+	Workspace.ChildAdded:Connect(function(c)
+		if c.Name == "TestLab" then
+			watch(c)
+		end
+	end)
+end
 
 function DevPanel.init()
 	if not RunService:IsStudio() then
 		return
 	end
+	TestLab.init()
+	DevPanel.watchDummies()
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
 		Size = UDim2.fromOffset(300, 885),

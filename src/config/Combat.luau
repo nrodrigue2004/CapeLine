@@ -151,6 +151,10 @@ return {
 		minFall = 90,
 		fullFall = 200,
 		dmg = { 1200, 3600 }, -- structure damage from minFall to fullFall
+		-- (2026-11-21) a landing on the ground from markFall to minFall leaves a ground mark (CraterService, the
+		-- marks' damage markDmg from markFall to minFall); it hits no robots and breaks nothing
+		markFall = 70,
+		markDmg = { 250, 1100 },
 		radius = { 8, 14 }, -- studs of roof round the landing
 		coeff = 1.2, -- the hit on robots round it (times the hero's basic damage)
 		near = 18,

@@ -46,6 +46,12 @@ return function(T: any)
 				return -- light, marks and window bands: no body
 			end
 			local key = b.kind .. ":" .. tostring(b.color)
+			if b.hallPart then
+				-- hero-hall: Crane's Hero Hall's own pieces stay whole like the Beacon Tower they are part of (the
+				-- training floor's rails, counters and panes must survive a power test)
+				kept += 1
+				return
+			end
 			if b.site then
 				-- a story mission's permanent piece (Shared.MapSites, missions lane 2026-11-20) stays whole on purpose:
 				-- its run's points stand on it
@@ -476,12 +482,15 @@ return function(T: any)
 		check(
 			has(
 				source("src/server/Services/BuildingService.luau"),
-				"CraterService.blast(center, radius, dmg)"
+				"CraterService.blast(center, radius, dmg, phase)" -- (2026-11-21: with the hitter's phase)
 			),
 			"big hits crater"
 		)
 		check(
-			has(source("src/server/Services/ImpactService.luau"), "CraterService.blast(at, radius, dmg)"),
+			has(
+				source("src/server/Services/ImpactService.luau"),
+				"CraterService.blast(at, radius, dmg, hero.phase)"
+			),
 			"a drop on the ground craters it"
 		)
 		check(has(source("src/server/init.server.luau"), 'boot("CraterService"'), "CraterService boots")

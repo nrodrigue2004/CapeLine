@@ -109,6 +109,7 @@ local gone: { [number]: { [number]: boolean } } = {} -- building id -> pieces kn
 local bodyFlags: { [BasePart]: { collide: boolean, query: boolean } } = {}
 local folder: Folder
 local synced = false
+local changed: (number) -> ()
 
 -- the plain kit texture a kit building's pillars, slabs and rubble wear (Config.City.kit.wreck)
 local WRECK_KIT: string? = Config.City.kit and Config.City.kit.wreck
@@ -1588,6 +1589,7 @@ local function smashStreet(center: Vector3, radius: number, only: BasePart?, hea
 			and (p.Transparency < 1 or p:GetAttribute("Picket") == true) -- a picket fence's box is hidden behind its picture
 			and p.LocalTransparencyModifier < 1
 			and p:GetAttribute("Tag") == nil
+			and p:GetAttribute("Hall") == nil -- hero-hall: the Hall's counters, rails and panes stay (the tower never breaks)
 			and not (parent and parent:GetAttribute("BuildingId") ~= nil)
 		then
 			local kind = StreetBreak.kind(p.Size.X, p.Size.Y, p.Size.Z)
@@ -1839,6 +1841,15 @@ local function droneJob(droneId: number, bid: number, seconds: number)
 	end))
 end
 
+-- the far skyline (Fx.FarSkyline, 2026-11-21) hears every building that streams in or out or changes state; 0: all
+BuildingFx.onChange = nil :: ((number) -> ())?
+changed = function(id: number)
+	local hook = BuildingFx.onChange
+	if hook then
+		hook(id)
+	end
+end
+
 local function register(model: Instance)
 	if not model:IsA("Model") then
 		return
@@ -1851,6 +1862,7 @@ local function register(model: Instance)
 	if synced then
 		task.defer(apply, id, false)
 	end
+	changed(id)
 end
 
 local function unregister(model: Instance)
@@ -1864,6 +1876,7 @@ local function unregister(model: Instance)
 				bodyFlags[p] = nil
 			end
 		end
+		changed(id)
 	end
 end
 
@@ -2076,6 +2089,34 @@ function BuildingFx.state(id: number): number
 	return state[id] or 0
 end
 
+-- Is the building's real model streamed in on this device? (the far skyline hides its stand-in then)
+function BuildingFx.present(id: number): boolean
+	return models[id] ~= nil
+end
+
+-- What still stands of a building (the far skyline, 2026-11-21): its state, the top of what stands (a Damaged
+-- building's Structure.standingTop, else its top) and whether its crown stands (every piece of the top storey)
+function BuildingFx.standing(id: number): (number, number, boolean)
+	local s = state[id] or 0
+	local rec = records[id]
+	if not rec then
+		return s, 0, true
+	end
+	local g = gone[id]
+	if s ~= BuildingState.DAMAGED or not g or next(g) == nil then
+		return s, rec.top, true
+	end
+	local grid = gridOf(rec)
+	local crown = true
+	for i in g do
+		if grid.pieces[i] and grid.pieces[i].storey == grid.storeys then
+			crown = false
+			break
+		end
+	end
+	return s, Structure.standingTop(grid, g), crown
+end
+
 function BuildingFx.init()
 	folder = Instance.new("Folder")
 	folder.Name = "CityFx"
@@ -2127,6 +2168,7 @@ function BuildingFx.init()
 		for _, job in data.dr or {} do
 			droneJob(job[1], job[2], job[3])
 		end
+		changed(0)
 	end)
 	Net.listen("BuildingDiff", function(data: any)
 		if type(data) ~= "table" then
@@ -2143,6 +2185,9 @@ function BuildingFx.init()
 			for id in touched do
 				apply(id, true, fresh[id])
 			end
+		end
+		for id in touched do
+			changed(id)
 		end
 		for _, job in data.dr or {} do
 			droneJob(job[1], job[2], job[3])

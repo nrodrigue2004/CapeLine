@@ -579,6 +579,20 @@ function OpeningService.stop(player: Player)
 	Net.fire("OpeningState", player, { step = 0 })
 end
 
+-- Studio only (the Test Lab's "Skip prologue"): a hero the creator just made goes straight into the city. The
+-- prologue's own rewards land as if it had played (pay: the side, opening done, mission 1's first clear and its
+-- level and Skill Point), and Finished fires as at its end, so what follows the prologue still follows it.
+function OpeningService.skip(player: Player, side: string): boolean
+	local hero = HeroService.get(player)
+	if not RunService:IsStudio() or not hero or runs[player] then
+		return false
+	end
+	hero.scene = nil
+	pay(player, hero, side)
+	OpeningService.Finished:Fire(player, if side == "villain" then "villain" else "hero")
+	return true
+end
+
 function OpeningService.running(player: Player): boolean
 	return runs[player] ~= nil
 end

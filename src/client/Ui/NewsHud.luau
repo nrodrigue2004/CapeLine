@@ -6,7 +6,8 @@
 --   ticker. Only screens near the camera scroll, a few times a second (phones).
 -- * The corner TV on the HUD: a world boss landing or a fake unmasked flashes BREAKING NEWS on every HUD (the
 --   boss also as a toast); other news shows on its ticker for a moment; with nothing new, Crane's segment airs
---   now and then. It stays off in the prologue, missions and cutscenes.
+--   now and then. It stays off in the prologue, missions and cutscenes. OFF by nate's call (2026-11-21,
+--   Config.Cinema.news.tv.on): only the boss toast reaches the HUD; the big screens keep everything.
 -- * Boss entrances (K2): a 3 s name card (CinemaHud) for each hero who arrives at a boss fight, the world
 --   bosses and the fakes' battle forms in Live alike.
 -- * Lore step 9: the same card for the Crater ("WHERE THE OLD HEROES FELL") the first time a session a hero walks
@@ -210,6 +211,12 @@ local function buildTv()
 end
 
 local function tvShow(mode: string, band: string, text: string, seconds: number)
+	-- (nate's playtests 2026-11-20 "no TV" and 2026-11-21 "I'm still getting the silas crane tv on my screen")
+	-- the corner TV is off: no Crane segment, facts or flashes on the HUD (a boss landing still toasts; the big
+	-- screens in the city keep the news). Config.Cinema.news.tv.on brings it back.
+	if not N.tv.on then
+		return
+	end
 	-- Settings "Popups": Important only keeps the breaking news flash, Off none
 	local M = Config.Ui.popups.modes
 	if Popups.mode == M.off or (Popups.mode == M.important and mode ~= "flash") then

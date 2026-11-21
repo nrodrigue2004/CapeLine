@@ -26,6 +26,16 @@
 -- WP1: daily 1-4 (a day passes, two days pass, finish today's quests, start the streak over).
 -- WP10: promo 1-2 (forget this account's code and group claims; the group piece as if a member).
 -- WP8: balance (print the live balance boot applied and refused, BalanceService.report).
+-- The Test Lab (nate, 2026-11-21; Shared.LabRules, the Dev panel's LAB page): the first lab command keeps the hero's
+-- build aside (the save keeps it; lableave puts it back). labweapon n (carry weapon n, held, Z X C V open), labpath n
+-- (path n of Abilities.sets at the level cap: every ability at max rank, a loadout filled from it), labtry n (ability
+-- num n onto the first skill key or the super; borrowed skills too), labmove n (mobility n at its last rank, both
+-- choice moves picked), labrank n (the pick's rank n), labchoice r*10+o (rank r's move o), labnocd 0/1 (cooldowns
+-- cut to Config.Dev.lab.cooldown), labstamina 0/1, labready (every cooldown done, Awakening full), labdummy 0/1/2
+-- (a training dummy, a big one, clear them), labrobot n (one robot of Config.Enemies.order[n] in front, at your
+-- level), labboss n (boss n lands in 3 s), labskip 0/1 (finishing the creator skips the exposition and the prologue),
+-- lableave (your own build back). Mod picks and holding power or weapon use the game's own remotes (SkillsMod,
+-- WeaponHold).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -66,15 +76,271 @@ local BoardService = require(script.Parent.BoardService) -- WP2
 local DailyService = require(script.Parent.DailyService) -- WP1
 local PromoService = require(script.Parent.PromoService) -- WP10
 local BalanceService = require(script.Parent.BalanceService) -- WP8
+local WeaponService = require(script.Parent.WeaponService) -- the Test Lab
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
 local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
 local StoryPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StoryPlan"))
+local LabRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("LabRules"))
+local MoveRanks = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MoveRanks"))
+local Cooldowns = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Cooldowns"))
 
 local DevService = {}
 
 local forceHeroic = false -- the Dev panel's Heroic switch for what it starts
+
+---------------------------------------------------------------------------
+-- The Test Lab (Studio only: every command below runs only through the DevCommand gate)
+---------------------------------------------------------------------------
+local L = Config.Dev.lab
+
+-- The hero's lab, opened (the build kept aside) on its first command
+local function labOf(hero: any): LabRules.Lab
+	if not hero.lab then
+		hero.lab = LabRules.new(hero)
+	end
+	return hero.lab
+end
+
+local function labNote(player: Player, text: string)
+	Net.fire("Toast", player, { id = "note", text = "TEST LAB: " .. text })
+end
+
+-- A point `ahead` studs in front of the hero on the ground (slot of count across), or nil without a body
+local function labSpot(hero: any, ahead: number, slot: number, count: number): Vector3?
+	local root = HeroService.rootPart(hero)
+	if not root then
+		return nil
+	end
+	local p, look = root.Position, root.CFrame.LookVector
+	local x, z = LabRules.spot(p.X, p.Z, look.X, look.Z, ahead, slot, count, L.gap)
+	return Vector3.new(x, CityBuilder.heightAt(x, z), z)
+end
+
+-- The lab's training dummies: an invisible anchor part each in Workspace.TestLab (the device draws the HQ's
+-- training dummy over it and its damage readout from the anchor's Dealt and Hits attributes) and a target that
+-- takes every hit and never breaks
+local dummies: { { id: number, part: BasePart } } = {}
+local function clearDummies()
+	for _, d in dummies do
+		EnemyService.removeTarget(d.id)
+		d.part:Destroy()
+	end
+	table.clear(dummies)
+end
+local function addDummy(hero: any, big: boolean): boolean
+	if #dummies >= L.dummies then
+		return false
+	end
+	local s = if big then 2.6 else 1
+	local ground = labSpot(hero, L.ahead * (if big then 1.6 else 1), #dummies + 1, L.dummies)
+	if not ground then
+		return false
+	end
+	local pos = ground + Vector3.new(0, 3 * s, 0)
+	local folder = workspace:FindFirstChild("TestLab") or Instance.new("Folder")
+	folder.Name = "TestLab"
+	folder.Parent = workspace
+	local part = Instance.new("Part")
+	part.Name = "LabDummy"
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Transparency = 1
+	part.Size = Vector3.new(1, 1, 1)
+	local root = HeroService.rootPart(hero)
+	local face = if root then Vector3.new(root.Position.X, pos.Y, root.Position.Z) else pos + Vector3.zAxis
+	part.CFrame = if (face - pos).Magnitude > 0.5 then CFrame.lookAt(pos, face) else CFrame.new(pos)
+	part:SetAttribute("Big", big)
+	part:SetAttribute("Dealt", 0)
+	part:SetAttribute("Hits", 0)
+	part.Parent = folder
+	local id = EnemyService.addTarget({
+		x = pos.X,
+		y = pos.Y,
+		z = pos.Z,
+		r = Config.Hq.dummy.radius * s,
+		hit = function(amount: number)
+			part:SetAttribute("Dealt", (part:GetAttribute("Dealt") or 0) + amount)
+			part:SetAttribute("Hits", (part:GetAttribute("Hits") or 0) + 1)
+			return amount, false
+		end,
+	})
+	part:SetAttribute("TargetId", id)
+	table.insert(dummies, { id = id, part = part })
+	return true
+end
+
+-- Put a path's lab kit on the hero (its archetype with it)
+local function labPath(hero: any, set: string)
+	labOf(hero)
+	if hero.level < Config.Stats.levelCap then
+		hero.level = Config.Stats.levelCap -- every slot, the super and borrowing open (HeroService.refresh below)
+		hero.xp = 0
+	end
+	local ranks, loadout = LabRules.pathKit(Config, set, hero.level)
+	hero.ranks, hero.mods = ranks, {}
+	hero.startSet, hero.setId = set, set
+	local l2 = table.clone(loadout)
+	l2.skills = table.clone(loadout.skills)
+	hero.loadouts = { loadout, l2 }
+	hero.loadoutIndex = 1
+	hero.loadout = loadout
+	Cooldowns.clear(hero.cooldowns)
+	hero.lab.reset += 1
+	HeroService.setClass(hero, AbilityRules.archetypeOf(Config, set) or Config.Classes.default)
+	HeroService.refresh(hero)
+end
+
+local labCommands: { [string]: (player: Player, hero: any, value: number) -> () } = {
+	labweapon = function(player, hero, id)
+		if not LabRules.weaponOk(Config, id) then
+			labNote(player, "no such weapon")
+			return
+		end
+		local lab = labOf(hero)
+		lab.weapon = id
+		GearService.refresh(player) -- the weapon in the hand (LabRules.weaponOf) with every key open
+		hero.held = "weapon"
+		hero.combo.at, hero.combo.step = 0, 0
+		hero.channel = nil
+		WeaponService.showHeld(hero)
+		HeroService.sendState(hero)
+	end,
+	labpath = function(player, hero, index)
+		local set = Config.Abilities.sets[index]
+		if not set or not AbilityRules.pathReady(Config, set) then
+			labNote(player, "that path has no abilities yet")
+			return
+		end
+		labPath(hero, set)
+		hero.held = "power"
+		WeaponService.showHeld(hero)
+		HeroService.sendState(hero)
+	end,
+	labtry = function(player, hero, num)
+		local row = Config.Abilities.byNum[num]
+		if not row then
+			return
+		end
+		labOf(hero)
+		if hero.level < Config.Stats.levelCap then
+			labPath(hero, hero.startSet or Config.Abilities.defaultLoadout.set)
+		end
+		local ok, why, ranks, loadout = LabRules.try(Config, hero, row.id)
+		if not ok or not ranks or not loadout then
+			labNote(player, string.format("%s can't go on: %s", row.name or row.id, tostring(why)))
+			return
+		end
+		hero.ranks = ranks
+		hero.loadout = loadout
+		hero.loadouts[hero.loadoutIndex] = loadout
+		hero.setId = loadout.set
+		hero.held = "power"
+		WeaponService.showHeld(hero)
+		HeroService.sendState(hero)
+	end,
+	labmove = function(_, hero, index)
+		local pick = Config.Move.mobilityOrder[index]
+		if not pick then
+			return
+		end
+		labOf(hero)
+		hero.mobRanks, hero.mobMoves = LabRules.mobility(Config.Move, hero.mobRanks, hero.mobMoves, pick)
+		HeroService.setMobility(hero, pick) -- sends the state
+	end,
+	labrank = function(_, hero, rank)
+		labOf(hero)
+		local pick = hero.mobility or "flight"
+		hero.mobRanks, hero.mobMoves = LabRules.mobility(
+			Config.Move,
+			hero.mobRanks,
+			hero.mobMoves,
+			pick,
+			math.min(rank, MoveRanks.max(Config.Move, pick))
+		)
+		HeroService.sendState(hero)
+	end,
+	labchoice = function(player, hero, value)
+		labOf(hero)
+		local rank, option = LabRules.choiceOf(value)
+		local ok, why = HeroService.chooseMove(hero, rank, option, true) -- the game's own check, a swap allowed
+		if not ok and why ~= "same" then
+			labNote(player, "move: " .. tostring(why))
+		end
+	end,
+	labnocd = function(_, hero, on)
+		local lab = labOf(hero)
+		lab.noCd = on ~= 0
+		HeroService.sendState(hero)
+	end,
+	labstamina = function(_, hero, on)
+		local lab = labOf(hero)
+		lab.stamina = on ~= 0
+		HeroService.sendState(hero)
+	end,
+	labready = function(_, hero)
+		local lab = labOf(hero)
+		Cooldowns.clear(hero.cooldowns)
+		table.clear(hero.recast)
+		lab.reset += 1
+		hero.meter.value = Config.Abilities.awakening.max
+		HeroService.sendStatus(hero)
+		HeroService.sendState(hero)
+	end,
+	labdummy = function(player, hero, what)
+		if what == 2 then
+			clearDummies()
+		elseif not addDummy(hero, what == 1) then
+			labNote(player, string.format("at most %d dummies (clear them first)", L.dummies))
+		end
+	end,
+	labrobot = function(player, hero, index)
+		local kind = Config.Enemies.order[index]
+		local cfg = kind and Config.Enemies[kind]
+		if not cfg or cfg.on == false or kind == "EvilTwin" then
+			labNote(player, "that robot is switched off")
+			return
+		end
+		local at = labSpot(hero, L.robotAhead, 1, 1)
+		if at then
+			local id = EnemyService.spawnAt(
+				kind,
+				at + Vector3.new(0, if cfg.flies then L.flyUp else 2, 0),
+				hero.level
+			)
+			if not id then
+				labNote(player, (cfg.name or kind) .. " did not spawn")
+			end
+		end
+	end,
+	labboss = function(player, _, index)
+		if not BossService.startPick(index) then
+			labNote(player, "a boss fight is on: wait for it to end")
+		end
+	end,
+	labskip = function(player, _, on)
+		CreatorService.setSkipPrologue(player, on ~= 0)
+	end,
+	lableave = function(player, hero)
+		local lab = hero.lab
+		if not lab then
+			return
+		end
+		LabRules.restore(hero, lab.home)
+		hero.lab = nil
+		Cooldowns.clear(hero.cooldowns)
+		HeroService.setMobility(hero, hero.mobility)
+		HeroService.setClass(hero, hero.classId)
+		GearService.refresh(player) -- the carried weapon back
+		hero.held = "power"
+		WeaponService.showHeld(hero)
+		HeroService.refresh(hero)
+	end,
+}
+DevService.labCommands = labCommands -- (tests)
 
 local commands: { [string]: (player: Player, hero: any, value: number) -> () } = {
 	bots = function(_, _, n)
@@ -466,6 +732,10 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		BalanceService.report()
 	end,
 }
+
+for name, fn in labCommands do
+	commands[name] = fn
+end
 
 function DevService.init()
 	Net.on("DevCommand", function(player, name: string, value: number?)

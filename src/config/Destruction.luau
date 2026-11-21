@@ -158,6 +158,38 @@ return {
 		-- a crater of minR+ throws up clods of the ground's own look (GroundFx; Presets collapse.clods each, only within
 		-- range studs of the camera), up and out at these speeds, gone after life s
 		clods = { minR = 7, range = 260, up = 42, out = 16, life = 5 },
+		-- ground marks (2026-11-21, nate: "I'm still not noticing any terrain damage or craters"): the hits too light
+		-- for a crater (and a crater the caps refuse) leave a mark where they meet the ground: a scorch (below dent) or
+		-- a shallow dent with a few rim chips (dent+), minR..maxR studs across by damage from minDmg to fullDmg. A hit
+		-- inside a live mark (merge x its radius) grows it (grow x, to maxR) and starts its life again. Terrain (the
+		-- park's lawns, the seabed) is dug for a dent of dig+ studs, `depth` radii deep (server, written back as read);
+		-- a private mission run's marks (PhaseRules) never touch Terrain and only its party sees them. Caps: perSecond,
+		-- perCell in a cell-stud square, maxLive. Ids start at idBase (apart from the craters'). Devices draw their
+		-- preset's nearest `marks` (Config.Presets) within `range` studs. robot: a launched robot landing at minSpeed+
+		-- studs a second marks the ground (dmg from minSpeed to fullSpeed).
+		marks = {
+			on = true,
+			minDmg = 150,
+			fullDmg = 1500,
+			radius = { 1.6, 5 },
+			dent = 450,
+			dig = 3.5,
+			depth = 0.45,
+			soft = 0.35,
+			voxel = 4,
+			life = 45,
+			heal = 12,
+			perSecond = 10,
+			cell = 24,
+			perCell = 5,
+			maxLive = 120,
+			merge = 0.7,
+			grow = 1.15,
+			near = 5,
+			idBase = 1000000,
+			range = 420,
+			robot = { minSpeed = 45, fullSpeed = 110, dmg = { 300, 900 }, radius = 5 },
+		},
 	},
 	-- comic ink decals for the crater and the facade crack (art/fx/textures.py --destruction, uploaded as Image
 	-- assets); id 0 keeps today's dark disc and thin bars (BuildingFx). crater: the decal spans this many crater

@@ -26,7 +26,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -48,13 +47,12 @@ local CombatFx = require(script.Parent.CombatFx)
 local PrologueFx = require(script.Parent.PrologueFx)
 local QteHud = require(script.Parent.Parent.Ui.QteHud)
 
+local CamClear = require(script.Parent.Parent.Controllers.CamClear)
+
 local PrologueQte = {}
 
 local Q = Config.Story.opening.qte
 local player = Players.LocalPlayer
-local rayParams = RaycastParams.new()
-rayParams.FilterType = Enum.RaycastFilterType.Exclude
-rayParams.IgnoreWater = true
 local GROUP = "TravelFlight" -- BeaconService.GROUP: the body passes through everything on a directed move
 
 type Run = {
@@ -190,9 +188,9 @@ local function follow(dt: number): (Vector3, Vector3)
 	-- never behind a wall: a building between the hero and the shot pulls the camera in front of it
 	local gap = wantCam - wantLook
 	if gap.Magnitude > 1 then
-		local char = player.Character
-		rayParams.FilterDescendantsInstances = if char then { char } else {}
-		local hit = Workspace:Raycast(wantLook, gap, rayParams)
+		-- (nate's playtest 2026-11-21) only big still walls count: a passing car, a person or a small prop never
+		-- snaps the camera in (CamClear; CinemaClient keeps the final camera clear too)
+		local hit = CamClear.cast(wantLook, wantCam)
 		-- (first-30 polish round 2) the pull-in is eased on its own: in fast when a wall comes between, out slowly
 		-- once it is gone, so a wall's edge flickering in and out of the ray never pumps the camera
 		local want = if hit then math.max(1, hit.Distance - 1.5) else gap.Magnitude

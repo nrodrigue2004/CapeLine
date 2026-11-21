@@ -786,6 +786,17 @@ function BossService.startNow()
 	end
 end
 
+-- Studio (the Test Lab): boss `index` of Config.Boss.order lands next, in 3 s. Only while no fight is on;
+-- returns whether it was queued.
+function BossService.startPick(index: number): boolean
+	if phase ~= "waiting" or not B.order[index] then
+		return false
+	end
+	turn = index - 1
+	startAt = os.clock() + 3
+	return true
+end
+
 -- Studio: take the boss to 1 HP (the next hit ends it)
 function BossService.weaken()
 	local f = fight

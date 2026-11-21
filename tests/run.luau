@@ -4608,7 +4608,9 @@ test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 				m.layout .. " has " .. count .. " " .. list
 			)
 		end
-		check(#l.boxes < 400, m.layout .. " stays under 400 parts (" .. #l.boxes .. ")")
+		-- the Safehouse holds the Vigil's HQ room and the tunnels' dressing since 2026-11-21 (most of it ghost decor)
+		local cap = if m.layout == "dungeon" then 560 else 400
+		check(#l.boxes < cap, m.layout .. " stays under " .. cap .. " parts (" .. #l.boxes .. ")")
 		local sp = l.points.spawn
 		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == n, m.layout .. " spawn is inside its pocket")
 	end
@@ -7526,7 +7528,7 @@ test("Creator plan: all 36 weapons have an M1 and Z X C V, held with key 2, open
 				)
 				check(row.coeff <= 3.5, aid .. " is no stronger than a power skill")
 				local eff = AbilityRules.effective(Config, aid, 1)
-				check(eff.coeff == row.coeff, aid .. " never ranks up")
+				check(eff.coeff == row.coeff, aid .. " rank 1 is its base numbers")
 				if k == 1 and row.shape == "arc" then
 					check(#row.hits == 4, aid .. " is a 4-hit combo")
 				end
@@ -8487,6 +8489,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- act1-choices: a choice in every Act 1 mission (own file, merges easily)
 (require :: any)("./act1_choices_test")({ test = test, check = check, Config = Config }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
+(require :: any)("./weapon_ranks_test")({ test = test, check = check, Config = Config }); -- weapon ranks (nate 2026-11-21, "Mix")
 (require :: any)("./side_content_test")({ test = test, check = check, Config = Config, world = world }); -- side-content: lore pages, mobility training, each side's own content
 (require :: any)("./balance_test")({ test = test, check = check, Config = Config });
 -- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
@@ -12046,8 +12049,8 @@ test(
 		local kit = HqRules.wallKit(Config, 376)
 		local decor, wallC = 0, 0
 		for _, b in dungeon.boxes do
-			if b.tag == "decor" and (b.ref == "tornPhoto" or b.ref == "tour") then
-				-- act1-choices: not the wall kit (nor the missions lane's radio desk and bunks)
+			if b.tag == "decor" and (b.ref == "tornPhoto" or b.ref == "tour" or b.ref == "dress") then
+				-- act1-choices: not the wall kit (nor the missions lane's radio desk, bunks and 2026-11-21 dressing)
 				check(b.ghost == true, "the torn photo, the desk and the bunks are walk-through")
 			elseif b.tag == "decor" then
 				decor += 1
@@ -23301,6 +23304,15 @@ do
 		placePath = placePath,
 	})
 end
+-- hero-hall (2026-11-21, own file): Crane's Hero Hall, the Beacon Tower's enterable base and the hub plaza;
+-- ONLY="Hero Hall"
+(require :: any)("./hall_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+});
 -- move-2 (2026-11-19, own file): the smash rule, the Hulk climb, the Acrobat's crawl and flips, swing anywhere and
 -- everyone's sprint; ONLY="Climb"
 (require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath });
@@ -23329,7 +23341,17 @@ end
 });
 (require :: any)("./alive2_test")({ test = test, check = check, Config = Config, world = world });
 (require :: any)("./alive3_test")({ test = test, check = check, Config = Config });
-(require :: any)("./alive4_test")({ test = test, check = check, Config = Config })
+(require :: any)("./alive4_test")({ test = test, check = check, Config = Config });
+-- the far skyline and ground marks (2026-11-21, own file): ONLY="Far skyline" or ONLY="Ground marks"
+(require :: any)("./far_craters_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+});
+-- the Test Lab (2026-11-21): every weapon, power, mobility and cheat in Studio; ONLY="Test Lab"
+(require :: any)("./testlab_test")({ test = test, check = check, Config = Config, placePath = placePath })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

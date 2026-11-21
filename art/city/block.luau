@@ -99,6 +99,25 @@ local AREAS = {
 			},
 		},
 	},
+	-- hero-hall (2026-11-21): Crane's Hero Hall and the hub plaza round it, from the front (the canopy door) and
+	-- the air; HeroHallCut lifts off the front wall and the tower over the base so both floors show like a doll's
+	-- house (Shared.HallLayout)
+	HeroHall = {
+		window = { -470, -70, -330, 70 },
+		cams = {
+			front = { { -400 + 30, gy + 9, -78 }, { -400, gy + 12, -20 }, 22 },
+			air = { { -400 - 120, gy + 140, -150 }, { -400, gy + 10, 0 }, 28 },
+			roof = { { -400 + 60, gy + 660, -110 }, { -400, gy + 636, -30 }, 24 },
+		},
+	},
+	HeroHallCut = {
+		window = { -430, -30, -370, 30 },
+		cut = true,
+		cams = {
+			lobby = { { -400 + 6, gy + 14, -62 }, { -400, gy + 8, 0 }, 18 },
+			training = { { -400 + 6, gy + 36, -60 }, { -400, gy + 30, 4 }, 18 },
+		},
+	},
 	Suburbs = {
 		window = { -1400, -300, -900, 200 },
 		cams = {
@@ -117,7 +136,18 @@ end
 local out = { area = area, window = w, cams = a.cams, boxes = {}, props = {}, ground = gy }
 local function add(list: { any })
 	for _, bx2 in list do
-		if inside(bx2.cx, bx2.cz, math.max(bx2.sx, bx2.sz) / 2) and not (bx2.plain and bx2.kit == nil) then
+		local cut = a.cut
+			and (
+				((bx2.hall == "wall" or bx2.hall == "glass" or bx2.hall == "lining") and bx2.cz < -20)
+				or (bx2.kind == "beacon" and bx2.sy > 100)
+				or bx2.kind == "band"
+				or (bx2.hall == "canopy")
+			)
+		if
+			not cut
+			and inside(bx2.cx, bx2.cz, math.max(bx2.sx, bx2.sz) / 2)
+			and not (bx2.plain and bx2.kit == nil)
+		then
 			if bx2.art then
 				-- the server builds its Art.Street meshes in its place (pt-city): render those
 				local a = bx2.art

@@ -162,8 +162,15 @@ local function settle(id: number, r: BuildingState.Blast)
 	end
 end
 
--- A structural hit. kind: 1 a slam or landing (crater), 2 a blast (cracks only). Returns buildings hit.
-function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind: number?): number
+-- A structural hit. kind: 1 a slam or landing (crater), 2 a blast (cracks only). phase: the hitter's private mission
+-- run (PhaseRules; its ground marks only its party sees, 2026-11-21). Returns buildings hit.
+function BuildingService.hit(
+	center: Vector3,
+	radius: number,
+	dmg: number,
+	kind: number?,
+	phase: number?
+): number
 	local book = BuildingService.book
 	if not book or dmg <= 0 then
 		return 0
@@ -183,12 +190,15 @@ function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind:
 		impact(center, radius, kind or 2)
 		-- a heavy hit at the ground digs a crater there (fix-destroy: CraterService, terrain or part ground)
 		if n == 0 or kind == 1 then
-			CraterService.blast(center, radius, dmg)
+			CraterService.blast(center, radius, dmg, phase)
 		end
 		-- citizens near any big hit run too, wreckable building or not
 		BuildingService.Danger:Fire(center.X, center.Z, radius + 20, 4)
 	elseif n > 0 then
 		chip(center, radius) -- a basic hit on a wall that breaks nothing yet still shows (list-combat 2026-11-20)
+	else
+		-- a basic hit at the ground scorches it (2026-11-21, nate: "not noticing any terrain damage or craters")
+		CraterService.blast(center, radius, dmg, phase)
 	end
 	PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
 	return n

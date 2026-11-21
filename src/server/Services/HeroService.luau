@@ -25,6 +25,7 @@ local PhaseRules = require(Shared:WaitForChild("PhaseRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
+local LabRules = require(Shared:WaitForChild("LabRules"))
 
 local Analytics = require(script.Parent.Analytics)
 local DataService = require(script.Parent.DataService)
@@ -96,6 +97,7 @@ export type Hero = {
 	phase: number?, -- a private mission run's phase (PhaseService; Shared.PhaseRules): its robots, targets and pieces only
 	downed: boolean?, -- M8: Downed (PvE health hit 0): crawling, waiting for a revive
 	pvpSlot: number, -- M8: combat id PVP_BASE + slot when flagged heroes are targets
+	lab: LabRules.Lab?, -- Studio's Test Lab (DevService): the session's lab build; the save keeps lab.home
 }
 
 local heroes: { [number]: Hero } = {}
@@ -394,6 +396,7 @@ function HeroService.sendState(hero: Hero)
 		held = hero.held,
 		weapon = hero.weapon,
 		weaponMastery = hero.weaponMastery,
+		lab = LabRules.view(hero.lab, hero.god), -- Studio's Test Lab switches (always a table: the merge clears it)
 	})
 end
 
@@ -761,6 +764,7 @@ end
 
 -- Copy a saved character onto the live hero (on join). Anything invalid falls back to the starter kit.
 function HeroService.applyProfile(hero: Hero, char: any, currency: any)
+	hero.lab = nil -- a wipe or a character switch ends the Studio Test Lab
 	hero.level = char.level
 	hero.xp = char.xp
 	hero.side = if char.side == "villain" then "villain" else "hero"
@@ -826,23 +830,25 @@ function HeroService.writeBack(hero: Hero, char: any)
 	if not hero.loaded then
 		return
 	end
-	char.level = hero.level
-	char.xp = hero.xp
-	char.classId = hero.classId
-	char.startSet = hero.startSet
-	char.mobility = hero.mobility
-	char.mobRanks = table.clone(hero.mobRanks)
-	char.mobMoves = table.clone(hero.mobMoves)
+	-- Studio's Test Lab: its build is the session's only; the save keeps the build from before the lab opened
+	local b: any = if hero.lab then hero.lab.home else hero
+	char.level = b.level
+	char.xp = b.xp
+	char.classId = b.classId
+	char.startSet = b.startSet
+	char.mobility = b.mobility
+	char.mobRanks = table.clone(b.mobRanks)
+	char.mobMoves = table.clone(b.mobMoves)
 	char.fxStyle = hero.fxStyle
-	char.ranks = table.clone(hero.ranks)
-	char.mods = table.clone(hero.mods)
-	char.bonusPoints = hero.bonusPoints
+	char.ranks = table.clone(b.ranks)
+	char.mods = table.clone(b.mods)
+	char.bonusPoints = b.bonusPoints
 	local saved = {}
-	for i, l in hero.loadouts do
+	for i, l in b.loadouts do
 		saved[i] = { set = l.set, basic = l.basic, skills = table.clone(l.skills), super = l.super }
 	end
 	char.loadouts = saved
-	char.loadoutIndex = hero.loadoutIndex
+	char.loadoutIndex = b.loadoutIndex
 	char.respecAt = os.time() + math.max(0, math.ceil(hero.respecAt - os.clock()))
 end
 

@@ -403,6 +403,9 @@ end
 -- (robot, contact, direction, the throw's distance, leaving a building it broke into, the hero's id) -> broke:
 -- set by ImpactService
 EnemyService.launchWall = nil :: ((any, Vector3, Vector3, number, boolean, number?) -> boolean)?
+-- a launched robot came down hard on open ground (robot, where its feet land, its speed; ImpactService marks the
+-- ground there, 2026-11-21)
+EnemyService.launchLand = nil :: ((any, Vector3, number) -> ())?
 
 -- A hero's hold on a robot (Config.Throw.swing): heroId nil lets go
 function EnemyService.hold(id: number, heroId: number?)
@@ -797,6 +800,12 @@ function EnemyService.init(heightAt: (number, number) -> number)
 			end
 			local src = e.launch and e.launch.src
 			return hook(e, Vector3.new(x, y, z), Vector3.new(dx, 0, dz), distance, exit, src)
+		end,
+		landHit = function(e, x, y, z, speed)
+			local hook = EnemyService.launchLand
+			if hook then
+				hook(e, Vector3.new(x, y, z), speed)
+			end
 		end,
 	})
 	HeroService.Removed:Connect(function(hero)

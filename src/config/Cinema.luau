@@ -1077,6 +1077,13 @@ return {
 		-- (round 2) a scene's shots get a soft depth of field: sharp within `radius` of the subject's distance, the
 		-- far city blurred by `far`, eased over `ease` s; never on the low preset
 		dof = { on = true, radius = 0.45, far = 0.35, ease = 0.4 },
+		-- (nate's playtest 2026-11-21: cameras stuck in cars and people, cutscenes through walls) Client.CamClear:
+		-- only anchored, solid parts at least minSize studs across block a scene's camera (up to `tries` smaller or
+		-- moving hits are skipped); a blocked camera stands `pad` studs in front of the wall, never nearer than
+		-- `near` to the subject, and eases back out at `outRate` per second. While a scene runs no city car is
+		-- driven within `gap` studs of the camera, no citizen drawn within `people`, and other heroes, robots and
+		-- hub vehicles within `fade` studs are faded on this device.
+		clear = { minSize = 8, tries = 6, pad = 1.5, near = 4, outRate = 3, gap = 22, people = 9, fade = 7 },
 	},
 
 	finisher = {
@@ -1208,7 +1215,9 @@ return {
 		flash = { boss = true, unmask = true, double = true, sideStart = true },
 		-- the corner TV: a flash plays this long; any other new fact shows on its ticker for `fact` s; with nothing
 		-- new, Crane's segment airs every `craneEvery` s for `crane` s (never in the prologue, a mission or a scene)
-		tv = { seconds = 7, fact = 5, crane = 8, craneEvery = 180, scroll = 10 },
+		-- on = false (nate's playtests 2026-11-20 "no TV", 2026-11-21 "still getting the silas crane tv on my
+		-- screen"): the corner TV never shows; a boss landing still toasts, the big city screens keep the news
+		tv = { on = false, seconds = 7, fact = 5, crane = 8, craneEvery = 180, scroll = 10 },
 		-- the big screens: where they hang (NewsPlan.screens picks the buildings from the world)
 		screens = {
 			downtown = 3, -- the Downtown towers nearest the plaza that get a screen

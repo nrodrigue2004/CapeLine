@@ -200,7 +200,7 @@ return {
 	-- The playable weapons' moves (plan step 4): M1 (a 4-hit combo for melee, quick shots for ranged), then
 	-- Z X C V. Rows use the same shapes and fields as Config.Abilities and join its list and byNum (never its
 	-- order or loadouts) as set "Weapon" with network num 300 + weapon id x 5 + key (0 = M1, 1 to 4 = Z to V),
-	-- so CombatService casts them like any power. Weapons never rank up: Mastery only opens X, C and V.
+	-- so CombatService casts them like any power. Mastery opens X, C and V; then Z X C V rank 2 to 5 in POWERS like a power (nate 2026-11-21, "Mix").
 	-- `sword` draws the slash like a blade. Numbers sit just under a power of the same role, so a weapon is a
 	-- second kit, not a stronger one.
 	keys = { "Z", "X", "C", "V" },

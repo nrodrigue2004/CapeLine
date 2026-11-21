@@ -28,6 +28,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
+local LabRules = require(Shared:WaitForChild("LabRules"))
 local HitQuery = require(Shared:WaitForChild("HitQuery"))
 local CastPlan = require(Shared:WaitForChild("CastPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
@@ -350,13 +351,14 @@ local function wallPoint(origin: Vector3, at: Vector3): Vector3
 end
 CombatService.wallPoint = wallPoint
 
-local function structural(eff: any, center: Vector3, radius: number, kind: number)
+-- hero: whose move (its private mission run's ground marks only its party sees: PhaseRules, 2026-11-21)
+local function structural(eff: any, center: Vector3, radius: number, kind: number, hero: any?)
 	local dmg = structOf(eff)
 	if not eff.structDmg and eff.slot == "basic" then
 		radius = math.min(radius, DS.basicStructRadius)
 	end
 	if dmg > 0 then
-		BuildingService.hit(center, radius, dmg, kind)
+		BuildingService.hit(center, radius, dmg, kind, hero and hero.phase)
 		if dmg >= DS.structure.chunkCost then
 			VehicleService.hit(center, radius)
 		end
@@ -1100,7 +1102,7 @@ local function resolve(
 		if not plan.cx then
 			at = wallPoint(origin, at)
 		end
-		structural(eff, at, plan.radius or eff.radius or 12, if plan.shape == "nova" then 1 else 2)
+		structural(eff, at, plan.radius or eff.radius or 12, if plan.shape == "nova" then 1 else 2, hero)
 	end
 	-- Epic set 4-piece changes on novas: Rimeguard ally shields, Ironclad shockwave field
 	if plan.shape == "nova" then
@@ -1187,7 +1189,7 @@ local function resolve(
 			local r2 = record(hero, num, seq, K.LAND, origin, dir)
 			r2.c, r2.r = land, plan.radius
 			gainFor(hero, eff, hitArea(hero, eff, r2, land, plan.radius, eff.coeff))
-			structural(eff, land, plan.radius or 12, 1)
+			structural(eff, land, plan.radius or 12, 1, hero)
 			if eff.fieldCoeff then
 				addField(
 					hero,
@@ -1225,7 +1227,7 @@ local function resolve(
 			local r2 = record(hero, num, seq, K.LAND, origin, dir)
 			r2.c, r2.r = land, plan.radius
 			gainFor(hero, eff, hitArea(hero, eff, r2, land, plan.radius, eff.coeff))
-			structural(eff, land, plan.radius or 8, 1)
+			structural(eff, land, plan.radius or 8, 1, hero)
 		end)
 	elseif eff.echo then
 		echo(hero, eff, num, seq, origin, dir, plan)
@@ -1241,7 +1243,7 @@ local function resolve(
 		-- Unstoppable: the buildings along the path take the hit too
 		local to = Vector3.new(plan.ex, plan.ey, plan.ez)
 		for k = 1, 3 do
-			structural(eff, origin:Lerp(to, k / 3), 10, 2)
+			structural(eff, origin:Lerp(to, k / 3), 10, 2, hero)
 		end
 	end
 	local first = plan.hits[1] and plan.hits[1].c
@@ -1317,7 +1319,7 @@ local function resolve(
 			local r2 = record(hero, num, seq, K.END, at, dir)
 			r2.c, r2.r = at, radius
 			gainFor(hero, eff, hitArea(hero, { set = eff.set }, r2, at, radius, eff.dropCoeff))
-			structural(eff, at, radius, 2)
+			structural(eff, at, radius, 2, hero)
 		end)
 	end
 	if eff.followUp and first then
@@ -1472,6 +1474,7 @@ function CombatService.use(
 		attackSpeed = Status.value(hero.status, "attackSpeed", now, 0),
 		awakened = awake,
 	})
+	full = LabRules.cooldown(Config, hero.lab, slot, full) -- Studio's Test Lab: "Cooldowns off"
 	-- from when it was due, not from now: the leeway lets a use in early, never shortens the cycle
 	Cooldowns.startNext(
 		hero.cooldowns,
@@ -1664,7 +1667,7 @@ local function stepFields(now: number)
 			end
 			if eff.tickStruct then
 				-- Siege Mode: every tick hits the buildings in the area
-				structural({ structDmg = eff.tickStruct }, f.pos, f.radius, 1)
+				structural({ structDmg = eff.tickStruct }, f.pos, f.radius, 1, hero)
 			end
 			if eff.allyBuff then
 				-- Sandstorm hides heroes inside, Sanctuary makes them untouchable
@@ -1842,7 +1845,7 @@ function CombatService.thrown(hero: any, land: Vector3, from: Vector3, hit: any)
 	local n = hitArea(hero, eff, r, land, hit.radius, hit.coeff)
 	gainFor(hero, eff, n)
 	if hit.structDmg then
-		structural(eff, land, hit.radius, hit.structKind or 2)
+		structural(eff, land, hit.radius, hit.structKind or 2, hero)
 	end
 	return n
 end
