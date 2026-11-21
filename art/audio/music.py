@@ -373,6 +373,24 @@ def hq_theme():
     return T.render(1.6, 0.22, -17)
 
 
+# -- the boss warning (nate's playtest 2026-11-21: "I absolutely hate that alarm noise"): the siren is gone; a world boss
+# is called by a deep brass swell over a low drum hit instead (Config.Audio.sounds.bossWarning plays this region)
+def boss_horn():
+    T = Track(120, 2, tail=0.1)
+    T.len = 3.8
+    for m, g, pan, cut in ((31, -6, -0.2, 500), (38, -9, 0.2, 650), (43, -13, 0.0, 900)):
+        T.put(brass(m, 2.6, cut), 0.1, g, pan)
+    T.put(brass(43, 1.4, 1200), 0.1, -18, -0.3)  # a hint of edge on the top so it carries on a phone speaker
+    T.put(kick(), 0.1, -3)
+    T.put(tom(55), 0.1, -7, 0.1)
+    T.put(tom(41), 1.1, -12, -0.1)
+    y = T.render(1.8, 0.3, -13)
+    n = len(y)
+    y[:int(0.08 * SR)] *= np.linspace(0, 1, int(0.08 * SR))[:, None]
+    y[-int(1.0 * SR):] *= np.linspace(1, 0, int(1.0 * SR))[:, None]
+    return y[:n]
+
+
 def main():
     if len(sys.argv) < 2:
         print("usage: python3 -I art/audio/music.py <download root>")
@@ -381,7 +399,7 @@ def main():
     tracks = [("patrolDay", patrol_day(), True), ("patrolNight", patrol_night(), True), ("boss", boss_theme(), True),
               ("victory", victory(), False), ("combat", combat_theme(), True), ("mission", mission_theme(), True),
               ("chase", chase_theme(), True), ("ceremony", ceremony_theme(), True), ("deep", deep_theme(), True),
-              ("hq", hq_theme(), True)]
+              ("hq", hq_theme(), True), ("bossHorn", boss_horn(), False)]
     if dsp.MISSING:
         print("music.py: missing", sorted(dsp.MISSING))
         return 1

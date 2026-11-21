@@ -27,6 +27,7 @@ local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 local State = require(script.Parent.Parent.State)
 local CameraController = require(script.Parent.CameraController)
 local QualityController = require(script.Parent.QualityController)
+local CamClear = require(script.Parent.CamClear)
 local Lighting = game:GetService("Lighting")
 
 local CinemaClient = {}
@@ -66,6 +67,22 @@ local buf = table.create(6, 0)
 local lastShot: any = nil
 local lastCf: CFrame? = nil
 local easeFrom: CFrame? = nil
+local pull = CamClear.newPull() -- (nate's playtest 2026-11-21) the shot's camera kept in front of walls
+local lensOn = false
+-- Told where a scene's camera is each frame it runs, and nil once it stops (init.client: CityLife and
+-- CitizenRenderer keep cars and people out of the lens, CamClear fades anything else moving right at it)
+CinemaClient.onLens = nil :: ((at: Vector3?) -> ())?
+
+local function lens(at: Vector3?)
+	if at == nil and not lensOn then
+		return
+	end
+	lensOn = at ~= nil
+	local f = CinemaClient.onLens
+	if f then
+		f(at)
+	end
+end
 local easeAt = 0
 local localSeen: { [number]: boolean } = {}
 local waiting: { scene: Scene, untilT: number }? = nil
@@ -312,6 +329,7 @@ local function step(dt: number)
 	end
 	local s = CinemaClient.current
 	if not s then
+		lens(nil)
 		return
 	end
 	local t = CinemaClient.time()
@@ -320,12 +338,15 @@ local function step(dt: number)
 		return
 	end
 	if not camOn then
+		lens(nil)
 		return
 	end
 	local cam = Workspace.CurrentCamera
 	if s.follow and cam then
 		local at, look = s.follow(dt)
+		at = CamClear.ease(pull, look, at, dt)
 		cam.CFrame = CFrame.lookAt(at, look)
+		lens(at)
 		return
 	end
 	local shot, k = CinemaPlan.at(s.shots, t)
@@ -345,7 +366,14 @@ local function step(dt: number)
 				at += right.Unit * (math.sin(tt) * D.sway) + Vector3.yAxis * (math.sin(tt * 0.7 + 1.3) * D.sway * 0.6)
 			end
 		end
-		if math.abs(toLook.Unit.Y) > 0.985 then
+		-- (nate's playtest 2026-11-21) never through a wall: a camera a building stands in front of is pulled
+		-- in front of it (cars, people and small props never count; CamClear)
+		if shot ~= lastShot then
+			pull.dist = nil
+		end
+		at = CamClear.ease(pull, look, at, dt)
+		toLook = look - at
+		if toLook.Magnitude > 1e-3 and math.abs(toLook.Unit.Y) > 0.985 then
 			-- straight up or down: lookAt would spin; lean the look a hair off the vertical
 			look += Vector3.new(0.05 * toLook.Magnitude, 0, 0)
 		end
@@ -375,6 +403,7 @@ local function step(dt: number)
 		end
 		lastCf = cf
 		cam.CFrame = cf
+		lens(cf.Position)
 		focusOn((look - at).Magnitude, dt)
 	end
 end

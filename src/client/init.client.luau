@@ -138,6 +138,17 @@ MoveController.init()
 GroundGuard.init() -- holds the hero still until the ground under a spawn or a server move has streamed in
 CameraController.init()
 CinemaClient.init()
+-- (nate's playtest 2026-11-21) a scene's camera never sits inside a car or a person: no car driven and no
+-- citizen drawn right at the lens, and anything else moving there faded on this device (Config.Cinema.camera.clear)
+do
+	local CamClear = require(Controllers.CamClear)
+	local K = Config.Cinema.camera.clear
+	CinemaClient.onLens = function(at: Vector3?)
+		CityLife.clearAt, CityLife.clearRadius = at, K.gap
+		CitizenRenderer.clearAt, CitizenRenderer.clearRadius = at, K.people
+		CamClear.fadeNear(at)
+	end
+end
 EnemyRenderer.init()
 CitizenRenderer.init()
 WorldClient.init()

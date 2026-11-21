@@ -1077,6 +1077,13 @@ return {
 		-- (round 2) a scene's shots get a soft depth of field: sharp within `radius` of the subject's distance, the
 		-- far city blurred by `far`, eased over `ease` s; never on the low preset
 		dof = { on = true, radius = 0.45, far = 0.35, ease = 0.4 },
+		-- (nate's playtest 2026-11-21: cameras stuck in cars and people, cutscenes through walls) Client.CamClear:
+		-- only anchored, solid parts at least minSize studs across block a scene's camera (up to `tries` smaller or
+		-- moving hits are skipped); a blocked camera stands `pad` studs in front of the wall, never nearer than
+		-- `near` to the subject, and eases back out at `outRate` per second. While a scene runs no city car is
+		-- driven within `gap` studs of the camera, no citizen drawn within `people`, and other heroes, robots and
+		-- hub vehicles within `fade` studs are faded on this device.
+		clear = { minSize = 8, tries = 6, pad = 1.5, near = 4, outRate = 3, gap = 22, people = 9, fade = 7 },
 	},
 
 	finisher = {

@@ -43,6 +43,10 @@ local PhaseClient = require(script.Parent.PhaseClient) -- "Hide you fully" (nate
 
 local CitizenRenderer = {}
 CitizenRenderer.hidden = false -- PrologueFx: true while the hero is in the prologue
+-- CinemaClient (nate's playtest 2026-11-21): while a scene runs, no citizen is drawn within this many studs of
+-- the camera, so a shot never looks out from inside a person walking by; nil: no gap
+CitizenRenderer.clearAt = nil :: Vector3?
+CitizenRenderer.clearRadius = 0
 
 local C = Config.Destruction.citizens
 local LOCO = C.loco
@@ -618,6 +622,18 @@ local function render()
 	-- the prologue's quiet world (PrologueFx): its own crowd only, no city citizens wandering through the story
 	local most = if CitizenRenderer.hidden then 0 else Q.citizensDrawn or C.max
 	local drawn = QualityRules.nearest(newest, cam.X, cam.Z, most, live)
+	local gapAt = CitizenRenderer.clearAt
+	if gapAt then
+		local r2 = CitizenRenderer.clearRadius * CitizenRenderer.clearRadius
+		local near = {} -- a copy: nearest() may hand back the snapshot's own rows
+		for id, rb in drawn do
+			local dx, dy, dz = rb.x - gapAt.X, rb.y - gapAt.Y, rb.z - gapAt.Z
+			if dx * dx + dy * dy + dz * dz >= r2 then
+				near[id] = rb
+			end
+		end
+		drawn = near
+	end
 	for id, body in live do
 		local row = drawn[id]
 		if not row or row.color ~= body.color then

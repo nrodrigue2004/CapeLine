@@ -326,6 +326,9 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps26: start here (2026-11-21, build playtest-gaps26)
+Everything in gaps25 plus nate's 2026-11-21 cutscene note: scene cameras never sit in cars or people and never pass through walls (Client.CamClear), no traffic or hub cars in the prologue, the boss alarm siren replaced by a deep brass horn and gone from the prologue scan and intro film, and the CAPELINE title now rises up Crane Tower: project files capeline/Capeline-playtest-gaps26-2026-11-21.rbxl (Output "playtest-gaps26 (2026-11-21)"). It replaces every older playtest place. Run "Playtest gaps25: start here" first if not done, then Studio items 314-316.
+
 ### Playtest gaps25: start here (2026-11-20, build playtest-gaps25)
 Everything in gaps24 plus story missions on the real map, private to your squad (nate: "Mix", and "Hide you fully"): Framed on the new Harbour Bridge (PLACEHOLDER NAME) over the Docks basin, The Copy on Old Town's real roofs, The Signal on the new Crane Tower between Old Town and the Docks, Live on the Hero Hall plaza, Most Wanted at a Downtown crossroads, The Line in the new Crane Plant on the Docks quay. The Safehouse, the Ceremony subway and side quest pockets stay separate. Outsiders cannot see, hear or bump into a squad in a mission. Config.MapSites.on.<layout> = false puts a mission back in its pocket. Studio checks 442-455 first, then gaps24's.
 
@@ -2482,6 +2485,12 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 96. Incident and event objects (ActivityProps punch): hit a dressed incident or event object (a billboard, the tram, a crate); each hit jolts its look and springs it back with a clank; its own break (fall, burst) plays as before.
 
 95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
+
+316. Title shot (PrologueFx towerShot, Config.Story.opening.titleShot): after the subway fight, under CAPELINE the camera rises from low and far up Crane Tower (between Old Town and the Docks) and pushes in on its top deck and glowing relay; no building between the camera and the tower at either end, never inside the tower.
+
+315. No alarm (Config.Audio bossWarning clip bossHorn, Music atlas 98199961567896): the Ceremony's scan and the intro film's lock-on play no siren (only the scanner hum, the gasp and the score); when a world boss is called the warning is a deep brass swell with a drum hit, no siren; the loading screen music still plays (new Music atlas id).
+
+314. Scene cameras clear (Client.CamClear, CinemaClient, PrologueQte; nate's playtest 2026-11-21): in the prologue no traffic drives and no hub cars or other heroes show; in the rooftop chase and the QTEs a passing car, person or small prop never snaps the camera in, while a real wall still pulls it in front at once and lets it out slowly; in every mission cutscene and the title no shot looks through a building wall, and no car or citizen sits in the lens (cars drop out within 22 studs of the camera, citizens within 9, other heroes, robots and hub vehicles within 7 fade).
 
 313. Cutscene characters (PrologueFx stage, StoryFx lodestarStep, NpcAnim.crowd.waiting, round 2): in the Ceremony's scan, Crane keeps presenting his scanner and his three heroes stand with arms folded, weight shifting (no frozen wave); after the heroes vanish Crane keeps moving; in a mission cutscene with Lodestar (Safehouse), he talks with his hands the whole beat, never a statue.
 
