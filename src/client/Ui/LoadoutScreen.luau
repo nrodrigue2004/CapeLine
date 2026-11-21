@@ -586,9 +586,10 @@ buildTabs = function()
 	table.clear(tabButtons)
 	local paths = AbilityRules.paths(Config, classId)
 	local w = 1 / math.max(5, #paths)
-	for _, set in paths do
+	for i, set in paths do
 		local b = Kit.button({
 			Text = string.upper(A.setName[set] or set),
+			LayoutOrder = i,
 			Size = UDim2.new(w, -6, 1, 0),
 			TextWrapped = true, -- phone pass: two lines on a narrow tab
 			maxText = 18,
@@ -604,8 +605,8 @@ buildTabs = function()
 	local mb = Kit.button({
 		Name = "MobilityTab",
 		Text = "MOBILITY",
-		Size = UDim2.fromOffset(150, T - 10),
-		Position = UDim2.new(1, -T - 8 - 158, 0, 6),
+		Size = UDim2.fromOffset(112, T - 14),
+		Position = UDim2.new(1, -T - 8 - 118, 0, 6),
 		maxText = 22,
 	}, function()
 		viewSet = MOBILITY
@@ -617,8 +618,8 @@ buildTabs = function()
 	local wb = Kit.button({
 		Name = "WeaponTab",
 		Text = "WEAPON",
-		Size = UDim2.fromOffset(150, T - 10),
-		Position = UDim2.new(1, -T - 8 - 158 - 158, 0, 6),
+		Size = UDim2.fromOffset(112, T - 14),
+		Position = UDim2.new(1, -T - 8 - 236, 0, 6),
 		maxText = 22,
 	}, function()
 		viewSet = WEAPON
@@ -791,7 +792,7 @@ function LoadoutScreen.init()
 	panel.Parent = gui
 	header = Kit.label({
 		Text = "POWERS",
-		Size = UDim2.new(1, -470, 0, 34), -- room for the WEAPON and MOBILITY tabs beside X
+		Size = UDim2.new(1, -330, 0, 34), -- room for the WEAPON and MOBILITY tabs beside X
 		Position = UDim2.fromOffset(14, 8),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Kit.color.gold,
@@ -813,6 +814,7 @@ function LoadoutScreen.init()
 	local tl = Instance.new("UIListLayout")
 	tl.FillDirection = Enum.FillDirection.Horizontal
 	tl.Padding = UDim.new(0, 6)
+	tl.SortOrder = Enum.SortOrder.LayoutOrder
 	tl.Parent = tabs
 	tabs.Parent = panel
 	tabsFrame = tabs

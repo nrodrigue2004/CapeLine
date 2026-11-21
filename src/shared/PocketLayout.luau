@@ -372,8 +372,8 @@ function BUILD.dungeon(l: Layout, Config: any)
 	local keep = {}
 	for _, pc in HqRules.hideout(Config) do
 		local n = pc.name
-		if n == "wall" or n == "ceiling" or n == "shaft" or pc.run then
-			continue -- the tunnel's walls, ceiling and wall kit already stand there
+		if n == "wall" or n == "ceiling" or n == "shaft" or n == "floor" or pc.run then
+			continue -- the tunnel's walls, ceiling, floor and wall kit already stand there
 		end
 		if pc.x < -40 and (n == "monitorBezel" or n == "monitorScreen" or n == "pilaster") then
 			continue -- the west wall is the doorway
@@ -384,7 +384,9 @@ function BUILD.dungeon(l: Layout, Config: any)
 		table.insert(keep, pc)
 	end
 	local first = #l.art
-	local places, hides = HideoutKit.cell(Config, keep, nil)
+	-- "low" leaves the beams as their boxes: a tiled look covers one box with many tiles, which a pocket's
+	-- one-box-a-look art check refuses
+	local places, hides = HideoutKit.cell(Config, keep, "low")
 	for _, pl in places do
 		local q = table.clone(pl)
 		q.x, q.y, q.z = l.cx + hx + pl.x, l.cy + pl.y, l.cz + pl.z
