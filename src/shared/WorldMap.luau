@@ -231,7 +231,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	local gy = city.ground.y
 
 	-- the hub: Downtown first (its reserved lots decide where its safehouses stand)
-	local downtown = CityLayout.downtown(city, w)
+	local downtown = CityLayout.downtown(city, w, Config)
 	local safeSpots, clear = safehouseSpots(city, w, downtown)
 	-- the story's permanent pieces (Shared.MapSites: Harbour Bridge, Crane Tower, Crane's plant): their ground is kept
 	-- clear of lots, filler buildings and warehouses like a safehouse pad's
@@ -515,7 +515,7 @@ function WorldMap.propsStep(job: PropsJob, tiles: number?): boolean
 	local w = Config.World
 	local stage = job.stage
 	if stage == 1 then
-		local downtown = CityLayout.downtown(city, w)
+		local downtown = CityLayout.downtown(city, w, Config)
 		local _, clear = safehouseSpots(city, w, downtown)
 		for _, c in MapSites.permanent(Config).clear do
 			table.insert(clear, c) -- (the same clear circles as build(): the story's permanent pieces)

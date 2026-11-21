@@ -86,6 +86,7 @@ local GuardService = require(Services.GuardService)
 local DeathService = require(Services.DeathService)
 local CreatorService = require(Services.CreatorService)
 local HqService = require(Services.HqService)
+local HallService = require(Services.HallService) -- hero-hall: Crane's Hero Hall
 local VisitService = require(Services.VisitService) -- WP12: visit a friend's HQ
 local ShopService = require(Services.ShopService)
 local RepService = require(Services.RepService) -- lore step 12: the city remembers
@@ -180,6 +181,7 @@ boot("GuardService", GuardService.init)
 boot("DeathService", DeathService.init)
 boot("CreatorService", CreatorService.init)
 boot("HqService", HqService.init)
+boot("HallService", HallService.init) -- hero-hall: the Hall's prompts, lifts, dummies, Burst Test, launch pad
 boot("VisitService", VisitService.init) -- WP12: after HqService (it draws the copies) and GuardService
 boot("ShopService", ShopService.init)
 boot("RepService", RepService.init) -- lore step 12: reputation tiers, side rewards, the city's reactions

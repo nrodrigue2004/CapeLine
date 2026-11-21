@@ -55,6 +55,7 @@ local NAMES = {
 	"Creator",
 	"Shop",
 	"Hq",
+	"Hall", -- Crane's Hero Hall: the Beacon Tower's enterable base and the hub plaza (Shared.HallLayout)
 	"Settings",
 	"Squad",
 	"Audio",

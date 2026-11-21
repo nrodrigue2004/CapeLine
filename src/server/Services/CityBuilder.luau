@@ -188,6 +188,10 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 		if b.tint then
 			p.Color = color(b.tint)
 		end
+		if b.alpha then
+			p.Transparency = b.alpha -- hero-hall: the Hall's window panes (they still collide)
+			p.CastShadow = false
+		end
 	elseif b.kit and b.tint and b.dress then
 		p.Color = color(b.tint) -- a dressing piece waiting on its texture still shows its pocket colour
 	end
@@ -241,6 +245,9 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	if b.tag then
 		p:SetAttribute("Tag", b.tag)
 		p:SetAttribute("Ref", b.ref or 0)
+	end
+	if b.hallPart then
+		p:SetAttribute("Hall", true) -- hero-hall: part of Crane's Hero Hall, whole like the tower (BuildingFx skips it)
 	end
 	if b.crown then
 		p:SetAttribute("Crown", true) -- a skyscraper's top: BuildingFx keeps it up while the shaft's top storey stands

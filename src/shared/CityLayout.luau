@@ -9,6 +9,7 @@
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
 local CityPlay = if script then require(script.Parent.CityPlay) else (require :: any)("./CityPlay")
+local HallLayout = if script then require(script.Parent.HallLayout) else (require :: any)("./HallLayout")
 
 local CityLayout = {}
 
@@ -60,6 +61,7 @@ export type Layout = {
 	spawns: { { x: number, y: number, z: number } },
 	droneSpots: { { x: number, y: number, z: number } },
 	beacon: { x: number, z: number, h: number },
+	hall: any?, -- Crane's Hero Hall's spots (Shared.HallLayout.build), nil with Config.Hall off
 	safehouseSpots: { [number]: { x: number, z: number } }, -- reserved lots (Config.World.safehouses)
 	grid: { cell: number, minX: number, minZ: number, n: number, tops: { number } },
 	parts: number,
@@ -671,7 +673,7 @@ end
 -- The first 700 x 700 (downtown.core) is built first from the one seeded stream, exactly as it always was;
 -- the grown blocks (downtown.grow) follow, each from its own seeded stream, so growing Downtown or keeping
 -- an open square never moves a core building, a safehouse lot or the Beacon Tower.
-function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
+function CityLayout.downtown(cityCfg: any, worldCfg: any?, full: any?): Layout
 	local d = cityCfg.districts.Downtown
 	local reserved: { [string]: number } = {}
 	local safehouseSpots = {}
@@ -737,6 +739,7 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 	local lastZ = math.floor((d.maxZ - core.minZ) / pitch + 0.5)
 	local midX, midZ = math.ceil(nx / 2), math.ceil(nz / 2)
 	local beacon = { x = 0, z = 0, h = t.beacon.height }
+	local hallSpots: any = nil -- Crane's Hero Hall's spots (Shared.HallLayout), when Config.Hall is on
 	local open: { [string]: string } = {}
 	for _, o in t.open or {} do
 		open[o.block[1] .. "," .. o.block[2]] = o.id
@@ -757,15 +760,45 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 			if bx == midX and bz == midZ then
 				-- the plaza and Beacon Tower (the Vigil's HQ): where new heroes land
 				box(boxes, "plaza", bcx, gy + 0.6, bcz, t.block, 1, t.block, "sidewalk")
+				if kit and full and full.Hall and full.Hall.on then
+					boxes[#boxes].kit = "Terrazzo" -- hero-hall: the hub plaza in warm terrazzo, not plain sidewalk
+				end
 				local bw = t.beacon.width
+				-- hero-hall (nate 2026-11-21: "still cant enter building by hub area"): with Config.Hall on, the
+				-- tower's bottom two storeys are Crane's Hero Hall (Shared.HallLayout: the lobby, the training
+				-- floor, the doors, the stair, the lifts, the launch deck), the solid tower starting above them
+				local hall = full and full.Hall and full.Hall.on
+				local solidFrom = 0
+				if hall then
+					local list, spots = HallLayout.build(
+						full,
+						bcx,
+						bcz,
+						gy,
+						bw,
+						t.beacon.height,
+						if kit then kit.beaconFront else nil
+					)
+					for _, hb in list do
+						table.insert(boxes, hb)
+					end
+					hallSpots = spots
+					local _, _, solid = HallLayout.levels(full)
+					solidFrom = solid + 0.1 -- the plaza's top is gy + 1.1; the tower's box began at gy + 1
+					if kit then
+						for _, p in HallLayout.props(full, bcx, bcz, gy) do
+							CityKit.put(c.props, p.name, p.x, p.y, p.z, p.ry).tint = p.tint
+						end
+					end
+				end
 				box(
 					boxes,
 					"beacon",
 					bcx,
-					gy + 1 + t.beacon.height / 2,
+					gy + 1 + solidFrom + (t.beacon.height - solidFrom) / 2,
 					bcz,
 					bw,
-					t.beacon.height,
+					t.beacon.height - solidFrom,
 					bw,
 					"beacon"
 				)
@@ -878,6 +911,7 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 		spawns = spawns,
 		droneSpots = droneSpots,
 		beacon = beacon,
+		hall = hallSpots,
 		safehouseSpots = safehouseSpots,
 		grid = { cell = cell, minX = hub.min, minZ = hub.min, n = n, tops = tops },
 		parts = parts,

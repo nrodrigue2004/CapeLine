@@ -302,8 +302,12 @@ function CombatFx.banner(text: string, color: Color3, style: string)
 	b.Rotation = if style == "Anime" then -4 else 3
 	b.TextTransparency = 0
 	b.TextStrokeTransparency = 0
-	b.Size = UDim2.fromScale(0.5, 0.1)
-	TweenService:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Size = UDim2.fromScale(0.7, 0.14) })
+	-- hero-hall (nate 2026-11-21: "the big words on the screen in the yellow font are too big"): about half
+	-- the old size, and the words never grow past Config.Ui.banner.maxText px however wide the screen is
+	local BN = Config.Ui.banner
+	b.Size = UDim2.fromScale(BN.from[1], BN.from[2])
+	TweenService
+		:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Size = UDim2.fromScale(BN.to[1], BN.to[2]) })
 		:Play()
 	TweenService:Create(
 		b,
@@ -5225,9 +5229,12 @@ function CombatFx.init()
 	local b = Instance.new("TextLabel")
 	b.AnchorPoint = Vector2.new(0.5, 0.5)
 	b.Position = UDim2.fromScale(0.5, 0.3)
-	b.Size = UDim2.fromScale(0.7, 0.14)
+	b.Size = UDim2.fromScale(Config.Ui.banner.to[1], Config.Ui.banner.to[2])
 	b.BackgroundTransparency = 1
 	b.TextScaled = true
+	local bcap = Instance.new("UITextSizeConstraint")
+	bcap.MaxTextSize = Config.Ui.banner.maxText
+	bcap.Parent = b
 	b.Text = ""
 	b.TextTransparency = 1
 	b.TextStrokeTransparency = 1

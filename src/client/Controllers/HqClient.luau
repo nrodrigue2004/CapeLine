@@ -357,7 +357,7 @@ local DUMMY_COLORS = {
 		ends = SIDE_COLORS.villain.main,
 	},
 }
-local function dummy(f: Folder, pos: Vector3, big: boolean?, look: Vector3?)
+local function dummy(f: Folder, pos: Vector3, big: boolean?, look: Vector3?, sideName: string?)
 	local s = if big then 2.6 else 1
 	local base = pos - Vector3.new(0, 3 * s, 0)
 	local metal = Color3.fromRGB(150, 156, 170)
@@ -371,7 +371,7 @@ local function dummy(f: Folder, pos: Vector3, big: boolean?, look: Vector3?)
 	local factors = if big then BodyShape.factors(Config, { gender = 1, build = 3, height = 3 }) else nil
 	local layout = RigMath.layout(Config.HeroRig, factors, s)
 	local padded = HqMeshes.ready(HqArtKit.BODY)
-	local side = DUMMY_COLORS[state.side] or DUMMY_COLORS.hero
+	local side = DUMMY_COLORS[sideName or state.side] or DUMMY_COLORS.hero
 	local colors: { [string]: Color3 } = {}
 	for _, name in BodyShape.PARTS do
 		if padded then
@@ -1026,6 +1026,11 @@ local function slam(s: { number })
 		ring:Destroy()
 		fill:Destroy()
 	end)
+end
+
+-- hero-hall: the same training dummy for Crane's Hero Hall's training floor (HallClient), in a side's colours
+HqClient.dummy = function(f: Folder, pos: Vector3, big: boolean?, side: string?)
+	dummy(f, pos, big, nil, side)
 end
 
 function HqClient.state(): { [string]: any }
