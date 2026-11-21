@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-21 playtest-gaps27: gaps26 + hall1 (Hero Hall) + missions lane: Safehouse end walls, Vigil HQ room and dressed tunnels; smaller stamps, badge, toasts and NEW MOVE card; weapon ranks (WEAPON tab in POWERS); far skyline stand-ins with window bands; scorches and dents from normal hits; the Studio Test Lab and Skip prologue. Studio 760-771, 780-787, 790-792.
 - 2026-11-21 playtest-gaps26: gaps25 + nate's cutscene note: scene cameras skip cars and people and never pass walls (CamClear), no traffic in the prologue, the alarm siren replaced by a brass horn, the title rises up Crane Tower, no Silas Crane corner TV. Studio 314-317.
 - 2026-11-21 lane-far: far skyline (stand-ins for every hub building not streamed in, kit look + window bands, lit at night; lit windows reach further) and ground marks (scorches and dents from ordinary hits, landings, thrown cars, slammed robots; phase-private). Studio 760-771.
 - 2026-11-21 Test Lab: Studio LAB page beside DEV (any weapon with Z X C V open, any path and ability TRY incl. borrowed, any mobility/rank/move, god, cooldowns off, endless stamina, dummies, robots, bosses, Skip prologue toggle, LEAVE LAB). Studio 780-787.
