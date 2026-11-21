@@ -86,7 +86,8 @@ def feather_wing(sx, n=7, span=2.0, w=0.5, at=(0.3, BY - 0.12, 3.7), coverts=Tru
                 pts.append(base + d * length * u + Vector((0, dy - 0.1 * u * u, 0)))
                 ws.append(max(0.03, width * (0.45 + 0.55 * math.sin(PI * min(1.0, 0.25 + u * 0.8)))
                               * (1 - 0.85 * u ** 4)))
-            blades.append(strip("f", pts, ws, up=(0, 1, 0), thick=0.04))
+            # (2026-11-21: the blades lay edge-on to the back, so the wings read as sticks; now flat to it)
+            blades.append(strip("f", pts, ws, up=tuple(d.cross(Vector((0, 1, 0)))), thick=0.04))
     return blades
 
 
@@ -498,6 +499,95 @@ def p_orbs():
     return [T(joined("Orbs", big, 70), "a", True), T(top, "s", True), T(joined("Rings", rings_), "white", True,
                                                                         alpha=0.4)]
 
+
+
+# ---------------------------------------------------------------- angel and devil wings (2026-11-21, nate's ask)
+def arm_curve(sx, span):
+    """The wing's leading edge: from the shoulder blade up to the elbow, then out and a little down to the tip."""
+    pts = [Vector((sx * 0.28, BY - 0.14, 3.72)), Vector((sx * span * 0.32, BY - 0.32, 4.55)),
+           Vector((sx * span * 0.62, BY - 0.46, 4.78)), Vector((sx * span, BY - 0.6, 4.5))]
+
+    def at(u):
+        # Catmull-Rom through the 4 points
+        n = len(pts) - 1
+        f = min(n - 1e-6, u * n)
+        i = int(f)
+        t = f - i
+        p0, p1, p2, p3 = pts[max(0, i - 1)], pts[i], pts[i + 1], pts[min(n, i + 2)]
+        return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t +
+                      (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t)
+    return at
+
+
+def feather(base, d, length, width, back):
+    """One broad rounded feather from base along d, flat facing the back (lying across y)."""
+    pts, ws = [], []
+    for j in range(6):
+        u = j / 5
+        pts.append(base + d * length * u + Vector((0, back * u, 0)))
+        ws.append(max(0.035, width * (0.55 + 0.45 * math.sin(PI * min(1.0, 0.2 + u * 0.75))) * (1 - 0.9 * u ** 5)))
+    # broad side facing the back: the width runs across the feather, square to the back (not edge-on)
+    return strip("f", pts, ws, up=tuple(d.cross(Vector((0, 1, 0)))), thick=0.035)
+
+
+def angel_wing(sx, span=2.7):
+    arm = arm_curve(sx, span)
+    prim, sec, cov = [], [], []
+    for k in range(6):  # primaries: long, from the tip, fanning from out to down
+        t = k / 5
+        u = 1.0 - 0.32 * t
+        ang = 0.15 - 0.95 * t
+        d = Vector((sx * math.cos(ang), -0.05, math.sin(ang))).normalized()
+        prim.append(feather(arm(u), d, 1.5 - 0.35 * t, 0.36, -0.04))
+    for k in range(8):  # secondaries: hanging down from the arm, a little out
+        t = k / 7
+        u = 0.66 - 0.56 * t
+        d = Vector((sx * (0.35 - 0.25 * t), -0.04, -1.0)).normalized()
+        sec.append(feather(arm(u) + Vector((0, 0.03, 0)), d, 1.35 - 0.45 * t, 0.34, -0.03))
+    for k in range(11):  # coverts: short scallops over the roots, just behind the rest
+        t = k / 10
+        u = 0.97 - 0.9 * t
+        d = Vector((sx * 0.25, -0.02, -1.0)).normalized()
+        cov.append(feather(arm(u) + Vector((0, -0.05, 0.02)), d, 0.6 - 0.12 * t, 0.3, -0.02))
+    bone = rod("arm", [tuple(arm(u / 8)) for u in range(9)], [0.09, 0.085, 0.08, 0.075, 0.07, 0.06, 0.05, 0.04,
+                                                              0.03], segs=8)
+    return prim + sec, cov, bone
+
+
+@style("angel")
+def p_angel():
+    out, trims = [], []
+    for sx, nm in ((-1, "WingL"), (1, "WingR")):
+        long_, cov, bone = angel_wing(sx)
+        out.append(T(joined(nm, long_, 50), "white", mat="Fabric"))
+        out.append(T(joined(nm + "Cov", cov, 50), "white", mat="Fabric"))
+        trims.append(bone)
+    out.append(T(joined("Arms", trims + [rbox("Mount", 0.46, 0.12, 0.46, at=(0, BY - 0.06, 3.65), bev=0.08)]),
+                 "gold", mat="Metal"))
+    return out
+
+
+@style("devil")
+def p_devil():
+    out, bones, claws = [], [], []
+    for sx, nm in ((-1, "WingL"), (1, "WingR")):
+        skin, spars = membrane_wing(nm, sx, span=2.7)
+        # the skin's top edge rises into a point at the elbow, like a devil's
+        for v in skin.data.vertices:
+            if abs(v.co.x) > 0.6:
+                v.co.z += 0.18 * math.exp(-((abs(v.co.x) - 1.2) / 0.5) ** 2)
+        out.append(T(skin, "p", mat="Leather"))
+        bones += spars
+        elbow = Vector((sx * 2.7 * 0.45, BY - 0.35, 4.75))
+        c = kit.cyl("claw", 0.08, 0.0, 0.34, at=tuple(elbow + Vector((0, 0, 0.17))), segs=8)
+        wear.turn(c, (0, -sx * 0.5, 0), tuple(elbow))
+        claws.append(c)
+        for t in (Vector((sx * 2.7, BY - 0.45, 4.2)), Vector((sx * 2.7 * 1.05, BY - 0.45, 3.4))):
+            k = kit.cyl("tip", 0.05, 0.0, 0.22, at=tuple(t + Vector((sx * 0.1, 0, -0.05))), segs=6, axis="X")
+            claws.append(k)
+    out.append(T(joined("Bones", bones, 50), "dark"))
+    out.append(T(joined("Claws", claws, 30), "white"))
+    return out
 
 # ---------------------------------------------------------------- build, export, preview
 HEADER = ["backs.py",

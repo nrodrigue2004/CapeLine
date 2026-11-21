@@ -2,13 +2,16 @@
 -- the hero, owned items marked"; Revenue levers; Pay-to-win check). Opens with SHOP (P) at HQ, a safehouse
 -- or from the menu, never within 10 s of a fight (the server checks again).
 -- * PACKS: costume packs, previewed on your hero. EFFECTS: colour tints over your power effects. EMOTES:
---   emotes and landing poses. PASSES: Quick Swap and 2x Credits and Renown. SLOTS: hero slots 3 and 4.
+--   emotes and landing poses. PASSES: Quick Swap and 2x Credits and Renown. SLOTS: hero slots 4 to 10 (99 R$ each,
+--   bought in order; nate's playtest 4, 2026-11-20). No weapons are sold here (they are earned at the Weapon Rack).
+-- * Every Robux card has the premium finish (nate: "Robux items should look higher quality than everything
+--   else"): a gold foil face, a shine that sweeps across it, a PREMIUM ribbon and a thicker gold edge.
 -- * Owned items say OWNED, and owned tints and landing poses can be equipped here.
 -- * The starter pack offer shows once after your first world boss, with a big NO THANKS.
 -- Nothing here changes a stat; only the 2x pass touches a number (earned Credits and Renown).
--- PLACEHOLDER look until the UI pass (M10).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -39,6 +42,7 @@ local REASONS = {
 	combat = "The shop opens 10 s after a fight",
 	owned = "You already own that",
 	slot3 = "Buy slot 3 first",
+	order = "Buy the hero slot before this one first",
 	soon = "Coming soon",
 	item = "That is not for sale",
 	save = "Saving is down on this server. Rejoin to shop",
@@ -151,6 +155,73 @@ end
 
 local refresh: () -> ()
 
+-- The premium finish on a Robux card: a warm foil gradient over the paper (the item's colour at the edge), a
+-- PREMIUM ribbon in the corner and a slow shine sweep. Owned cards keep the foil but lose the ribbon and shine.
+local shines: { Tween } = {}
+local function premium(f: Frame, color: Color3, owned: boolean)
+	local g = Instance.new("UIGradient")
+	local gold = Kit.color.gold
+	g.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Kit.color.paper),
+		ColorSequenceKeypoint.new(0.55, Kit.color.paper:Lerp(gold, 0.35)),
+		ColorSequenceKeypoint.new(1, gold:Lerp(color, 0.35)),
+	})
+	g.Rotation = 60
+	g.Parent = f
+	if owned then
+		return
+	end
+	local ribbon = Kit.label({
+		Text = "PREMIUM",
+		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.fromOffset(62, 16),
+		Position = UDim2.new(1, -4, 0, 6),
+		BackgroundTransparency = 0,
+		BackgroundColor3 = gold,
+		TextColor3 = Kit.color.ink,
+		ZIndex = 3,
+		maxText = 13,
+		ink = false,
+	})
+	Kit.round(ribbon)
+	Kit.stroke(ribbon, Kit.color.ink, 2)
+	ribbon.Parent = f
+	-- the shine sweeps inside a clipped layer the card's size (the card itself does not clip, so its words
+	-- stay inside the list's own clipping)
+	local clip = Instance.new("Frame")
+	clip.Name = "ShineClip"
+	clip.BackgroundTransparency = 1
+	clip.Size = UDim2.fromScale(1, 1)
+	clip.ClipsDescendants = true
+	clip.ZIndex = 2
+	clip.Parent = f
+	local shine = Instance.new("Frame")
+	shine.Name = "Shine"
+	shine.BorderSizePixel = 0
+	shine.BackgroundColor3 = Color3.new(1, 1, 1)
+	shine.BackgroundTransparency = 0.55
+	shine.Size = UDim2.new(0, 26, 2, 0)
+	shine.AnchorPoint = Vector2.new(0.5, 0.5)
+	shine.Position = UDim2.new(-0.3, 0, 0.5, 0)
+	shine.Rotation = 20
+	shine.ZIndex = 2
+	local sg = Instance.new("UIGradient")
+	sg.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	sg.Parent = shine
+	shine.Parent = clip
+	local tw = TweenService:Create(
+		shine,
+		TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false, 2.4),
+		{ Position = UDim2.new(1.3, 0, 0.5, 0) }
+	)
+	tw:Play()
+	table.insert(shines, tw)
+end
+
 local function card(order: number, key: string)
 	local row, kind = ShopRules.item(Config, key)
 	if not row then
@@ -164,10 +235,11 @@ local function card(order: number, key: string)
 		LayoutOrder = order,
 		BackgroundColor3 = Kit.color.paper,
 	})
-	Kit.stroke(f, color, 3)
+	Kit.stroke(f, if owned then color else Kit.color.gold, if owned then 3 else 4)
+	premium(f, color, owned)
 	local n = Kit.label({
 		Text = name,
-		Size = UDim2.new(1, -12, 0, 26),
+		Size = UDim2.new(1, if owned then -12 else -78, 0, 26), -- (room for the PREMIUM tag)
 		Position = UDim2.fromOffset(6, 4),
 		maxText = 22,
 	})
@@ -248,6 +320,10 @@ local function card(order: number, key: string)
 end
 
 refresh = function()
+	for _, tw in shines do
+		tw:Cancel()
+	end
+	table.clear(shines)
 	for _, c in grid:GetChildren() do
 		if c:IsA("GuiObject") then
 			c:Destroy()

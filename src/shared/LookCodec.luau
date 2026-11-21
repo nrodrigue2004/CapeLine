@@ -7,7 +7,7 @@
 --   byte 2       gender (1 Male, 2 Female)
 --   byte 3       build (1 Small, 2 Medium, 3 Large, 4 Titan)
 --   byte 4       height step (1 to 5, 3 = standard)
---   byte 5       skin (Config.Creator.skins, 1 to 30)
+--   byte 5       skin (Config.Creator.skins, 1 to 44)
 --   byte 6       hair colour, byte 7 eye colour (palette; eye colour 0 = the eyes piece's own)
 --   bytes 8-10   the whole-hero primary, secondary and accent colour (palette 1 to 48)
 --   bytes 11-13  the classic clothes and face (LookCodec.EXTRA: Shirt, Pants, Face decal), bytes 14-19 reserved

@@ -786,7 +786,7 @@ local function repair(p: any): any
 	p.currency.dust = num(p.currency.dust, 0, 2 ^ 40, 0)
 	p.pity.epic = num(p.pity.epic, 0, 1000, 0)
 	p.pity.legendary = num(p.pity.legendary, 0, 1000, 0)
-	p.purchases.slots = num(p.purchases.slots, 0, 31, 0)
+	p.purchases.slots = num(p.purchases.slots, 0, 2047, 0) -- bits 4 to 10: bought hero slots
 	p.purchases.tints = num(p.purchases.tints, 0, 2 ^ 31, 0)
 	for i = 1, ProfileSchema.BOSSES do -- an older save gets 0 for a boss added since (the Leviathan Engine)
 		p.bosses[i] = num(p.bosses[i], 0, 3, 0)

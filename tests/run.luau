@@ -5104,7 +5104,7 @@ test(
 			packTotal == 34 and #CreatorRules.packPieces(Config, 6) == 8,
 			"34 pieces in 5 packs; the anime pack has 8"
 		)
-		check(#C.palette == 48 and #C.skins == 30, "48 colours and 30 skins (24 natural, 6 fantasy)")
+		check(#C.palette == 48 and #C.skins == 44, "48 colours and 44 skins (24 natural, 20 fantasy)")
 		-- 2026-11-18 (nate: more naming options): 40 titles and 56 nouns, at most 64 each (the save's range)
 		check(#C.titles == 40 and #C.nouns == 56, "40 titles and 56 nouns")
 		for _, name in C.blockedNames do
@@ -7168,41 +7168,45 @@ test("Art: robot mesh fits are sane and match the renderer's pieces", function()
 	check(#h == 2 and h[1] > 0 and h[1] < 0.8 and math.abs(h[2]) < 0.2, "the hair sits on top of the head")
 end)
 
-test("Creator plan: 36 weapons in 7 families, Exotic ones sold for Robux, the rest on the Rack", function()
-	local WeaponRules = require("../src/shared/WeaponRules")
-	local W = Config.Weapons
-	local list = WeaponRules.list(Config)
-	check(#list == 36, "36 weapons")
-	local perFamily, names = {}, {}
-	for id, w in list do
-		check(w.id == id, "ids match their place")
-		check(not names[w.name], "unique name " .. w.name)
-		names[w.name] = true
-		perFamily[w.family] = (perFamily[w.family] or 0) + 1
-		check(w.complexity >= 1 and w.complexity <= #W.complexity, w.name .. " complexity")
-		check(W.styles[w.family] ~= nil and #W.styles[w.family] == 4, w.name .. " has 4 styles")
-		if w.family == "exotic" then
-			local row = w.robux and Config.Shop.products[w.robux]
-			check(row ~= nil and row.kind == "weapon" and row.weapon == id, w.name .. " is a Robux product")
-			check(w.price == nil, w.name .. " is not on the Rack")
-		else
+test(
+	"Creator plan: 36 weapons in 7 families, all on the Rack (Exotics too, no weapon sold for Robux)",
+	function()
+		local WeaponRules = require("../src/shared/WeaponRules")
+		local W = Config.Weapons
+		local list = WeaponRules.list(Config)
+		check(#list == 36, "36 weapons")
+		local perFamily, names = {}, {}
+		for id, w in list do
+			check(w.id == id, "ids match their place")
+			check(not names[w.name], "unique name " .. w.name)
+			names[w.name] = true
+			perFamily[w.family] = (perFamily[w.family] or 0) + 1
+			check(w.complexity >= 1 and w.complexity <= #W.complexity, w.name .. " complexity")
+			check(W.styles[w.family] ~= nil and #W.styles[w.family] == 4, w.name .. " has 4 styles")
+			-- nate's playtest 4 (2026-11-20): "no weapons in the Robux shop"; Exotics are the Rack's top prizes
 			check(w.price ~= nil and w.price >= 0 and w.robux == nil, w.name .. " is on the Rack")
+			if w.family == "exotic" then
+				check(w.price >= 3000, w.name .. " is a long Credits goal")
+			end
 		end
+		for key, row in Config.Shop.products do
+			check(row.kind ~= "weapon", key .. ": no weapon is sold for Robux")
+		end
+		local want = { fists = 4, one = 6, two = 6, dual = 5, shield = 3, ranged = 7, exotic = 5 }
+		for _, f in W.families do
+			check(perFamily[f.id] == want[f.id], f.name .. " count")
+		end
+		check(#W.playable == 36, "all 36 weapons are playable")
+		local seen = {}
+		for _, id in W.playable do
+			seen[list[id].family] = true
+		end
+		for _, f in W.families do
+			check(seen[f.id], f.name .. " has a playable weapon")
+		end
+		check(list[W.defaultWeapon].price == 0, "the default weapon is always owned")
 	end
-	local want = { fists = 4, one = 6, two = 6, dual = 5, shield = 3, ranged = 7, exotic = 5 }
-	for _, f in W.families do
-		check(perFamily[f.id] == want[f.id], f.name .. " count")
-	end
-	check(#W.playable == 36, "all 36 weapons are playable")
-	local seen = {}
-	for _, id in W.playable do
-		seen[list[id].family] = true
-	end
-	for _, f in W.families do
-		check(seen[f.id], f.name .. " has a playable weapon")
-	end
-	check(list[W.defaultWeapon].price == 0, "the default weapon is always owned")
-end)
+)
 
 test("Creator plan: weapon ownership, free pick, the Rack, mastery skills and the weapon look", function()
 	local WeaponRules = require("../src/shared/WeaponRules")
@@ -7212,24 +7216,17 @@ test("Creator plan: weapon ownership, free pick, the Rack, mastery skills and th
 	check(WeaponRules.owned(Config, p, 1), "Bare Fists are always owned")
 	check(not WeaponRules.owned(Config, p, 5), "the Sword is not owned yet")
 	check(WeaponRules.freePickOk(Config, 5), "the creator may give the Sword free")
-	check(not WeaponRules.freePickOk(Config, 36), "never a Robux weapon free")
+	check(not WeaponRules.freePickOk(Config, 36), "never an Exotic weapon free")
 	check(WeaponRules.freePickOk(Config, 6), "the Katana is a free pick now that every weapon is playable")
 	local ok, why = WeaponRules.buyOk(Config, p, 5, 100)
 	check(not ok and why == "credits", "too few Credits")
 	ok = WeaponRules.buyOk(Config, p, 5, 5000)
 	check(ok, "the Rack sells the Sword")
-	check(
-		select(2, WeaponRules.buyOk(Config, p, 32, 99999)) == "robux",
-		"the Rack never sells Exotic weapons"
-	)
+	local exoOk, _, exoPrice = WeaponRules.buyOk(Config, p, 32, 99999)
+	check(exoOk and exoPrice >= 3000, "the Rack sells Exotic weapons for Credits")
 	check(WeaponRules.grant(p, 5) and not WeaponRules.grant(p, 5), "grant once")
 	check(select(2, WeaponRules.buyOk(Config, p, 5, 99999)) == "owned", "owned weapons are not sold twice")
-	-- the Robux shop gives an Exotic weapon once per receipt
-	check(not ShopRules.owned(Config, p, "weaponBoomerang"), "Boomerang not owned")
-	local granted, got = ShopRules.grant(Config, p, "weaponBoomerang", "r1")
-	check(granted and got and got.weapon == 36, "the Boomerang is granted")
-	check(ShopRules.owned(Config, p, "weaponBoomerang") and WeaponRules.owned(Config, p, 36), "owned now")
-	check(not (ShopRules.grant(Config, p, "weaponBoomerang", "r1")), "a receipt grants once")
+	check(ShopRules.item(Config, "weaponBoomerang") == nil, "the Robux shop sells no Boomerang")
 	-- mastery: Z at once, X at 25, C at 75, V at 150, max 300
 	local M = Config.Weapons.mastery
 	check(WeaponRules.skillOpen(Config, 0, "Z") and not WeaponRules.skillOpen(Config, 0, "X"), "Z at once")
@@ -7387,9 +7384,10 @@ test(
 		-- (lore step 2)
 		-- and Hero Pass season 1's Opening Night set (H8: suit, cape, mask, boots)
 		-- + 5 origin crests and 49 catalog hairs + 44 catalog faces (2026-11-18) + 8 catalog beards (gap-villains)
+		-- + angel and devil wings and 6 anime tops (nate's playtest 4, 2026-11-21)
 		check(
-			count == 121 + 92 + 24 + 47 + 73 + 36 + 5 + 4 + 5 + 49 + 44 + 8,
-			"508 pieces beyond the first 146 (654 in all)"
+			count == 121 + 92 + 24 + 47 + 73 + 36 + 5 + 4 + 5 + 49 + 44 + 8 + 2 + 6,
+			"516 pieces beyond the first 146 (662 in all)"
 		)
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do

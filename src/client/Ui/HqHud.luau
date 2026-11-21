@@ -107,7 +107,8 @@ end
 local function drawHeroes()
 	local roster = State.profile.roster or {}
 	local max = CreatorRules.maxSlots({ purchases = { slots = State.profile.slots or 0 } })
-	for slot = 1, 4 do
+	-- every hero, the open empty slots, then the next slot to buy (slots 4 to 10, 99 Robux each)
+	for slot = 1, math.min(math.max(max + 1, #roster), CreatorRules.MAX_SLOTS) do
 		local c = roster[slot]
 		if c then
 			local active = slot == (State.profile.active or 1)

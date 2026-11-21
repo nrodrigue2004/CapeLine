@@ -276,7 +276,7 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = 0.2,
 		burst = 3,
 	},
-	HeroSelect = { dir = "C2S", schema = { n(1, 4) }, rate = 0.2, burst = 2 }, -- a character slot (new = create)
+	HeroSelect = { dir = "C2S", schema = { n(1, 10) }, rate = 0.2, burst = 2 }, -- a character slot (new = create)
 	CreatorOpen = { dir = "S2C" }, -- { mode = "create" | "edit" | "first", side, classIdx, hq, origin }: open it
 	CreatorResult = { dir = "S2C" }, -- { ok, reason }
 	LookSave = { dir = "C2S", schema = { n(1, 4) }, rate = 1, burst = 2 }, -- save the look on mannequin n (HQ)

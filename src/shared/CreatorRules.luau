@@ -445,7 +445,8 @@ function CreatorRules.randomize(Config: any, profile: any, rng: any): (Look, num
 	local n = #C.palette
 	look.colors = { rng:int(1, n), rng:int(1, n), rng:int(1, n) }
 	look.hair = rng:int(1, n)
-	look.skin = rng:int(1, #C.skins)
+	-- mostly a natural tone; now and then a fantasy skin
+	look.skin = if rng:chance(0.85) then rng:int(1, C.naturalSkins or #C.skins) else rng:int(1, #C.skins)
 	look.anime = rng:chance(0.5)
 	look.gender = rng:int(1, #C.body.genders)
 	look.build = rng:int(1, #C.body.builds)
@@ -550,11 +551,13 @@ function CreatorRules.visibleStyles(
 	return out
 end
 
--- Character slots: 3 free (nate, 2026-11-19: "3 hero save slots"); slot 4 is bought (profile.purchases.slots,
--- a bit per slot)
+-- Character slots: 3 free (nate, 2026-11-19: "3 hero save slots"); slots 4 to 10 are bought, 99 Robux each
+-- (nate, 2026-11-20; profile.purchases.slots, a bit per slot; Config.Shop.heroSlots)
+CreatorRules.FREE_SLOTS = 3
+CreatorRules.MAX_SLOTS = 10
 function CreatorRules.maxSlots(profile: any): number
-	local n = 3
-	for slot = 4, 4 do
+	local n = CreatorRules.FREE_SLOTS
+	for slot = CreatorRules.FREE_SLOTS + 1, CreatorRules.MAX_SLOTS do
 		if bit32.btest(profile.purchases.slots or 0, bit32.lshift(1, slot)) then
 			n += 1
 		end

@@ -80,7 +80,8 @@ return function(T: any)
 
 	test("Creator art: the flat masks' head decals", function()
 		local A = C.maskArt
-		check(A ~= nil and A.on == true, "maskArt is on")
+		-- off since 2026-11-21: the flat decals hid the catalog face's eyes; the Blender masks (HeadArt) fit them
+		check(A ~= nil and A.on == false, "maskArt is off")
 		local heads = kitsOf("head")
 		local SIDES = { front = "Front", side = "Side", back = "Back", top = "Top" }
 		local n = 0
@@ -175,7 +176,7 @@ return function(T: any)
 	}
 	local MATS = { Metal = true, Glass = true, Fabric = true, Leather = true, Rubber = true, Wood = true }
 	local SETS = {
-		{ art = "HeadArt", fbx = "Heads", tab = "head", prefix = "Head_", budget = 2400, n = 19 },
+		{ art = "HeadArt", fbx = "Heads", tab = "head", prefix = "Head_", budget = 2400, n = 27 },
 		{ art = "GloveArt", fbx = "Gloves", tab = "hands", prefix = "Glove_", budget = 1600, n = 19 },
 		{ art = "BootArt", fbx = "Boots", tab = "feet", prefix = "Boot_", budget = 1800, n = 21 },
 		{ art = "CoatArt", fbx = "Coats", tab = "back", prefix = "Coat_", budget = 2600, n = 8 },
@@ -190,7 +191,7 @@ return function(T: any)
 			budget = 3000,
 			n = 20,
 		},
-		{ art = "BackArt", fbx = "Backs", tab = "backpack", prefix = "Back_", budget = 3000, n = 22 },
+		{ art = "BackArt", fbx = "Backs", tab = "backpack", prefix = "Back_", budget = 3000, n = 24 },
 		{ art = "HatArt", fbx = "Hats", tab = "hat", prefix = "Hat_", budget = 2400, n = 25 },
 		-- our own hair (nate, 2026-11-17: heroes keep nothing from their avatar), art/blender/hair.py
 		{ art = "HairArt", fbx = "Hair", tab = "hair", prefix = "Hair_", budget = 2400, n = 40 },
@@ -251,10 +252,12 @@ return function(T: any)
 					for k = 1, 3 do
 						-- (the shoulder coat drapes over both arms: 4.4 studs wide on the 4-stud-wide rig; back
 						-- bling reaches further: the bat wings span 4.6 studs and the banner's finial tops its pole)
+						-- (the angel and devil wings, 2026-11-21, are meant to read from across a street: 6.4 studs)
 						local roomy = set.tab == "backpack"
+						local huge = roomy and (kit == "angel" or kit == "devil")
 						check(
-							math.abs(p.offset[k]) < (if roomy then 2.0 else 1.6)
-								and p.size[k] < (if roomy then 5.0 else 4.6),
+							math.abs(p.offset[k]) < (if huge then 2.4 elseif roomy then 2.0 else 1.6)
+								and p.size[k] < (if huge then 6.4 elseif roomy then 5.0 else 4.6),
 							p.mesh .. ": fits its body part"
 						)
 					end

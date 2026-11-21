@@ -1161,6 +1161,93 @@ local function emblemGui(gui: SurfaceGui, kit: string, colors: Colors)
 	label.Parent = gui
 end
 
+-- The drawn emblem as Decals (2026-11-21, nate: "can't see the symbol"): a SurfaceGui never draws inside a
+-- ViewportFrame, so the creator's and the shop's turning hero (Ui.Preview) showed no emblem at all. Decals draw there
+-- and in the world alike, even on a see-through part. Returns false when the kit has no uploaded art (the glyph
+-- then stays on a SurfaceGui, in the world only).
+local function emblemDecals(plate: BasePart, kit: string, colors: Colors, faces: { Enum.NormalId }): boolean
+	local bits = string.split(kit, ":")
+	local backing = bits[2] or "none"
+	local EA = C.emblemArt
+	local markId = if EA and EA.on == true then EA.shapes[bits[1]] or 0 else 0
+	local backArt = if EA and backing ~= "none" then EA.backings[backing] else nil
+	if markId == 0 or (backing ~= "none" and not (backArt and backArt.face ~= 0 and backArt.rim ~= 0)) then
+		return false
+	end
+	local function decal(on: BasePart, id: number, color: Color3, z: number, face: Enum.NormalId)
+		local d = Instance.new("Decal")
+		d.Name = "EmblemArt"
+		d.Texture = "rbxassetid://" .. id
+		d.Color3 = color
+		d.Face = face
+		d.ZIndex = z
+		d.Parent = on
+	end
+	for _, face in faces do
+		if backArt and backing ~= "none" then
+			decal(plate, backArt.face, colors.s, 1, face)
+			decal(plate, backArt.rim, colors.a, 2, face)
+			-- the mark is smaller than its backing: its own plate, just in front, 0.6 of the size
+			local mark = plate:Clone()
+			for _, d in mark:GetChildren() do
+				d:Destroy()
+			end
+			mark.Name = plate.Name .. "Mark"
+			mark.Size = Vector3.new(plate.Size.X * 0.6, plate.Size.Y * 0.6, plate.Size.Z)
+			local out = if face == Enum.NormalId.Back then 1 else -1
+			mark.CFrame = plate.CFrame
+				* CFrame.new(0, if backing == "crest" then -plate.Size.Y * 0.03 else 0, out * 0.012)
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = plate
+			weld.Part1 = mark
+			weld.Parent = mark
+			decal(mark, markId, colors.a, 3, face)
+			mark.Parent = plate
+		else
+			decal(plate, markId, colors.a, 1, face)
+		end
+	end
+	return true
+end
+
+-- How far in front of the torso's front the chest pieces already reach (suits' plates, coats, belts' straps, worn
+-- in the front half), so the emblem sits on top of them instead of inside (studs past the torso's front)
+local function chestFront(torso: BasePart, offset: CFrame, folder: Instance, at: Vector3): number
+	local frame = torso.CFrame * offset
+	local front = torso.Size.Z / 2
+	local reach = 0
+	for _, p in folder:GetDescendants() do
+		if p:IsA("BasePart") and p.Transparency < 0.9 and p.Name ~= "Emblem" then
+			if p:FindFirstAncestor("Weapon") then
+				continue
+			end
+			local c = frame:PointToObjectSpace(p.CFrame.Position)
+			if c.Z >= 0 then
+				continue -- behind the chest's middle: a cape, back bling
+			end
+			local cf = frame:ToObjectSpace(p.CFrame)
+			local half = p.Size / 2
+			-- the part's box in the torso's frame (axis-aligned bound of its turned box)
+			local ext = Vector3.new(
+				math.abs(cf.XVector.X) * half.X
+					+ math.abs(cf.YVector.X) * half.Y
+					+ math.abs(cf.ZVector.X) * half.Z,
+				math.abs(cf.XVector.Y) * half.X
+					+ math.abs(cf.YVector.Y) * half.Y
+					+ math.abs(cf.ZVector.Y) * half.Z,
+				math.abs(cf.XVector.Z) * half.X
+					+ math.abs(cf.YVector.Z) * half.Y
+					+ math.abs(cf.ZVector.Z) * half.Z
+			)
+			if math.abs(c.X - at.X) < ext.X and math.abs(c.Y - at.Y) < ext.Y then
+				reach = math.max(reach, -(c.Z - ext.Z) - front)
+			end
+		end
+	end
+	return math.min(reach, 0.6)
+end
+LookKit.chestFront = chestFront
+
 local function emblem(char: Model, folder: Instance, kit: string, colors: Colors)
 	local torso, offset = bodyPart(char, "torso")
 	if not torso then
@@ -1174,17 +1261,22 @@ local function emblem(char: Model, folder: Instance, kit: string, colors: Colors
 	plate.CanCollide = false
 	plate.CanTouch = false
 	plate.CanQuery = false
-	plate.CFrame = torso.CFrame * offset * CFrame.new(0, 0.25, -torso.Size.Z / 2 - 0.06)
+	plate.CastShadow = false
+	local at = Vector3.new(0, 0.25, 0)
+	local lift = chestFront(torso, offset, folder, at)
+	plate.CFrame = torso.CFrame * offset * CFrame.new(0, 0.25, -torso.Size.Z / 2 - 0.06 - lift)
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = torso
 	weld.Part1 = plate
 	weld.Parent = plate
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.CanvasSize = Vector2.new(100, 100)
-	gui.LightInfluence = 0.6
-	gui.Parent = plate
-	emblemGui(gui, kit, colors)
+	if not emblemDecals(plate, kit, colors, { Enum.NormalId.Front }) then
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.CanvasSize = Vector2.new(100, 100)
+		gui.LightInfluence = 0.6
+		gui.Parent = plate
+		emblemGui(gui, kit, colors)
+	end
 	plate.Parent = folder
 end
 
@@ -1210,13 +1302,15 @@ local function weaponEmblem(wf: Instance, kit: string, colors: Colors)
 	weld.Part0 = piece
 	weld.Part1 = plate
 	weld.Parent = plate
-	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face
-		gui.CanvasSize = Vector2.new(100, 100)
-		gui.LightInfluence = 0.6
-		gui.Parent = plate
-		emblemGui(gui, kit, colors)
+	if not emblemDecals(plate, kit, colors, { Enum.NormalId.Front, Enum.NormalId.Back }) then
+		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+			local gui = Instance.new("SurfaceGui")
+			gui.Face = face
+			gui.CanvasSize = Vector2.new(100, 100)
+			gui.LightInfluence = 0.6
+			gui.Parent = plate
+			emblemGui(gui, kit, colors)
+		end
 	end
 	plate:SetAttribute("Alpha", 1)
 	plate.Parent = wf
@@ -2156,6 +2250,15 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	else
 		local head = char:FindFirstChild("Head")
 		local decal = head and head:FindFirstChild("face")
+		if head and head:IsA("BasePart") and not (decal and decal:IsA("Decal")) then
+			-- 2026-11-21 (nate: "changing faces doesn't work"): a head with no face decal (a body loaded without
+			-- Roblox's default face, a copy that lost it) gets one, or the Face pick has nothing to draw on
+			local d = Instance.new("Decal")
+			d.Name = "face"
+			d.Face = Enum.NormalId.Front
+			d.Parent = head
+			decal = d
+		end
 		if decal and decal:IsA("Decal") then
 			-- a Roblox catalog face (Config.CatalogLooks), else an older save's shared face, else Roblox's own
 			local visage = kitOf("visage")
@@ -2219,6 +2322,12 @@ function LookKit.showWeapon(char: Model, on: boolean)
 					g.Enabled = on -- the weapon's emblem goes with it
 				end
 			end
+		end
+	end
+	-- the emblem's decals show on a see-through plate, so they hide by themselves
+	for _, d in wf:GetDescendants() do
+		if d:IsA("Decal") and d.Name == "EmblemArt" then
+			d.Transparency = if on then 0 else 1
 		end
 	end
 end

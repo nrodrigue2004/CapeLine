@@ -8,6 +8,7 @@
 return {
 	-- Where the Robux shop may open (spec: "Only in HQ, safehouses and the menu, never mid-fight")
 	openIn = { "hq", "safehouse", "menu" },
+	heroSlots = { free = 3, max = 10 }, -- hero save slots: 3 free, then slot4..slot10 above
 	combatLock = 10, -- seconds after dealing or taking damage when the menu's shop stays shut
 
 	-- Developer products: each grants once per receipt (receipts are kept on the profile, last 50)
@@ -20,7 +21,14 @@ return {
 		pack6 = { id = 0, robux = 249, kind = "pack", pack = 6 },
 		pack7 = { id = 0, robux = 299, kind = "pack", pack = 7 }, -- the 2026-11-16 creator plan's new slots
 		starter = { id = 0, robux = 79, kind = "starter" }, -- A/B: 49, 79, 99
-		slot4 = { id = 0, robux = 249, kind = "slot", slot = 4 },
+		-- extra hero slots (nate, 2026-11-20: "99 Robux each, up to 10"): 3 free, slots 4 to 10 bought in order
+		slot4 = { id = 0, robux = 99, kind = "slot", slot = 4 },
+		slot5 = { id = 0, robux = 99, kind = "slot", slot = 5 },
+		slot6 = { id = 0, robux = 99, kind = "slot", slot = 6 },
+		slot7 = { id = 0, robux = 99, kind = "slot", slot = 7 },
+		slot8 = { id = 0, robux = 99, kind = "slot", slot = 8 },
+		slot9 = { id = 0, robux = 99, kind = "slot", slot = 9 },
+		slot10 = { id = 0, robux = 99, kind = "slot", slot = 10 },
 		tint1 = { id = 0, robux = 49, kind = "tint", tint = 1 },
 		tint2 = { id = 0, robux = 49, kind = "tint", tint = 2 },
 		tint3 = { id = 0, robux = 79, kind = "tint", tint = 3 },
@@ -43,12 +51,8 @@ return {
 		pose22 = { id = 0, robux = 49, kind = "emote", emote = 22 },
 		pose23 = { id = 0, robux = 75, kind = "emote", emote = 23 },
 		pose24 = { id = 0, robux = 99, kind = "emote", emote = 24 },
-		-- the 5 Exotic weapons (nate 2026-11-16: "exotic should be robux"): equal-strength sidegrades, owned for life
-		weaponWhip = { id = 0, robux = 199, kind = "weapon", weapon = 32 },
-		weaponFan = { id = 0, robux = 249, kind = "weapon", weapon = 33 },
-		weaponYoyo = { id = 0, robux = 249, kind = "weapon", weapon = 34 },
-		weaponDart = { id = 0, robux = 249, kind = "weapon", weapon = 35 },
-		weaponBoomerang = { id = 0, robux = 149, kind = "weapon", weapon = 36 },
+		-- no weapons are sold (nate, 2026-11-20: "No weapons in the Robux shop"): the 5 Exotic weapons are earned at
+		-- the Weapon Rack (Config.Weapons)
 		-- H8: the Hero Pass's paid track for the current season (one product, every season; nate's call 4:
 		-- 499 Robux, no tier skips). Cosmetics only; every reward is shown before buying (Config.Pass).
 		heroPass = { id = 0, robux = 499, kind = "heroPass" },
@@ -75,11 +79,6 @@ return {
 			id = "packs",
 			name = "Packs",
 			items = { "pack7", "pack1", "pack2", "pack3", "pack4", "pack5", "pack6" },
-		},
-		{
-			id = "weapons",
-			name = "Weapons",
-			items = { "weaponBoomerang", "weaponWhip", "weaponFan", "weaponYoyo", "weaponDart" },
 		},
 		{
 			id = "effects",
@@ -128,7 +127,11 @@ return {
 		},
 		-- H8: the Hero Pass leads the Passes tab (a seventh tab is too small to read on a phone)
 		{ id = "passes", name = "Passes", items = { "heroPass", "quickSwap", "double" } },
-		{ id = "slots", name = "Slots", items = { "slot4" } },
+		{
+			id = "slots",
+			name = "Slots",
+			items = { "slot4", "slot5", "slot6", "slot7", "slot8", "slot9", "slot10" },
+		},
 	},
 
 	-- Costume packs: the Robux pieces in Config.Creator ("pack:N"); 34 spec pieces in packs 1 to 5, the 8
